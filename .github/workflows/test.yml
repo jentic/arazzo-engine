@@ -1,0 +1,40 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install PDM
+      run: |
+        pip install pdm
+    
+    - name: Install dependencies
+      run: |
+        cd runner
+        pdm install
+    
+    - name: Run tests
+      run: |
+        cd runner
+        pdm run test
+    
+    - name: Run linting
+      run: |
+        cd runner
+        pdm run lint
+      continue-on-error: true
