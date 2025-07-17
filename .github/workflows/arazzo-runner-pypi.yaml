@@ -62,7 +62,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: python-package-distributions
-        path: runner/arazzo_runner/dist/
+        path: runner/dist/
 
   publish-to-pypi:
     name: >-
