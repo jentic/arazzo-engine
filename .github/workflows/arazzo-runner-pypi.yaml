@@ -57,7 +57,7 @@ jobs:
         build
         --user
     - name: Build a binary wheel and a source tarball
-      run: python3 -m build runner/arazzo_runner
+      run: python3 -m build runner
     - name: Store the distribution packages
       uses: actions/upload-artifact@v4
       with:
