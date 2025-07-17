@@ -6,8 +6,8 @@ on:
   push:
 #    branches:
 #      - main
-    paths:
-      - "runner/arazzo_runner/**"
+#    paths:
+#      - "runner/arazzo_runner/**"
 
 jobs:
   check-version:
