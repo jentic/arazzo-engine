@@ -4,8 +4,8 @@ name: Publish Python distribution of the arazzo-runner to PyPI and TestPyPI
 
 on: 
   push:
-    branches:
-      - main
+#    branches:
+#      - main
     paths:
       - "runner/arazzo_runner/**"
 
