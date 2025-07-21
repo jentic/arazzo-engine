@@ -10,7 +10,9 @@ from typing import Optional
 from arazzo_runner.auth.models import SecurityOption, RequestAuthValue, AuthLocation
 from arazzo_runner.auth.credentials.provider import CredentialProvider
 from arazzo_runner.auth.credentials.fetch import FetchOptions
+from arazzo_runner.auth.credentials.models import Credential
 import requests
+from arazzo_runner.blob_utils import analyze_response_for_blob
 
 # Configure logging
 logger = logging.getLogger("arazzo-runner.http")
@@ -25,6 +27,7 @@ class HTTPExecutor:
 
         Args:
             http_client: Optional HTTP client (defaults to requests.Session)
+            auth_provider: Optional authentication provider
         """
         self.http_client = http_client or requests.Session()
         self.auth_provider: Optional[CredentialProvider] = auth_provider
@@ -52,6 +55,62 @@ class HTTPExecutor:
             return 'form'
         else:
             return 'raw'
+
+    def _is_binary_content(self, content_type: str) -> bool:
+        """
+        Check if content type represents binary data.
+        
+        Args:
+            content_type: The Content-Type header value
+            
+        Returns:
+            True if content is binary, False otherwise
+        """
+        if not content_type:
+            return False
+            
+        content_type_lower = content_type.lower()
+        binary_prefixes = [
+            "application/octet-stream",
+            "audio/",
+            "video/",
+            "image/",
+            "application/pdf",
+            "application/zip",
+            "application/x-tar",
+            "application/gzip"
+        ]
+        
+        return any(content_type_lower.startswith(prefix) for prefix in binary_prefixes)
+
+    def _get_response_content(self, response) -> Any:
+        """
+        Get appropriate response content based on content type.
+        Returns the actual data without any blob storage logic.
+        
+        Processing order: JSON -> Binary -> Text
+
+        Args:
+            response: The HTTP response object
+
+        Returns:
+            The response content in appropriate format (JSON, text, or bytes)
+        """
+        content_type = response.headers.get("Content-Type", "")
+        
+        # 1. Try JSON first for JSON content types
+        if "json" in content_type.lower():
+            try:
+                return response.json()
+            except Exception:
+                logger.debug("Failed to parse JSON despite JSON content-type, falling back")
+        
+        # 2. For binary content types, return raw bytes
+        if self._is_binary_content(content_type):
+            return response.content
+        
+        # 3. Default to text for everything else
+        return response.text
 
     def execute_request(
         self, method: str, url: str, parameters: dict[str, Any], request_body: dict | None, security_options: list[SecurityOption] | None = None, source_name: str | None = None
@@ -192,28 +251,18 @@ class HTTPExecutor:
             files=files,
         )
 
-        # Process the response
-        try:
-            response_json = response.json()
-        except Exception as e:
-            logger.debug(f"No JSON in response (or broken JSON): {e}")
-            response_json = None
-
-        # Decide final body representation (binary vs text)
-        if response_json is not None:
-            body_value = response_json
-        else:
-            ct = response.headers.get("Content-Type", "").lower()
-            if any(x in ct for x in ["audio/", "video/", "image/", "application/octet-stream"]):
-                body_value = response.content  # keep raw bytes
-                logger.debug(f"Preserving binary response ({len(response.content)} bytes) for content-type {ct}")
-            else:
-                body_value = response.text
+        # Get the response content in appropriate format
+        body_value = self._get_response_content(response)
+        
+        # Analyze blob storage metadata without actually storing
+        is_binary = self._is_binary_content(response.headers.get("Content-Type", ""))
+        blob_metadata = analyze_response_for_blob(response, is_binary)
 
         return {
             "status_code": response.status_code,
             "headers": dict(response.headers),
             "body": body_value,
+            "blob_metadata": blob_metadata,
         }
 
     def _apply_auth_to_request(
