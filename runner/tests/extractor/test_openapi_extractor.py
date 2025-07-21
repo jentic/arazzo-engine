@@ -39,6 +39,7 @@ TEST_SPEC = {
                         "name": "X-Request-ID",
                         "in": "header",
                         "required": False,
+                        "description": "Request identifier for tracing",
                         "schema": {"type": "string", "format": "uuid"}
                     }
                 ],
@@ -76,7 +77,7 @@ TEST_SPEC = {
                  "type": "object",
                  "properties": {
                      "items": {"type": "array", "items": {"$ref": "#/components/schemas/OrderItem"}},
-                     "customer_notes": {"type": "string"}
+                     "customer_notes": {"type": "string", "description": "Additional notes from the customer"}
                  }
              },
             "OrderItem": {
@@ -169,8 +170,8 @@ def test_extract_order_post_details():
 
     # Check non-body parameter (simplified schema within properties)
     assert "X-Request-ID" in input_properties
-    # Check type only, required status is in the top-level list
-    assert input_properties["X-Request-ID"] == {"type": "string"}
+    # Check type and description, required status is in the top-level list
+    assert input_properties["X-Request-ID"] == {"type": "string", "description": "Request identifier for tracing"}
     # Check that it's NOT required in the top-level list
     assert "X-Request-ID" not in extracted["inputs"].get("required", [])
 
@@ -193,7 +194,7 @@ def test_extract_order_post_details():
 
     # Check the flattened 'customer_notes' property from the body
     assert "customer_notes" in input_properties
-    assert input_properties["customer_notes"] == {"type": "string"}
+    assert input_properties["customer_notes"] == {"type": "string", "description": "Additional notes from the customer"}
 
     # Check required properties from the body are in the top-level required list
     # 'items' is NOT listed in the requestBody schema's top-level required list in TEST_SPEC
