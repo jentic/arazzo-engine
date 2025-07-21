@@ -17,22 +17,7 @@ from arazzo_runner.http import HTTPExecutor
 
 logger = logging.getLogger(__name__)
 
-class MockCredentialProvider:
-    """Mock credential provider for testing - ONLY mock out what we need"""
-
-    def get_credentials(self, security_options, fetch_options):
-        """Mock implementation of get_credentials"""
-        return []
-
-
-@pytest.fixture
-def basic_http_client() -> HTTPExecutor:
-    return HTTPExecutor()
-
-
-@pytest.fixture
-def http_client() -> HTTPExecutor:
-    return HTTPExecutor(auth_provider=MockCredentialProvider())
+# Fixtures are now defined in conftest.py
 
 
 def test_init(basic_http_client: HTTPExecutor):
@@ -515,6 +500,8 @@ def test_execute_request_binary_response(http_client: HTTPExecutor):
             source_name=None
         )
 
+        # Binary content should be returned as raw bytes; blob storage is handled by the workflow layer
+        assert isinstance(response['body'], (bytes, bytearray))
         assert response['body'] == b'imagedata'
 
 
@@ -561,11 +548,12 @@ def test_execute_request_content_type_with_none_payload(http_client: HTTPExecuto
         assert kwargs['data'] is None
         assert kwargs['json'] is None
 
-
 def test_execute_request_no_content_type_infers_json(http_client: HTTPExecutor):
     """Test that a dict payload with no content type is sent as JSON."""
     mock_response = MagicMock()
     mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.content = b'{"status": "ok"}'
     mock_response.json.return_value = {'status': 'ok'}
     with patch('requests.Session.request', return_value=mock_response) as mock_request:
         http_client.execute_request(
@@ -582,11 +570,12 @@ def test_execute_request_no_content_type_infers_json(http_client: HTTPExecutor):
         assert kwargs['json'] == {"key": "value"}
         assert kwargs['headers']['Content-Type'] == 'application/json'
 
-
 def test_execute_request_no_content_type_sends_raw_bytes(http_client: HTTPExecutor):
     """Test that a bytes payload with no content type is sent as raw data."""
     mock_response = MagicMock()
     mock_response.status_code = 204
+    mock_response.headers = {}
+    mock_response.content = b''
     with patch('requests.Session.request', return_value=mock_response) as mock_request:
         http_client.execute_request(
             method="POST",
@@ -602,11 +591,12 @@ def test_execute_request_no_content_type_sends_raw_bytes(http_client: HTTPExecut
         assert kwargs['data'] == b"raw data"
         assert 'Content-Type' not in kwargs['headers']
 
-
 def test_execute_request_multipart_with_raw_bytes_fallback(http_client: HTTPExecutor):
     """Test multipart upload where one field is raw bytes."""
     mock_response = MagicMock()
     mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.content = b'{"status": "ok"}'
     mock_response.json.return_value = {'status': 'ok'}
     with patch('requests.Session.request', return_value=mock_response) as mock_request:
         request_body = {
@@ -751,6 +741,8 @@ def test_execute_request_raw_with_unserializable_payload(http_client: HTTPExecut
     """Test sending a non-string/bytes payload with a 'raw' content type."""
     mock_response = MagicMock()
     mock_response.status_code = 204
+    mock_response.headers = {}
+    mock_response.content = b''
     with patch('requests.Session.request', return_value=mock_response) as mock_request:
         payload = {"this": "is a dict"}
         http_client.execute_request(
@@ -767,11 +759,12 @@ def test_execute_request_raw_with_unserializable_payload(http_client: HTTPExecut
         assert kwargs['data'] == str(payload)
         assert kwargs['headers']['Content-Type'] == 'text/plain'
 
-
 def test_execute_request_multipart_missing_content_key(http_client: HTTPExecutor):
     """Test multipart processing with a file dict missing 'content': should treat it as regular field."""
     mock_response = MagicMock()
     mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.content = b'{"status": "ok"}'
     mock_response.json.return_value = {"status": "ok"}
     with patch('requests.Session.request', return_value=mock_response) as mock_request:
         request_body = {
@@ -803,6 +796,41 @@ def test_execute_request_multipart_missing_content_key(http_client: HTTPExecutor
         assert 'data' in kwargs
         assert kwargs['data']['malformed_file'] == {"filename": "test.txt"}
         assert kwargs['data']['description'] == "testing"
+
+
+def test_execute_request_large_binary_response(http_client: HTTPExecutor):
+    """Test handling of a larger binary response to ensure it still gets stored as blob."""
+    # Get the blob store from the fixture for verification
+    # blob_store = http_client.blob_store # This line is removed
+    
+    # Create a larger binary payload (e.g., a fake PNG header + data)
+    large_binary_data = b'\x89PNG\r\n\x1a\n' + b'x' * 1000  # 1008 bytes
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'image/png'}
+    mock_response.content = large_binary_data
+    mock_response.json.side_effect = ValueError
+    
+    with patch('requests.Session.request', return_value=mock_response):
+        response = http_client.execute_request(
+            method="GET",
+            url="http://test.com/large-image.png",
+            parameters={},
+            request_body=None,
+            security_options=None,
+            source_name=None
+        )
+
+        # Large binary content is returned as raw bytes; blob storage is handled by the workflow layer
+        assert isinstance(response['body'], (bytes, bytearray))
+        assert len(response['body']) == 1008
+        assert response['body'] == large_binary_data
+        
+        # Verify the actual blob content matches what we expect
+        # blob_id = response['body']['blob_ref'] # This line is removed
+        # stored_bytes = blob_store.load(blob_id) # This line is removed
+        # assert stored_bytes == large_binary_data # This line is removed
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ from .output_extractor import OutputExtractor
 from .parameter_processor import ParameterProcessor
 from .success_criteria import SuccessCriteriaChecker
 from .server_processor import ServerProcessor
+from ..blob_utils import maybe_store_response_as_blob
 
 # Configure logging
 logger = logging.getLogger("arazzo-runner.executor")
@@ -30,6 +31,7 @@ class StepExecutor:
         http_client: HTTPExecutor,
         source_descriptions: dict[str, Any],
         testing_mode: bool = False,
+        blob_store=None,
     ):
         """
         Initialize the step executor
@@ -38,19 +40,20 @@ class StepExecutor:
             http_client: HTTP client for executing API requests
             source_descriptions: OpenAPI source descriptions
             testing_mode: If True, enable test-specific behaviors like fallback outputs
+            blob_store: Optional blob store for handling large responses (None = disabled)
         """
         self.http_client = http_client
         self.source_descriptions = source_descriptions
         self.testing_mode = testing_mode
+        self.blob_store = blob_store
 
         # Initialize components
         self.operation_finder = OperationFinder(source_descriptions)
-        self.parameter_processor = ParameterProcessor(source_descriptions)
+        self.parameter_processor = ParameterProcessor(source_descriptions, blob_store)
         self.output_extractor = OutputExtractor(source_descriptions)
         self.success_checker = SuccessCriteriaChecker(source_descriptions)
         self.action_handler = ActionHandler(source_descriptions)
         self.server_processor = ServerProcessor(source_descriptions)
-
 
     def execute_step(self, step: dict, state: ExecutionState) -> dict:
         """
@@ -123,6 +126,9 @@ class StepExecutor:
             security_options=security_options,
             source_name=source_name,
         )
+
+        # Handle blob storage at workflow layer
+        response = maybe_store_response_as_blob(self.blob_store, response, step.get("stepId", "unknown"))
 
         # Check success criteria
         success = self.success_checker.check_success_criteria(step, response, state)
@@ -220,6 +226,9 @@ class StepExecutor:
             security_options=security_options,
             source_name=source_name,
         )
+
+        # Handle blob storage at workflow layer
+        response = maybe_store_response_as_blob(self.blob_store, response, step.get("stepId", "unknown"))
 
         # Check success criteria
         success = self.success_checker.check_success_criteria(step, response, state)
@@ -363,6 +372,11 @@ class StepExecutor:
                 request_body=request_body_payload,
                 security_options=security_options
             )
+            
+            # Handle blob storage for direct operations (always treated as final output)
+            if self.blob_store:
+                response_data = maybe_store_response_as_blob(self.blob_store, response_data, f"direct-{log_identifier}")
+            
             logger.debug(f"Direct operation execution completed ({log_identifier}) - Status: {response_data.get('status_code')}")
             return response_data
         except Exception as e:
