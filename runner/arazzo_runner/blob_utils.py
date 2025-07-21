@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Blob Storage Utilities for OAK Runner
+Blob Storage Utilities for Arazzo Runner
 
 This module provides helper functions for handling blob storage.
 """

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Blob Storage for OAK Runner
+Blob Storage for Arazzo Runner
 
 This module provides blob storage functionality to handle binary data
 without cluttering JSON payloads and LLM context.
