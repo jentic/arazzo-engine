@@ -8,6 +8,7 @@ on:
       - main
     paths:
       - "runner/arazzo_runner/**"
+      - "runner/pyproject.toml"
 
 jobs:
   check-version:
