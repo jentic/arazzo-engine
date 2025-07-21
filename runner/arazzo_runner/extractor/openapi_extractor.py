@@ -318,10 +318,14 @@ def extract_operation_io(
             # Add to properties as { 'type': 'openapi_type_string' }
             # Required status will be tracked in the top-level 'required' list
             is_required = param.get('required', False) # Default to false if not present
-            extracted_details["inputs"]["properties"][param_name] = {
+            param_input = {
                 "type": openapi_type
-                # Removed "required": is_required from here
             }
+            # Add description if it exists
+            param_description = param.get('description')
+            if param_description:
+                param_input["description"] = param_description
+            extracted_details["inputs"]["properties"][param_name] = param_input
             if is_required:
                 # Add to top-level required list if not already present
                 if param_name not in extracted_details["inputs"]["required"]:
