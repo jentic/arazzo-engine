@@ -319,7 +319,8 @@ def extract_operation_io(
             # Required status will be tracked in the top-level 'required' list
             is_required = param.get('required', False) # Default to false if not present
             param_input = {
-                "type": openapi_type
+                "type": openapi_type,
+                "schema": param_schema or {}
             }
             # Add description if it exists
             param_description = param.get('description')
