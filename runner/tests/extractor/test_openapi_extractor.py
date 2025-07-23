@@ -170,8 +170,13 @@ def test_extract_order_post_details():
 
     # Check non-body parameter (simplified schema within properties)
     assert "X-Request-ID" in input_properties
-    # Check type and description, required status is in the top-level list
-    assert input_properties["X-Request-ID"] == {"type": "string", "description": "Request identifier for tracing"}
+    # Check type, description, and schema. Required status is in the top-level list.
+    expected_param_details = {
+        "type": "string", 
+        "description": "Request identifier for tracing",
+        "schema": {"type": "string", "format": "uuid"}
+    }
+    assert input_properties["X-Request-ID"] == expected_param_details
     # Check that it's NOT required in the top-level list
     assert "X-Request-ID" not in extracted["inputs"].get("required", [])
 
@@ -299,7 +304,7 @@ def test_extracts_implicit_url_param():
     # Path params derived from URL are always required
     assert "widget_id" in result["inputs"].get("required", [])
     # Check the type (defaults to string if not specified)
-    assert props["widget_id"] == {"type": "string"}
+    assert props["widget_id"] == {"type": "string", "schema": {"type": "string"}}
 
 def test_extracts_explicit_url_param():
     """
@@ -332,7 +337,7 @@ def test_extracts_explicit_url_param():
     # Path params are always required
     assert "gadget_id" in result["inputs"].get("required", [])
     # Check the type matches the spec
-    assert props["gadget_id"] == {"type": "integer"}
+    assert props["gadget_id"] == {"type": "integer", "schema": {"type": "integer"}}
 
 def test_extract_operation_io_depth_limits():
     """
