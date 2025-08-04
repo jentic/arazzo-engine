@@ -6,6 +6,8 @@ Welcome to the Arazzo Engine repository! This project is dedicated to building a
 
 As a community-driven specification under the Linux Foundation, Arazzo is poised to revolutionize how we orchestrate and automate API interactions. This repository provides a set of open-source tools to bring Arazzo workflows to life.
 
+> **Join our community!** Connect with contributors and users on [Discord](https://discord.gg/yrxmDZWMqB) to discuss ideas, ask questions, and collaborate on the Arazzo Engine.
+
 ## What is Arazzo?
 
 Arazzo is an official specification from the OpenAPI Initiative, joining the well-known OpenAPI Specification (OAS) and the new Overlay Specification. While OAS excels at describing individual APIs, **Arazzo defines a standard, language-agnostic way to orchestrate calls across one or more APIs into a workflow.**
