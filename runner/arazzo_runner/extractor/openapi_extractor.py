@@ -421,19 +421,23 @@ def extract_operation_io(
 
 def _limit_dict_depth(data: Union[Dict, List, Any], max_depth: int, current_depth: int = 0) -> Union[Dict, List, Any]:
     """Recursively limits the depth of a dictionary or list structure."""
-    
+
     if isinstance(data, dict):
         if current_depth >= max_depth:
-            return data.get('type', 'object') # Limit hit for dict
+            return data.get('type', 'object')  # Limit hit for dict
         else:
             # Recurse into dict
             limited_dict = {}
             for key, value in data.items():
-                limited_dict[key] = _limit_dict_depth(value, max_depth, current_depth + 1)
+                # Special case to preserve enum lists
+                if key == 'enum' and isinstance(value, list):
+                    limited_dict[key] = value
+                else:
+                    limited_dict[key] = _limit_dict_depth(value, max_depth, current_depth + 1)
             return limited_dict
     elif isinstance(data, list):
         if current_depth >= max_depth:
-            return 'array' # Limit hit for list
+            return 'array'  # Limit hit for list
         else:
             # Recurse into list
             limited_list = []
