@@ -24,11 +24,11 @@ This project, the Arazzo Engine, provides tools to harness the power of this new
 
 This repository is home to a growing collection of tools for the Arazzo ecosystem. Our first tool is the **Arazzo Runner**.
 
-### [Arazzo Runner](./runner/README.md)
+### [Arazzo Runner](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md)
 
 The Arazzo Runner is a command-line tool and Python library that can execute Arazzo workflows. It is the engine that powers the execution of your Arazzo definitions, handling everything from authentication and parameter passing to conditional logic and error handling.
 
-[**Learn more about the Arazzo Runner here.**](./runner/README.md)
+[**Learn more about the Arazzo Runner here.**](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md)
 
 ## Join the Community!
 The Arazzo specification and the tools in this repository are open-source and community-driven. We believe that the best way to build a powerful and flexible workflow standard is to do it in the open, with the help of the entire OpenAPI community.
