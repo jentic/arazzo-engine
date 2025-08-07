@@ -13,7 +13,7 @@ dependencies = [
     "jsonpointer>=3.0.0",
 ]
 requires-python = ">=3.11"
-readme = "../README.md"
+readme = "./README.md"
 license = {text = "MIT"}
 
 [project.scripts]
