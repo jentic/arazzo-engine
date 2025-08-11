@@ -501,3 +501,122 @@ def test_resolve_schema_refs_circular_dependency():
     assert isinstance(link_to_a_prop, dict), "link_to_a property should be a dict"
     assert link_to_a_prop.get("$ref") == "#/components/schemas/IndirectA", \
         "Indirect circular $ref was not preserved as expected"
+
+
+def test_resolve_schema_refs_complex_circular_dependency():
+    """Tests that _resolve_schema_refs handles complex circular dependencies gracefully."""
+    circular_spec = {
+        "components": {
+            "schemas": {
+                # Direct self-reference via array items and allOf
+                "SelfReferential": {
+                    "type": "object",
+                    "description": "base desc",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "children": {
+                            "type": "array",
+                            "items": {"$ref": "#/components/schemas/SelfReferential"}
+                        }
+                    },
+                    # include an allOf that references itself to ensure we break cycles within combinators
+                    "allOf": [
+                        {"$ref": "#/components/schemas/SelfReferential"},
+                        {"properties": {"tag": {"type": "string"}}}
+                    ]
+                },
+                # Indirect cycle with sibling overrides and an allOf on B
+                "IndirectA": {
+                    "type": "object",
+                    "properties": {
+                        "link_to_b": {"$ref": "#/components/schemas/IndirectB"},
+                        "meta": {"type": "object"}
+                    }
+                },
+                "IndirectB": {
+                    "type": "object",
+                    "properties": {
+                        "link_to_a": {"$ref": "#/components/schemas/IndirectA"}
+                    },
+                    "allOf": [
+                        {"properties": {"extra": {"type": "string"}}}
+                    ]
+                },
+                # Diamond/cross cycles through oneOf
+                "DiamondA": {
+                    "type": "object",
+                    "properties": {
+                        "next": {
+                            "oneOf": [
+                                {"$ref": "#/components/schemas/DiamondB"},
+                                {"$ref": "#/components/schemas/DiamondC"}
+                            ]
+                        }
+                    }
+                },
+                "DiamondB": {
+                    "type": "object",
+                    "properties": {
+                        "back": {"$ref": "#/components/schemas/DiamondA"}
+                    }
+                },
+                "DiamondC": {
+                    "type": "object",
+                    "properties": {
+                        "back": {"$ref": "#/components/schemas/DiamondA"}
+                    }
+                }
+            }
+        }
+    }
+
+    schema_self = {"$ref": "#/components/schemas/SelfReferential"}
+    schema_indirect = {"$ref": "#/components/schemas/IndirectA"}
+    schema_diamond = {"$ref": "#/components/schemas/DiamondA"}
+
+    # Direct self-reference through array items and allOf
+    resolved_self = _resolve_schema_refs(schema_self, circular_spec)
+    assert isinstance(resolved_self, dict)
+    assert resolved_self.get("type") == "object"
+    # children is an array and items keeps $ref to SelfReferential (cycle preserved)
+    children = resolved_self.get("properties", {}).get("children")
+    assert isinstance(children, dict) and children.get("type") == "array"
+    assert isinstance(children.get("items"), dict)
+    assert children.get("items").get("$ref") == "#/components/schemas/SelfReferential"
+    # allOf includes a $ref back to itself and the sibling piece is preserved
+    assert isinstance(resolved_self.get("allOf"), list)
+    assert any(isinstance(p, dict) and p.get("$ref") == "#/components/schemas/SelfReferential" for p in resolved_self["allOf"]) \
+        or resolved_self.get("allOf") == {"$ref": "#/components/schemas/SelfReferential"}
+    # ensure sibling from allOf second element made it through
+    # (it may appear inside allOf second dict)
+    assert any(isinstance(p, dict) and "properties" in p and "tag" in p["properties"] for p in resolved_self.get("allOf", []))
+
+    # Indirect cycle with allOf on B
+    resolved_indirect = _resolve_schema_refs(schema_indirect, circular_spec)
+    assert isinstance(resolved_indirect, dict)
+    assert resolved_indirect.get("type") == "object"
+    link_to_b = resolved_indirect.get("properties", {}).get("link_to_b")
+    assert isinstance(link_to_b, dict) and link_to_b.get("type") == "object"
+    # B should still reference A under link_to_a, preserving the cycle
+    link_to_a = link_to_b.get("properties", {}).get("link_to_a")
+    assert isinstance(link_to_a, dict)
+    assert link_to_a.get("$ref") == "#/components/schemas/IndirectA"
+    # allOf on B should be preserved and include the extra property declaratively
+    allof = link_to_b.get("allOf")
+    assert isinstance(allof, list)
+    assert any("properties" in part and "extra" in part["properties"] for part in allof if isinstance(part, dict))
+
+    # Diamond cycle via oneOf
+    resolved_diamond = _resolve_schema_refs(schema_diamond, circular_spec)
+    assert isinstance(resolved_diamond, dict)
+    oneof = resolved_diamond.get("properties", {}).get("next", {}).get("oneOf")
+    assert isinstance(oneof, list)
+    # At least one branch should resolve to an object that points back to DiamondA via $ref somewhere
+    def branch_points_back(branch: dict) -> bool:
+        if not isinstance(branch, dict):
+            return False
+        # resolved branch may be dict with properties.back as $ref
+        back = branch.get("properties", {}).get("back") if isinstance(branch.get("properties"), dict) else None
+        return isinstance(back, dict) and back.get("$ref") == "#/components/schemas/DiamondA"
+
+    assert any(branch_points_back(b) or (isinstance(b, dict) and b.get("$ref") == "#/components/schemas/DiamondB") for b in oneof)
