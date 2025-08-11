@@ -7,7 +7,7 @@ from an OpenAPI specification for a given API operation.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import jsonpointer
 import copy
@@ -15,7 +15,6 @@ import re
 
 from arazzo_runner.executor.operation_finder import OperationFinder
 from arazzo_runner.auth.models import SecurityOption
-from ..models import ServerConfiguration, ServerVariable
 
 # Configure logging (using the same logger as operation_finder for consistency)
 logger = logging.getLogger("arazzo_runner.extractor")
@@ -389,8 +388,8 @@ def extract_operation_io(
                     try:
                         param_schema = _resolve_schema_refs(param_schema, spec)
                     except Exception as ref_e:
-                        logger.warning(f"Could not resolve schema for parameter '{param_name}': {ref_e}")
-                        param_schema = {}
+                        logger.warning(f"Could not resolve schema $ref for parameter '{param_name}': {ref_e}")
+                        param_schema = {} # Fallback to empty schema
             openapi_type = 'string'  # Default OpenAPI type
             if isinstance(param_schema, dict):
                 oapi_type_from_schema = param_schema.get('type')
