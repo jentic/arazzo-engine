@@ -164,8 +164,9 @@ def _resolve_schema_refs(
       ``{"$ref": path}`` at the cycle boundary (prevents infinite recursion).
     - Memoization cache avoids repeated expansions of the same component.
     - Sibling merge: if a node has ``{"$ref": X, ...siblings}``, merge the referenced
-      target with sibling keys, where siblings override the target. This is a pragmatic
-      behavior seen in real-world specs and is intentionally limited to schema resolution.
+      target with sibling keys, where the referenced target takes precedence on conflicts
+      (i.e., siblings only fill in missing keys). This prioritizes structural fidelity
+      from the referenced schema over sibling metadata.
     - Combinators (``allOf``, ``oneOf``, ``anyOf``) are preserved structurally; this
       function does not attempt JSON Schema evaluation or flattening—only ref expansion.
 
@@ -207,12 +208,17 @@ def _resolve_schema_refs(
                 finally:
                     stack.discard(ref)
 
-            # Merge siblings (override) if any
+            # Merge siblings (referenced target takes precedence) if any
             siblings = {k: v for k, v in schema_part.items() if k != "$ref"}
             if siblings and isinstance(result, dict):
-                merged: Dict[str, Any] = dict(result)
+                # Resolve sibling values first
+                resolved_siblings: Dict[str, Any] = {}
                 for k, v in siblings.items():
-                    merged[k] = _resolve_schema_refs(v, full_spec, stack, memo)
+                    resolved_siblings[k] = _resolve_schema_refs(v, full_spec, stack, memo)
+                # Start from siblings, then overlay result so result wins on conflicts
+                merged: Dict[str, Any] = dict(resolved_siblings)
+                for k, v in result.items():
+                    merged[k] = v
                 return merged
             return result
 
