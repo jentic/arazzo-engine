@@ -415,10 +415,11 @@ def extract_operation_io(
         try:
             request_body = operation['requestBody']
             if '$ref' in request_body:
-                # Defer to schema resolver later; keep as-is for now
+                # Resolve requestBody schema using cycle-safe resolver.
                 try:
                     request_body = _resolve_schema_refs(request_body, spec)
                 except Exception as e:
+                    # Continue with execution even if schema could not be fully resolved
                     logger.warning(f"Could not resolve requestBody: {e}")
 
             # Check for application/json content
