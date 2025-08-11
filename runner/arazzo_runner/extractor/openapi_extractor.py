@@ -81,7 +81,16 @@ def _schema_brief(schema: Any) -> str:
 
 def _resolve_ref(spec: Dict[str, Any], ref: str) -> Dict[str, Any]:
     """
-    Resolves a JSON pointer $ref, returning the referenced dictionary.
+    Resolve a single JSON Pointer ``$ref`` to its target object.
+
+    Scope and behavior:
+    - Low-level dereference for any OpenAPI object (Parameter, Response, Schema, etc.).
+    - Resolves only the given pointer; it does NOT recursively walk nested structures.
+    - Does NOT perform sibling-merge semantics. Sibling merge is schema-specific and
+      intentionally omitted here to avoid corrupting non-schema objects.
+    - Cycle-safe: if a direct/indirect cycle is detected along the current path, returns
+      a placeholder ``{"$ref": ref}`` to break recursion.
+    - Uses a small per-call memoization cache to avoid redundant pointer resolution.
     """
     logger.debug(f"Attempting to resolve ref: {ref}")
     
@@ -145,11 +154,25 @@ def _resolve_schema_refs(
     visited_refs: Optional[Set[str]] = None,
     cache: Optional[Dict[str, Any]] = None,
 ) -> Any:
-    """Resolve $ref within a schema fragment with cycle detection and memoization.
+    """
+    Recursively resolve ``$ref`` within a schema fragment with cycle safety and memoization.
 
-    - Uses a path-level stack (visited_refs) to break cycles by returning {"$ref": path}.
-    - Uses a cache to avoid re-expanding the same component.
-    - Merges $ref target with sibling keys (siblings override target).
+    Scope and behavior:
+    - Intended only for Schema Objects or schema-like fragments (dict/list trees).
+    - Walks dicts and lists recursively, expanding internal ``$ref`` where safe.
+    - Cycle-safe: uses a path-level stack to detect cycles and returns a placeholder
+      ``{"$ref": path}`` at the cycle boundary (prevents infinite recursion).
+    - Memoization cache avoids repeated expansions of the same component.
+    - Sibling merge: if a node has ``{"$ref": X, ...siblings}``, merge the referenced
+      target with sibling keys, where siblings override the target. This is a pragmatic
+      behavior seen in real-world specs and is intentionally limited to schema resolution.
+    - Combinators (``allOf``, ``oneOf``, ``anyOf``) are preserved structurally; this
+      function does not attempt JSON Schema evaluation or flattening—only ref expansion.
+
+    - This is a schema-aware tree walker with schema-specific semantics (sibling merge),
+      which would be incorrect for generic OpenAPI objects.
+    - Callers that need simple pointer dereference without transformation should use
+      ``_resolve_ref`` instead.
     """
     stack = visited_refs if visited_refs is not None else set()
     memo = cache if cache is not None else {}
