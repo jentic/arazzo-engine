@@ -7,7 +7,7 @@ from an OpenAPI specification for a given API operation.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import jsonpointer
 import copy
@@ -15,7 +15,6 @@ import re
 
 from arazzo_runner.executor.operation_finder import OperationFinder
 from arazzo_runner.auth.models import SecurityOption
-from ..models import ServerConfiguration, ServerVariable
 
 # Configure logging (using the same logger as operation_finder for consistency)
 logger = logging.getLogger("arazzo_runner.extractor")
@@ -64,86 +63,169 @@ def _format_security_options_to_dict_list(
     return formatted_requirements
 
 
+def _schema_brief(schema: Any) -> str:
+    """Return a short, non-recursive description of a schema to keep logs lightweight."""
+    try:
+        if isinstance(schema, dict):
+            if "$ref" in schema and len(schema) == 1:
+                return f"$ref({schema['$ref']})"
+            t = schema.get("type")
+            keys = list(schema.keys())
+            return f"dict(type={t}, keys={keys[:6]}{'...' if len(keys)>6 else ''})"
+        if isinstance(schema, list):
+            return f"list(len={len(schema)})"
+        return f"{type(schema).__name__}"
+    except Exception:
+        return "<unprintable schema>"
+
 def _resolve_ref(spec: Dict[str, Any], ref: str) -> Dict[str, Any]:
     """
-    Resolves a JSON pointer $ref, returning the referenced dictionary.
+    Resolve a single JSON Pointer ``$ref`` to its target object.
+
+    Scope and behavior:
+    - Low-level dereference for any OpenAPI object (Parameter, Response, Schema, etc.).
+    - Resolves only the given pointer; it does NOT recursively walk nested structures.
+    - Does NOT perform sibling-merge semantics. Sibling merge is schema-specific and
+      intentionally omitted here to avoid corrupting non-schema objects.
+    - Cycle-safe: if a direct/indirect cycle is detected along the current path, returns
+      a placeholder ``{"$ref": ref}`` to break recursion.
+    - Uses a small per-call memoization cache to avoid redundant pointer resolution.
     """
     logger.debug(f"Attempting to resolve ref: {ref}")
-    try:
+    
+    # Use function attributes for per-call caches without changing the signature.
+    # These are reset on each top-level invocation.
+    def _resolve_with_state(spec: Dict[str, Any], ref: str, stack: Set[str], cache: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         # Ensure the ref starts with '#/' as expected for internal refs
         if not ref.startswith('#/'):
-            # Currently only supporting internal references
-            raise ValueError(f"Invalid or unsupported $ref format: {ref}. Only internal refs starting with '#/' are supported.")
+            raise ValueError(
+                f"Invalid or unsupported $ref format: {ref}. Only internal refs starting with '#/' are supported."
+            )
+
+        # Return from cache when available
+        if ref in cache:
+            return copy.deepcopy(cache[ref])
+
+        # Detect circular references along the current resolution path
+        if ref in stack:
+            logger.debug(f"Circular $ref detected while resolving {ref}. Returning non-expanded $ref to break the cycle.")
+            # Do not expand further; return the $ref dict as a safe placeholder
+            return {"$ref": ref}
+
+        stack.add(ref)
         try:
-            # Remove the leading '#' before resolving
             resolved_data = jsonpointer.resolve_pointer(spec, ref[1:])
-            # If the resolved part itself contains a $ref, resolve it recursively
-            if isinstance(resolved_data, dict) and '$ref' in resolved_data:
-                # Prevent infinite loops for recursive refs (simple check)
-                if resolved_data['$ref'] == ref:
-                    logger.warning(f"Detected self-referencing $ref, stopping recursion: {ref}")
-                    return resolved_data  # Return as is, let caller handle
-                return _resolve_ref(spec, resolved_data['$ref'])
-            if not isinstance(resolved_data, dict):
-                logger.warning(f"Resolved $ref '{ref}' is not a dictionary, returning empty dict.")
-                return {}
-            # Return a deep copy to prevent modification of the original spec component
-            logger.debug(f"Resolved ref '{ref}' to: {resolved_data}")
-            return copy.deepcopy(resolved_data)
+
+            # If the resolved item is itself a $ref wrapper, resolve it with the same state
+            if isinstance(resolved_data, dict) and "$ref" in resolved_data:
+                inner_ref = resolved_data["$ref"]
+                result = _resolve_with_state(spec, inner_ref, stack, cache)
+            else:
+                if not isinstance(resolved_data, dict):
+                    logger.warning(f"Resolved $ref '{ref}' is not a dictionary, returning empty dict.")
+                    result = {}
+                else:
+                    result = copy.deepcopy(resolved_data)
+
+            # Memoize before returning
+            cache[ref] = result
+            return copy.deepcopy(result)
         except jsonpointer.JsonPointerException as e:
             logger.error(f"Could not resolve reference '{ref}': {e}")
             raise
         except Exception as e:
             logger.error(f"An unexpected error occurred during $ref resolution for {ref}: {e}")
             raise
+        finally:
+            # Ensure current ref is popped even on exceptions
+            stack.discard(ref)
+
+    try:
+        return _resolve_with_state(spec, ref, stack=set(), cache={})
     except ValueError as e:
         logger.error(f"Invalid or unsupported $ref format: {e}")
         raise
 
 
-def _resolve_schema_refs(schema_part: Any, full_spec: Dict[str, Any], visited_refs: Optional[Set[str]] = None) -> Any:
-    """Recursively resolves all $ref pointers within a schema fragment, handling circular references."""
-    # Initialize visited_refs for the current resolution path if it's the first call in a chain
-    current_visited_refs = visited_refs if visited_refs is not None else set()
+def _resolve_schema_refs(
+    schema_part: Any,
+    full_spec: Dict[str, Any],
+    visited_refs: Optional[Set[str]] = None,
+    cache: Optional[Dict[str, Any]] = None,
+) -> Any:
+    """
+    Recursively resolve ``$ref`` within a schema fragment with cycle safety and memoization.
 
-    # Make a deep copy to avoid modifying original spec or intermediate dicts/lists during this call's scope
-    current_part = copy.deepcopy(schema_part)
+    Scope and behavior:
+    - Intended only for Schema Objects or schema-like fragments (dict/list trees).
+    - Walks dicts and lists recursively, expanding internal ``$ref`` where safe.
+    - Cycle-safe: uses a path-level stack to detect cycles and returns a placeholder
+      ``{"$ref": path}`` at the cycle boundary (prevents infinite recursion).
+    - Memoization cache avoids repeated expansions of the same component.
+    - Sibling merge: if a node has ``{"$ref": X, ...siblings}``, merge the referenced
+      target with sibling keys, where the referenced target takes precedence on conflicts
+      (i.e., siblings only fill in missing keys). This prioritizes structural fidelity
+      from the referenced schema over sibling metadata.
+    - Combinators (``allOf``, ``oneOf``, ``anyOf``) are preserved structurally; this
+      function does not attempt JSON Schema evaluation or flattening—only ref expansion.
 
-    if isinstance(current_part, dict):
-        if '$ref' in current_part:
-            ref_path = current_part['$ref']
-            if ref_path in current_visited_refs:
-                logger.debug(f"Circular reference detected for '{ref_path}'. Returning original $ref dict.")
-                # Return the original reference dict to break the cycle
-                return current_part 
+    - This is a schema-aware tree walker with schema-specific semantics (sibling merge),
+      which would be incorrect for generic OpenAPI objects.
+    - Callers that need simple pointer dereference without transformation should use
+      ``_resolve_ref`` instead.
+    """
+    stack = visited_refs if visited_refs is not None else set()
+    memo = cache if cache is not None else {}
 
-            try:
-                # Add current ref_path to a new set for the next level of recursion to avoid cross-branch pollution
-                next_level_visited_refs = current_visited_refs.copy()
-                next_level_visited_refs.add(ref_path)
-                
-                resolved_content = _resolve_ref(full_spec, ref_path) # Resolve from ORIGINAL full_spec
-                # Recursively resolve within the newly resolved content, passing the updated visited set
-                result = _resolve_schema_refs(resolved_content, full_spec, next_level_visited_refs)
-                return result
-            except (jsonpointer.JsonPointerException, ValueError, KeyError) as e:
-                logger.warning(f"Could not resolve nested $ref '{ref_path}': {e}")
-                return current_part  # Return the copied dict with the unresolved $ref on error
-        else:
-            # Process dictionary items recursively on the copied dict
-            # Pass the current_visited_refs, as these are part of the same parent schema's resolution path
-            for k, v in list(current_part.items()): # Iterate over a copy of items if modifying dict during iteration
-                current_part[k] = _resolve_schema_refs(v, full_spec, current_visited_refs)
-            return current_part  # Return the modified copy
-    elif isinstance(current_part, list):
-        # Process list items recursively on the copied list
-        # Pass the current_visited_refs for the same reason as above
-        for i, item in enumerate(list(current_part)): # Iterate over a copy of items
-            current_part[i] = _resolve_schema_refs(item, full_spec, current_visited_refs)
-        return current_part  # Return the modified copy
-    else:
-        # Return the copy of non-dict/list items (base case)
-        return current_part
+    # Primitives pass through
+    if not isinstance(schema_part, (dict, list)):
+        return schema_part
+
+    if isinstance(schema_part, dict):
+        if "$ref" in schema_part:
+            ref = schema_part["$ref"]
+            if ref in memo:
+                result = memo[ref]
+            else:
+                if ref in stack:
+                    logger.debug(f"Circular reference detected for '{ref}'. Returning $ref placeholder.")
+                    return {"$ref": ref}
+                stack.add(ref)
+                try:
+                    target = jsonpointer.resolve_pointer(full_spec, ref[1:])
+                    if not isinstance(target, (dict, list)):
+                        logger.warning(f"Resolved $ref '{ref}' is not a dict/list. Returning empty dict.")
+                        result = {}
+                    else:
+                        # Provisional entry breaks indirect cycles
+                        memo[ref] = {"$ref": ref}
+                        result = _resolve_schema_refs(target, full_spec, stack, memo)
+                        memo[ref] = result
+                except (jsonpointer.JsonPointerException, ValueError, KeyError) as e:
+                    logger.warning(f"Could not resolve nested $ref '{ref}': {e}")
+                    result = {"$ref": ref}
+                finally:
+                    stack.discard(ref)
+
+            # Merge siblings (referenced target takes precedence) if any
+            siblings = {k: v for k, v in schema_part.items() if k != "$ref"}
+            if siblings and isinstance(result, dict):
+                # Resolve sibling values first
+                resolved_siblings: Dict[str, Any] = {}
+                for k, v in siblings.items():
+                    resolved_siblings[k] = _resolve_schema_refs(v, full_spec, stack, memo)
+                # Start from siblings, then overlay result so result wins on conflicts
+                merged: Dict[str, Any] = dict(resolved_siblings)
+                for k, v in result.items():
+                    merged[k] = v
+                return merged
+            return result
+
+        # Regular dict: resolve entries
+        return {k: _resolve_schema_refs(v, full_spec, stack, memo) for k, v in schema_part.items()}
+
+    # List: resolve items
+    return [_resolve_schema_refs(item, full_spec, stack, memo) for item in schema_part]
 
 
 def extract_operation_io(
@@ -302,11 +384,12 @@ def extract_operation_io(
             else:
                 # Resolve schema ref if present
                 if isinstance(param_schema, dict) and '$ref' in param_schema:
+                    # Defer full resolution to _resolve_schema_refs to properly handle cycles
                     try:
-                        param_schema = _resolve_ref(spec, param_schema['$ref'])
-                    except (jsonpointer.JsonPointerException, ValueError) as ref_e:
+                        param_schema = _resolve_schema_refs(param_schema, spec)
+                    except Exception as ref_e:
                         logger.warning(f"Could not resolve schema $ref for parameter '{param_name}': {ref_e}")
-                        param_schema = {}  # Fallback to empty schema
+                        param_schema = {} # Fallback to empty schema
             openapi_type = 'string'  # Default OpenAPI type
             if isinstance(param_schema, dict):
                 oapi_type_from_schema = param_schema.get('type')
@@ -337,15 +420,19 @@ def extract_operation_io(
         try:
             request_body = operation['requestBody']
             if '$ref' in request_body:
-                request_body = _resolve_ref(spec, request_body['$ref'])
+                # Resolve requestBody schema using cycle-safe resolver.
+                try:
+                    request_body = _resolve_schema_refs(request_body, spec)
+                except Exception as e:
+                    # Continue with execution even if schema could not be fully resolved
+                    logger.warning(f"Could not resolve requestBody: {e}")
 
             # Check for application/json content
             json_content = request_body.get('content', {}).get('application/json', {})
             body_schema = json_content.get('schema')
 
             if body_schema:
-                if '$ref' in body_schema:
-                    body_schema = _resolve_ref(spec, body_schema['$ref'])
+                # Let the recursive resolver handle any $ref and cycles
 
                 # Recursively resolve nested refs within the body schema
                 fully_resolved_body_schema = _resolve_schema_refs(body_schema, spec)
@@ -386,20 +473,18 @@ def extract_operation_io(
             try:
                 resolved_response = success_response
                 if isinstance(success_response, dict) and '$ref' in success_response:
-                    resolved_response = _resolve_ref(spec, success_response['$ref'])
+                    # Resolve response object safely with schema resolver
+                    resolved_response = _resolve_schema_refs(success_response, spec)
 
                 # Check for application/json content in the resolved successful response
                 json_content = resolved_response.get('content', {}).get('application/json', {})
                 response_schema = json_content.get('schema')
 
                 if response_schema:
-                    if '$ref' in response_schema:
-                        response_schema = _resolve_ref(spec, response_schema['$ref'])
-
                     # Recursively resolve nested refs within the response schema
-                    logger.debug(f"Output schema BEFORE recursive resolve: {response_schema}")
+                    logger.debug(f"Output schema BEFORE recursive resolve: {_schema_brief(response_schema)}")
                     fully_resolved_output_schema = _resolve_schema_refs(response_schema, spec)
-                    logger.debug(f"Output schema AFTER recursive resolve: {fully_resolved_output_schema}")
+                    logger.debug(f"Output schema AFTER recursive resolve: {_schema_brief(fully_resolved_output_schema)}")
                     extracted_details["outputs"] = fully_resolved_output_schema
 
             except (jsonpointer.JsonPointerException, ValueError, KeyError) as e:
@@ -421,19 +506,23 @@ def extract_operation_io(
 
 def _limit_dict_depth(data: Union[Dict, List, Any], max_depth: int, current_depth: int = 0) -> Union[Dict, List, Any]:
     """Recursively limits the depth of a dictionary or list structure."""
-    
+
     if isinstance(data, dict):
         if current_depth >= max_depth:
-            return data.get('type', 'object') # Limit hit for dict
+            return data.get('type', 'object')  # Limit hit for dict
         else:
             # Recurse into dict
             limited_dict = {}
             for key, value in data.items():
-                limited_dict[key] = _limit_dict_depth(value, max_depth, current_depth + 1)
+                # Special case to preserve enum lists
+                if key == 'enum' and isinstance(value, list):
+                    limited_dict[key] = value
+                else:
+                    limited_dict[key] = _limit_dict_depth(value, max_depth, current_depth + 1)
             return limited_dict
     elif isinstance(data, list):
         if current_depth >= max_depth:
-            return 'array' # Limit hit for list
+            return 'array'  # Limit hit for list
         else:
             # Recurse into list
             limited_list = []

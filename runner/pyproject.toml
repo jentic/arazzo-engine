@@ -1,6 +1,6 @@
 [project]
 name = "arazzo_runner"
-version = "0.8.18"
+version = "0.8.20"
 description = "Execution libraries and test tools for Arazzo workflows and Open API operations"
 authors = [
     {name = "Jentic Labs", email = "info@jenticlabs.com"},
