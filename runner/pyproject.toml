@@ -1,6 +1,6 @@
 [project]
 name = "arazzo_runner"
-version = "0.8.20"
+version = "0.8.21"
 description = "Execution libraries and test tools for Arazzo workflows and Open API operations"
 authors = [
     {name = "Jentic Labs", email = "info@jenticlabs.com"},
@@ -13,7 +13,7 @@ dependencies = [
     "jsonpointer>=3.0.0",
 ]
 requires-python = ">=3.11"
-readme = "../README.md"
+readme = "./README.md"
 license = {text = "MIT"}
 
 [project.scripts]
