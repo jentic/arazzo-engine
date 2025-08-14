@@ -13,6 +13,7 @@ from arazzo_runner.auth.credentials.fetch import FetchOptions
 from arazzo_runner.auth.credentials.models import Credential
 import requests
 from arazzo_runner.blob_utils import analyze_response_for_blob
+import ast
 
 # Configure logging
 logger = logging.getLogger("arazzo-runner.http")
@@ -175,9 +176,18 @@ class HTTPExecutor:
                 files = {}
                 data = {}
                 for key, value in payload.items():
+                    is_dict = False
+                    if isinstance(value, str) and value.startswith('{') and value.endswith('}'):
+                        try:
+                            value = ast.literal_eval(value)
+                            is_dict = True
+                        except Exception:
+                            logger.debug("Failed to parse multipart form object as dict")
+                            pass
+                    
                     # A field is treated as a file upload if its value is an object
                     # containing 'content' and 'filename' keys.
-                    if isinstance(value, dict) and "content" in value and "filename" in value:
+                    if is_dict and "content" in value and "filename" in value:
                         # requests expects a tuple: (filename, file_data, content_type)
                         file_content = value["content"]
                         file_name = value["filename"] if value.get("filename") else "attachment"
