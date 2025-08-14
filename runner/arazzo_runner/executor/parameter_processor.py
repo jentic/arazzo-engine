@@ -80,10 +80,10 @@ class ParameterProcessor:
                     if array_value is not None:
                         value = array_value
                     else:
-                        # Try split-pop handler for expressions like .split('/').pop()
-                        split_pop_value = ExpressionEvaluator.handle_split_pop(value, state)
-                        if split_pop_value is not None:
-                            value = split_pop_value
+                        # Try template expression handler for ${...} syntax
+                        template_value = ExpressionEvaluator.handle_template_expression(value, state)
+                        if template_value is not None:
+                            value = template_value
                         else:
                             # Fall back to standard expression evaluation
                             value = ExpressionEvaluator.evaluate_expression(
