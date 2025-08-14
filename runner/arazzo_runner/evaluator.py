@@ -152,6 +152,102 @@ class ExpressionEvaluator:
         return None
 
     @staticmethod
+    def handle_split_pop(expression: str, state: ExecutionState) -> Any | None:
+        """
+        Special handler for split and pop expressions like $steps.stepName.outputs.url.split('/').pop()
+        Returns None if the expression doesn't match the expected pattern or value can't be found
+        """
+        # Check if this looks like a split().pop() pattern
+        if not (expression.startswith("$") and ".split(" in expression and ").pop()" in expression):
+            return None
+
+        # Match the pattern: $steps.{stepId}.outputs.{field}.split('{delimiter}').pop()
+        match = re.match(
+            r"^\$steps\.([a-zA-Z0-9_-]+)\.outputs\.([a-zA-Z0-9_]+)\.split\(['\"]([^'\"]*)['\"]?\)\.pop\(\)$",
+            expression,
+        )
+        if match:
+            step_id, field_name, delimiter = match.groups()
+
+            logger.info(
+                f"Split-pop access - Step: {step_id}, Field: {field_name}, Delimiter: '{delimiter}'"
+            )
+
+            # Check if step exists
+            if step_id not in state.step_outputs:
+                logger.info(f"Step {step_id} not found in outputs")
+                return None
+
+            step_output = state.step_outputs[step_id]
+
+            # Check if field exists in step outputs
+            if field_name not in step_output:
+                logger.info(f"Field {field_name} not found in step {step_id} outputs")
+                return None
+
+            field_value = step_output[field_name]
+
+            # Check if field value is a string
+            if not isinstance(field_value, str):
+                logger.info(f"{field_name} is not a string: {type(field_value)}")
+                return None
+
+            if not field_value:
+                logger.info(f"{field_name} is empty")
+                return ""
+
+            # Split the string and get the last part
+            parts = field_value.split(delimiter)
+            if not parts:
+                logger.info(f"Split resulted in empty array for value: {field_value}")
+                return ""
+
+            # Found the value!
+            value = parts[-1]  # equivalent to .pop()
+            logger.info(f"Successfully extracted split-pop value: '{value}' from '{field_value}'")
+            return value
+
+        # Try more general pattern: $any.path.split('{delimiter}').pop()
+        general_match = re.match(
+            r"^(\$[^.]+(?:\.[^.]+)*?)\.split\(['\"]([^'\"]*)['\"]?\)\.pop\(\)$",
+            expression,
+        )
+        if general_match:
+            base_expression, delimiter = general_match.groups()
+
+            logger.info(
+                f"General split-pop access - Base: {base_expression}, Delimiter: '{delimiter}'"
+            )
+
+            # Evaluate the base expression first
+            from arazzo_runner.evaluator import ExpressionEvaluator
+            base_value = ExpressionEvaluator.evaluate_expression(
+                base_expression, state
+            )
+
+            # Check if base value is a string
+            if not isinstance(base_value, str):
+                logger.info(f"Base expression result is not a string: {type(base_value)}")
+                return None
+
+            if not base_value:
+                logger.info(f"Base expression result is empty")
+                return ""
+
+            # Split the string and get the last part
+            parts = base_value.split(delimiter)
+            if not parts:
+                logger.info(f"Split resulted in empty array for value: {base_value}")
+                return ""
+
+            # Found the value!
+            value = parts[-1]  # equivalent to .pop()
+            logger.info(f"Successfully extracted general split-pop value: '{value}' from '{base_value}'")
+            return value
+
+        return None
+
+    @staticmethod
     def evaluate_expression(
         expression: str,
         state: ExecutionState,

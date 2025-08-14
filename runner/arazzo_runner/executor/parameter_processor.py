@@ -80,10 +80,19 @@ class ParameterProcessor:
                     if array_value is not None:
                         value = array_value
                     else:
-                        # Fall back to standard expression evaluation
-                        value = ExpressionEvaluator.evaluate_expression(
-                            value, state, self.source_descriptions
-                        )
+                        # Try split-pop handler for expressions like .split('/').pop()
+                        split_pop_value = ExpressionEvaluator.handle_split_pop(value, state)
+                        if split_pop_value is not None:
+                            value = split_pop_value
+                        else:
+                            # Fall back to standard expression evaluation
+                            value = ExpressionEvaluator.evaluate_expression(
+                                value, state, self.source_descriptions
+                            )
+                    
+                    print(value)
+
+
                 elif "{" in value and "}" in value:
                     # Template with expressions
                     def replace_expr(match):
@@ -386,6 +395,12 @@ class ParameterProcessor:
                     except json.JSONDecodeError as e:
                         logger.warning(f"JSON decode error in non-templated payload: {e}")
                         # Keep original as string
+                elif payload.startswith("$"):
+                    # Direct expression payload
+                    payload = ExpressionEvaluator.evaluate_expression(
+                        payload, state, self.source_descriptions
+                    )
+                    logger.debug(f"Processed expression payload: {payload}")
             except Exception as e:
                 logger.error(f"Error processing payload: {e}")
                 logger.error(f"Original payload: {payload}")
@@ -402,12 +417,6 @@ class ParameterProcessor:
                 payload, state, self.source_descriptions
             )
             logger.debug(f"Processed list payload: {payload}")
-        elif isinstance(payload, str) and payload.startswith("$"):
-            # Direct expression payload
-            payload = ExpressionEvaluator.evaluate_expression(
-                payload, state, self.source_descriptions
-            )
-            logger.debug(f"Processed expression payload: {payload}")
 
         # Handle replacements
         replacements = request_body.get("replacements", [])
