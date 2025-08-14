@@ -106,9 +106,6 @@ class StepExecutor:
 
         # Check for operation-level servers configuration first
         operation_servers = operation_info.get("operation", {}).get("servers", [])
-        logger.debug(f"Operation ID: {operation_id}")
-        logger.debug(f"Source name: {source_name}")
-        logger.debug(f"Operation info keys: {list(operation_info.keys())}")
         logger.debug(f"Operation servers found: {operation_servers}")
         
         if operation_servers:
@@ -233,9 +230,6 @@ class StepExecutor:
 
         # Check for operation-level servers configuration first
         operation_servers = operation_info.get("operation", {}).get("servers", [])
-        logger.debug(f"Operation path: {operation_path}")
-        logger.debug(f"Source name: {source_name}")
-        logger.debug(f"Operation info keys: {list(operation_info.keys())}")
         logger.debug(f"Operation servers found: {operation_servers}")
         
         if operation_servers:

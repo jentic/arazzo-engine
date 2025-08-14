@@ -227,7 +227,7 @@ class ExpressionEvaluator:
     @staticmethod
     def _call_method(obj: Any, method_name: str, args: list) -> Any:
         """
-        Call a method on an object, using Python's getattr when possible
+        Call a method on an object
         """
         
         # Custom implementations for JavaScript-like methods
