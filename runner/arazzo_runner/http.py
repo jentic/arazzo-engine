@@ -177,11 +177,14 @@ class HTTPExecutor:
                 data = {}
                 for key, value in payload.items():
                     is_dict = False
-                    if isinstance(value, str) and value.startswith('{') and value.endswith('}'):
+                    if isinstance(value, dict):
+                        is_dict = True
+                    elif isinstance(value, str) and value.startswith('{') and value.endswith('}'):
                         try:
-                            value = ast.literal_eval(value)
+                            parsed_value = ast.literal_eval(value)
+                            value = parsed_value
                             is_dict = True
-                        except Exception:
+                        except:
                             logger.debug("Failed to parse multipart form object as dict")
                             pass
                     
