@@ -97,26 +97,49 @@ def test_regex_transforms():
     
     print("\n" + "="*50 + "\n")
     
-    # Test with $1, $2 syntax (common in many regex tools)
-    dollar_syntax_transforms = [
+    # Test escaped literals (\\1 -> literal \1)
+    escaped_transforms = [
         {
             "type": "regex",
             "pattern": r"https://([^/]+)/([^/]+)/([^/]+)/(.+)",
-            "result": r"Host: $1, Path: $2/$3, File: $4",
-            "description": "Extract URL components using $1, $2 syntax"
+            "result": r"Domain: \1, Literal: \\1, File: \4",
+            "description": "Test escaped literals - \\1 should become literal \\1"
         }
     ]
     
-    print("Testing $1, $2 replacement syntax:")
+    print("Testing escaped literals (\\\\1 -> \\1):")
     print(f"Input URL: {state.step_outputs['get-upload-url']['upload_url']}")
     
     base_value4 = ExpressionEvaluator.evaluate_expression("$steps.get-upload-url.outputs.upload_url", state)
-    result4 = ExpressionEvaluator.apply_regex_transforms(base_value4, dollar_syntax_transforms)
+    result4 = ExpressionEvaluator.apply_regex_transforms(base_value4, escaped_transforms)
     
     print(f"Result: {result4}")
-    print(f"Expected: Host: example.com, Path: uploads/files, File: document.pdf")
-    expected4 = "Host: example.com, Path: uploads/files, File: document.pdf"
+    print(f"Expected: Domain: example.com, Literal: \\1, File: document.pdf")
+    expected4 = "Domain: example.com, Literal: \\1, File: document.pdf"
     print(f"Success: {result4 == expected4}")
+    
+    print("\n" + "="*50 + "\n")
+    
+    # Test escaped named groups (\\<name> -> literal \<name>)
+    escaped_named_transforms = [
+        {
+            "type": "regex",
+            "pattern": r".*/(?P<basename>[^/]+)$",
+            "result": r"File: \<basename>, Literal: \\<basename>",
+            "description": "Test escaped named groups - \\<basename> should become literal \\<basename>"
+        }
+    ]
+    
+    print("Testing escaped named groups (\\\\<basename> -> \\<basename>):")
+    print(f"Input URL: {state.step_outputs['get-upload-url']['upload_url']}")
+    
+    base_value5 = ExpressionEvaluator.evaluate_expression("$steps.get-upload-url.outputs.upload_url", state)
+    result5 = ExpressionEvaluator.apply_regex_transforms(base_value5, escaped_named_transforms)
+    
+    print(f"Result: {result5}")
+    print(f"Expected: File: document.pdf, Literal: \\<basename>")
+    expected5 = "File: document.pdf, Literal: \\<basename>"
+    print(f"Success: {result5 == expected5}")
 
 if __name__ == "__main__":
     test_regex_transforms()

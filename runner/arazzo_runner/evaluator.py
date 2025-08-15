@@ -183,15 +183,42 @@ class ExpressionEvaluator:
                 match = re.search(pattern, current_value)
                 if match:
                     result = result_template
+                    
+                    # First, handle escaping by temporarily replacing escaped sequences
+                    # \\1 -> literal \1, \\<name> -> literal \<name>
+                    escape_map = {}
+                    
+                    # Handle escaped backslashes (\\1 -> \1)
+                    escape_counter = 0
+                    while f"\\\\{escape_counter + 1}" in result:
+                        escape_counter += 1
+                        placeholder = f"__ESCAPED_BACKSLASH_{escape_counter}__"
+                        result = result.replace(f"\\\\{escape_counter}", placeholder)
+                        escape_map[placeholder] = f"\\{escape_counter}"
+                    
+                    # Handle escaped named groups (\\<name> -> \<name>)
+                    import re as re_module
+                    escaped_named_pattern = r'\\\\<([^>]+)>'
+                    escaped_named_matches = re_module.findall(escaped_named_pattern, result)
+                    for i, name in enumerate(escaped_named_matches):
+                        placeholder = f"__ESCAPED_NAMED_{i}__"
+                        result = result.replace(f"\\\\<{name}>", placeholder)
+                        escape_map[placeholder] = f"\\<{name}>"
+                    
                     # Replace named groups: \<name> -> matched value
                     for name, value in match.groupdict().items():
                         if value is not None:
                             result = result.replace(f"\\<{name}>", value)
-                    # Replace numbered groups: \1, \2, etc. and $1, $2, etc.
+                    
+                    # Replace numbered groups: \1, \2, etc.
                     for i, group in enumerate(match.groups(), 1):
                         if group is not None:
                             result = result.replace(f"\\{i}", group)
-                            result = result.replace(f"${i}", group)
+                    
+                    # Restore escaped sequences
+                    for placeholder, literal in escape_map.items():
+                        result = result.replace(placeholder, literal)
+                        
                     current_value = result
             except re.error:
                 continue  # Skip invalid patterns
