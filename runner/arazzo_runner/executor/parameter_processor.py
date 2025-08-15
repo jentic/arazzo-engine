@@ -175,19 +175,20 @@ class ParameterProcessor:
                 logger.warning(
                     f"Parameter '{name}' value '{value}' still contains expression syntax after evaluation"
                 )
-
-            # Organize parameters by location
-            if location == "path":
-                parameters.setdefault("path", {})[name] = value
-            elif location == "query":
-                parameters.setdefault("query", {})[name] = value
-            elif location == "header":
-                parameters.setdefault("header", {})[name] = value
-            elif location == "cookie":
-                parameters.setdefault("cookie", {})[name] = value
-            else:
-                # For workflow inputs
-                parameters[name] = value
+            # If the reference expansion results in no value, do not add this parameter to the request
+            if value is not None:
+                # Organize parameters by location
+                if location == "path":
+                    parameters.setdefault("path", {})[name] = value
+                elif location == "query":
+                    parameters.setdefault("query", {})[name] = value
+                elif location == "header":
+                    parameters.setdefault("header", {})[name] = value
+                elif location == "cookie":
+                    parameters.setdefault("cookie", {})[name] = value
+                else:
+                    # For workflow inputs
+                    parameters[name] = value
 
         return parameters
 
@@ -450,6 +451,14 @@ class ParameterProcessor:
                                 current = current[part]
                 except (KeyError, IndexError, TypeError) as e:
                     logger.error(f"Error applying replacement to target {target}: {e}")
+        
+        ## Handle Null values
+        if content_type == "application/json":
+            rebuilt_payload = {}
+            for key, value in payload.items():
+                if value is not None:
+                    rebuilt_payload[key] = value
+            payload = rebuilt_payload
 
         return {"contentType": content_type, "payload": payload}
 
