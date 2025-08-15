@@ -126,7 +126,7 @@ This helps us stay organized and ensures we have all the information we need to 
 ## Recognition
 
 Contributors will be recognized in our documentation and through appropriate credit mechanisms. We believe in acknowledging all forms of contribution.
-Thank you for helping build and improve the Standard Agent!
+Thank you for helping build and improve the Arazzo Engine!
 
 ---
 
