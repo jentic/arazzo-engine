@@ -299,7 +299,10 @@ async def handle_execute_operation(runner: ArazzoRunner | None, args: argparse.N
         if isinstance(result, dict) and 'headers' in result:
             result = dict(result)  # Make a shallow copy to avoid mutating originals
             result.pop('headers')
-        logger.info(f"Operation Result: {json.dumps(result, indent=2)}")
+        try:
+            logger.info(f"Operation Result: {json.dumps(result, indent=2)}")
+        except Exception as e:
+            logger.info(f"Operation Result: {str(result)}")
         # Determine exit code based on HTTP status (e.g., 2xx is success)
         status_code = result.get("status_code", 500)
         sys.exit(0 if 200 <= status_code < 300 else 1)

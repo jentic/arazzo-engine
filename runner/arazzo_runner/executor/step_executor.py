@@ -104,13 +104,37 @@ class StepExecutor:
         security_options = self.operation_finder.extract_security_requirements(operation_info)
         source_name = operation_info.get("source", "default")
 
-        # Resolve final URL
-        base_server_url = operation_info.get("url") # This is the relative path template
-        final_url_template = self.server_processor.resolve_server_params(
-            source_name=source_name,
-            operation_url_template=base_server_url, # Pass it as operation_url_template
-            server_runtime_params=state.runtime_params.servers if state.runtime_params else None
-        )
+        # Check for operation-level servers configuration first
+        operation_servers = operation_info.get("operation", {}).get("servers", [])
+        logger.debug(f"Operation servers found: {operation_servers}")
+        
+        if operation_servers:
+            # Use operation-level server - get raw path from operation definition
+            custom_server_url = operation_servers[0].get("url", "")
+            if custom_server_url:
+                # Get the raw path directly from the operation info (not the processed URL)
+                operation_path = operation_info.get("path", "")
+                logger.info(f"Raw operation path: {operation_path}")
+                
+                # Combine custom server URL with the raw operation path
+                final_url_template = custom_server_url.rstrip("/") + "/" + operation_path.lstrip("/")
+                logger.info(f"Using operation-level server: {custom_server_url} + {operation_path} -> {final_url_template}")
+            else:
+                # Fall back to standard server resolution
+                base_server_url = operation_info.get("url")
+                final_url_template = self.server_processor.resolve_server_params(
+                    source_name=source_name,
+                    operation_url_template=base_server_url,
+                    server_runtime_params=state.runtime_params.servers if state.runtime_params else None
+                )
+        else:
+            # Standard server resolution - use the processed URL with global server
+            base_server_url = operation_info.get("url")
+            final_url_template = self.server_processor.resolve_server_params(
+                source_name=source_name,
+                operation_url_template=base_server_url,
+                server_runtime_params=state.runtime_params.servers if state.runtime_params else None
+            )
 
         if not final_url_template:
             error_msg = f"Could not determine final URL for operationId '{operation_id}'"
@@ -204,13 +228,37 @@ class StepExecutor:
         # Extract security requirements
         security_options = self.operation_finder.extract_security_requirements(operation_info)
 
-        # Resolve final URL
-        relative_operation_path_template = operation_info.get("url") 
-        final_url_template = self.server_processor.resolve_server_params(
-            source_name=source_name,
-            operation_url_template=relative_operation_path_template, # Pass it as operation_url_template
-            server_runtime_params=state.runtime_params.servers if state.runtime_params else None
-        )
+        # Check for operation-level servers configuration first
+        operation_servers = operation_info.get("operation", {}).get("servers", [])
+        logger.debug(f"Operation servers found: {operation_servers}")
+        
+        if operation_servers:
+            # Use operation-level server - get raw path from operation definition
+            custom_server_url = operation_servers[0].get("url", "")
+            if custom_server_url:
+                # Get the raw path directly from the operation info (not the processed URL)
+                operation_path = operation_info.get("path", "")
+                logger.info(f"Raw operation path: {operation_path}")
+                
+                # Combine custom server URL with the raw operation path
+                final_url_template = custom_server_url.rstrip("/") + "/" + operation_path.lstrip("/")
+                logger.info(f"Using operation-level server: {custom_server_url} + {operation_path} -> {final_url_template}")
+            else:
+                # Fall back to standard server resolution
+                base_server_url = operation_info.get("url")
+                final_url_template = self.server_processor.resolve_server_params(
+                    source_name=source_name,
+                    operation_url_template=base_server_url,
+                    server_runtime_params=state.runtime_params.servers if state.runtime_params else None
+                )
+        else:
+            # Standard server resolution - use the processed URL with global server
+            base_server_url = operation_info.get("url")
+            final_url_template = self.server_processor.resolve_server_params(
+                source_name=source_name,
+                operation_url_template=base_server_url,
+                server_runtime_params=state.runtime_params.servers if state.runtime_params else None
+            )
 
         if not final_url_template:
             error_msg = f"Could not determine final URL for operationPath '{operation_path}'"
