@@ -73,8 +73,10 @@ class ParameterProcessor:
         for param in step.get("parameters", []):
             name = param.get("name")
             location = param.get("in")
+            
+            # Get the parameter value
             value = param.get("value")
-
+                
             # Process the value to resolve any expressions
             if isinstance(value, str):
                 if value.startswith("$"):
@@ -83,19 +85,10 @@ class ParameterProcessor:
                     if array_value is not None:
                         value = array_value
                     else:
-                        # Try template expression handler for ${...} syntax
-                        template_value = ExpressionEvaluator.handle_template_expression(value, state)
-                        if template_value is not None:
-                            value = template_value
-                        else:
-                            # Fall back to standard expression evaluation
-                            value = ExpressionEvaluator.evaluate_expression(
-                                value, state, self.source_descriptions
-                            )
-                    
-                    print(value)
-
-
+                        # Standard expression evaluation
+                        value = ExpressionEvaluator.evaluate_expression(
+                            value, state, self.source_descriptions
+                        )
                 elif "{" in value and "}" in value:
                     # Template with expressions
                     def replace_expr(match):
@@ -164,6 +157,12 @@ class ParameterProcessor:
             elif isinstance(value, list):
                 value = ExpressionEvaluator.process_array_expressions(
                     value, state, self.source_descriptions
+                )
+
+            # Apply x-transform if present (simple and direct)
+            if "x-transform" in param:
+                value = ExpressionEvaluator.apply_regex_transforms(
+                    value, param.get("x-transform", [])
                 )
 
             # Log the parameter evaluation process for debugging

@@ -3,11 +3,12 @@
 Expression Evaluator for Arazzo Runner
 
 This module provides functions for evaluating runtime expressions used in Arazzo workflows.
+Supports regex-based transformations through x-transform configurations.
 """
 
 import logging
 import re
-from typing import Any
+from typing import Any, Dict, List, Union
 
 from .models import ExecutionState
 
@@ -152,106 +153,50 @@ class ExpressionEvaluator:
         return None
 
     @staticmethod
-    def handle_template_expression(expression: str, state: ExecutionState) -> Any | None:
+    def apply_regex_transforms(value: Any, transforms: List[Dict[str, Any]]) -> Any:
         """
-        Handler for template expressions like ${steps.stepName.outputs.url.split('/').pop()}
-        """
-        # Only support ${...} syntax
-        if not (expression.startswith("${") and expression.endswith("}")):
-            return None
+        Apply regex transformations to a value. Much simpler approach.
+        
+        Args:
+            value: Input value to transform
+            transforms: List of transform configs with 'pattern' and 'result'
             
-        # Extract the inner expression
-        inner_expression = expression[2:-1]
-        
-        logger.info(f"Processing template expression: ${{{inner_expression}}}")
-        
-        # Parse the expression to find base path and method calls
-        method_start = inner_expression.find('(')
-        if method_start == -1:
-            # No method calls, just evaluate as a simple path
-            return ExpressionEvaluator.evaluate_expression(f"${inner_expression}", state)
-        
-        # Find the last dot before the first method call
-        base_end = inner_expression.rfind('.', 0, method_start)
-        if base_end == -1:
-            return None
-            
-        base_path = inner_expression[:base_end]
-        method_chain = inner_expression[base_end+1:]
-        
-        # Evaluate the base path
-        base_value = ExpressionEvaluator.evaluate_expression(f"${base_path}", state)
-        if base_value is None:
-            return None
-            
-        # Apply method chain
-        return ExpressionEvaluator._apply_methods(base_value, method_chain)
-    
-    @staticmethod
-    def _apply_methods(value: Any, method_chain: str) -> Any:
+        Returns:
+            Transformed value
         """
-        Apply method calls to a value using Python's built-in methods where possible
-        """
-        current_value = value
+        if not transforms:
+            return value
+            
+        current_value = str(value) if value is not None else ""
         
-        # Parse method calls using regex
-        method_pattern = r'(\w+)\(([^)]*)\)'
-        methods = re.findall(method_pattern, method_chain)
-        
-        for method_name, args_str in methods:
-            try:
-                # Parse arguments simply
-                args = []
-                if args_str.strip():
-                    # Handle quoted strings and basic values
-                    for arg in args_str.split(','):
-                        arg = arg.strip()
-                        if (arg.startswith('"') and arg.endswith('"')) or (arg.startswith("'") and arg.endswith("'")):
-                            args.append(arg[1:-1])
-                        elif arg.isdigit():
-                            args.append(int(arg))
-                        else:
-                            args.append(arg)
+        for transform in transforms:
+            if transform.get("type") != "regex":
+                continue
                 
-                # Apply method using Python's built-in capabilities
-                current_value = ExpressionEvaluator._call_method(current_value, method_name, args)
-                if current_value is None:
-                    return None
-                    
-            except Exception as e:
-                logger.debug(f"Error applying method {method_name}: {e}")
-                return None
+            pattern = transform.get("pattern")
+            result_template = transform.get("result")
+            
+            if not pattern or not result_template:
+                continue
+                
+            try:
+                match = re.search(pattern, current_value)
+                if match:
+                    result = result_template
+                    # Replace named groups: \<name> -> matched value
+                    for name, value in match.groupdict().items():
+                        if value is not None:
+                            result = result.replace(f"\\<{name}>", value)
+                    # Replace numbered groups: \1, \2, etc. and $1, $2, etc.
+                    for i, group in enumerate(match.groups(), 1):
+                        if group is not None:
+                            result = result.replace(f"\\{i}", group)
+                            result = result.replace(f"${i}", group)
+                    current_value = result
+            except re.error:
+                continue  # Skip invalid patterns
                 
         return current_value
-    
-    @staticmethod
-    def _call_method(obj: Any, method_name: str, args: list) -> Any:
-        """
-        Call a method on an object
-        """
-        
-        # Custom implementations for JavaScript-like methods
-        if isinstance(obj, str):
-            if method_name == 'split':
-                delimiter = args[0] if args else ''
-                return obj.split(delimiter)
-            elif method_name == 'toLowerCase':
-                return obj.lower()
-            elif method_name == 'toUpperCase':
-                return obj.upper()
-            elif method_name == 'trim':
-                return obj.strip()
-                
-        elif isinstance(obj, list):
-            if method_name == 'pop':
-                return obj[-1] if obj else None
-            elif method_name == 'shift':
-                return obj[0] if obj else None
-            elif method_name == 'join':
-                separator = args[0] if args else ','
-                return separator.join(str(item) for item in obj)
-                
-        return None
 
     @staticmethod
     def evaluate_expression(
@@ -633,7 +578,7 @@ class ExpressionEvaluator:
     def process_object_expressions(
         obj: dict, state: ExecutionState, source_descriptions: dict[str, Any] = None
     ) -> dict:
-        """Process dictionary values, evaluating any expressions"""
+        """Process dictionary values, evaluating expressions and applying regex transforms"""
         if not isinstance(obj, dict):
             return obj
 
@@ -645,10 +590,23 @@ class ExpressionEvaluator:
                     value, state, source_descriptions
                 )
             elif isinstance(value, dict):
-                # Process nested dictionary
-                result[key] = ExpressionEvaluator.process_object_expressions(
-                    value, state, source_descriptions
-                )
+                # Check if this is a parameter with x-transform
+                if "value" in value and "x-transform" in value:
+                    # Evaluate the base value first
+                    base_value = value.get("value")
+                    if isinstance(base_value, str) and base_value.startswith("$"):
+                        base_value = ExpressionEvaluator.evaluate_expression(
+                            base_value, state, source_descriptions
+                        )
+                    # Apply transforms
+                    result[key] = ExpressionEvaluator.apply_regex_transforms(
+                        base_value, value.get("x-transform", [])
+                    )
+                else:
+                    # Process nested dictionary
+                    result[key] = ExpressionEvaluator.process_object_expressions(
+                        value, state, source_descriptions
+                    )
             elif isinstance(value, list):
                 # Process nested list
                 result[key] = ExpressionEvaluator.process_array_expressions(
@@ -662,7 +620,7 @@ class ExpressionEvaluator:
     def process_array_expressions(
         arr: list, state: ExecutionState, source_descriptions: dict[str, Any] = None
     ) -> list:
-        """Process list values, evaluating any expressions"""
+        """Process list values, evaluating expressions and applying regex transforms"""
         if not isinstance(arr, list):
             return arr
 
@@ -674,10 +632,25 @@ class ExpressionEvaluator:
                     ExpressionEvaluator.evaluate_expression(item, state, source_descriptions)
                 )
             elif isinstance(item, dict):
-                # Process nested dictionary
-                result.append(
-                    ExpressionEvaluator.process_object_expressions(item, state, source_descriptions)
-                )
+                # Check if this is a parameter with x-transform
+                if "value" in item and "x-transform" in item:
+                    # Evaluate the base value first
+                    base_value = item.get("value")
+                    if isinstance(base_value, str) and base_value.startswith("$"):
+                        base_value = ExpressionEvaluator.evaluate_expression(
+                            base_value, state, source_descriptions
+                        )
+                    # Apply transforms
+                    result.append(
+                        ExpressionEvaluator.apply_regex_transforms(
+                            base_value, item.get("x-transform", [])
+                        )
+                    )
+                else:
+                    # Process nested dictionary
+                    result.append(
+                        ExpressionEvaluator.process_object_expressions(item, state, source_descriptions)
+                    )
             elif isinstance(item, list):
                 # Process nested list
                 result.append(
