@@ -76,6 +76,14 @@ class ServerProcessor:
                     resolved_value = env_os_value
                     logger.debug(f"Server variable '{var_name}' (using env var '{env_var_name}'): resolved from environment.")
 
+            # 3. Else, look for the value in the runtime_params
+            # This is the case where the value is set in the runtime_params, but not in the env var.
+            # The var meets exactly what the spec says, ie: http://{env}.api.com/v1/users/{userId}
+            # and runtime_params is {"env": "dev", "userId": "123"}
+            if server_runtime_params and var_name in server_runtime_params:
+                resolved_value = server_runtime_params[var_name]
+                logger.debug(f"Server variable '{var_name}' (using key '{var_name}'): resolved from runtime_params.")
+
             # 3. Else, if still not resolved, use ServerVariable.default_value
             if resolved_value is None and server_var_details.default_value is not None:
                 resolved_value = server_var_details.default_value

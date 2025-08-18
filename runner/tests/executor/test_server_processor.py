@@ -3,7 +3,7 @@ import os
 import logging
 from typing import Dict, Optional, List
 
-from arazzo_runner.models import ServerConfiguration, ServerVariable
+from arazzo_runner.models import ServerConfiguration, ServerVariable, RuntimeParams
 from arazzo_runner.executor.server_processor import ServerProcessor
 
 # Helper to create ServerVariable instances easily for tests
@@ -161,3 +161,13 @@ def test_resolve_multiple_variables(mock_env):
     )
     resolved_url = ServerProcessor.resolve_server_base_url(config, server_runtime_params={"RUNNER_SERVER_HOST": "localhost", "RUNNER_SERVER_BASEPATH": "custom_api"})
     assert resolved_url == "http://localhost:8080/custom_api/v1"
+
+def test_resolve_server_params_with_variables():
+    sv_endpoint = _create_server_variable(name="endpoint")
+    config = _create_server_config("https://api.{endpoint}.example.com/v1/users", variables={"endpoint": sv_endpoint})
+    runtime_params = RuntimeParams(servers={"endpoint": "test"})
+    final_url = ServerProcessor.resolve_server_base_url(
+        server_config=config,
+        server_runtime_params=runtime_params.servers,
+    )
+    assert final_url == "https://api.test.example.com/v1/users"
