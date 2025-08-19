@@ -171,3 +171,13 @@ def test_resolve_server_params_with_variables():
         server_runtime_params=runtime_params.servers,
     )
     assert final_url == "https://api.test.example.com/v1/users"
+
+def test_resolve_server_params_with_double_variables():
+    sv_endpoint = _create_server_variable(name="endpoint")
+    config = _create_server_config("https://api.{endpoint}.{endpoint}.example.com/v1/users", variables={"endpoint": sv_endpoint})
+    runtime_params = RuntimeParams(servers={"endpoint": "test"})
+    final_url = ServerProcessor.resolve_server_base_url(
+        server_config=config,
+        server_runtime_params=runtime_params.servers,
+    )
+    assert final_url == "https://api.test.test.example.com/v1/users"
