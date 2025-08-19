@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import logging
 import os
 from typing import Dict, Any, Optional
+from urllib.parse import urlparse
 
 from arazzo_runner.models import ServerConfiguration, ServerVariable, RuntimeParams
 from arazzo_runner.executor.server_processor import ServerProcessor
@@ -183,9 +184,8 @@ def test_execute_operation_with_server_vars_and_path_params(
     call_args = mock_http_client.execute_request.call_args[1]
     
     # The URL should have the server variable resolved but keep the path parameter
-    assert "https://api.customerA.com" in call_args["url"]
-    assert "/resource/" in call_args["url"]
-    
+    assert call_args["url"] == "https://api.customerA.com/resource/{id}"
+
     # Parameters are separated by type in the API
     assert call_args["parameters"]["path"]["id"] == "12345"
 
