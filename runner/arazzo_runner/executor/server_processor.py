@@ -71,7 +71,7 @@ class ServerProcessor:
                     logger.debug(f"Server variable '{var_name}' (using key '{var_name}'): resolved from runtime_params.")
 
             # 2. Else, try to use value from runtime_params (keyed by env_var_name)
-            if server_runtime_params and env_var_name in server_runtime_params:
+            if resolved_value is None and server_runtime_params and env_var_name in server_runtime_params:
                 resolved_value = server_runtime_params[env_var_name]
                 if resolved_value is not None:
                     logger.debug(f"Server variable '{var_name}' (using key '{env_var_name}'): resolved from runtime_params.")
