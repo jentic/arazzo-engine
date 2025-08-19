@@ -53,6 +53,9 @@ class ParameterProcessor:
             return ParameterProcessor._resolve_ref(obj['$ref'], root)
         return obj
 
+    # --- DEPRECATION NOTICE ---
+    # Consider refactoring prepare_parameters or merging logic if significant overlap
+    # exists after full implementation of prepare_operation_parameters.
     def prepare_parameters(self, step: dict, state: ExecutionState) -> dict[str, Any]:
         """
         Prepare parameters for an operation execution
@@ -70,8 +73,10 @@ class ParameterProcessor:
         for param in step.get("parameters", []):
             name = param.get("name")
             location = param.get("in")
+            
+            # Get the parameter value
             value = param.get("value")
-
+                
             # Process the value to resolve any expressions
             if isinstance(value, str):
                 if value.startswith("$"):
@@ -80,7 +85,7 @@ class ParameterProcessor:
                     if array_value is not None:
                         value = array_value
                     else:
-                        # Fall back to standard expression evaluation
+                        # Standard expression evaluation
                         value = ExpressionEvaluator.evaluate_expression(
                             value, state, self.source_descriptions
                         )
@@ -154,6 +159,12 @@ class ParameterProcessor:
                     value, state, self.source_descriptions
                 )
 
+            # Apply x-transform if present (simple and direct)
+            if "x-transform" in param:
+                value = ExpressionEvaluator.apply_regex_transforms(
+                    value, param.get("x-transform", [])
+                )
+
             # Log the parameter evaluation process for debugging
             logger.debug(
                 f"Parameter: {name}, Original value: {param.get('value')}, Evaluated value: {value}"
@@ -164,19 +175,20 @@ class ParameterProcessor:
                 logger.warning(
                     f"Parameter '{name}' value '{value}' still contains expression syntax after evaluation"
                 )
-
-            # Organize parameters by location
-            if location == "path":
-                parameters.setdefault("path", {})[name] = value
-            elif location == "query":
-                parameters.setdefault("query", {})[name] = value
-            elif location == "header":
-                parameters.setdefault("header", {})[name] = value
-            elif location == "cookie":
-                parameters.setdefault("cookie", {})[name] = value
-            else:
-                # For workflow inputs
-                parameters[name] = value
+            # If the reference expansion results in no value, do not add this parameter to the request
+            if value is not None:
+                # Organize parameters by location
+                if location == "path":
+                    parameters.setdefault("path", {})[name] = value
+                elif location == "query":
+                    parameters.setdefault("query", {})[name] = value
+                elif location == "header":
+                    parameters.setdefault("header", {})[name] = value
+                elif location == "cookie":
+                    parameters.setdefault("cookie", {})[name] = value
+                else:
+                    # For workflow inputs
+                    parameters[name] = value
 
         return parameters
 
@@ -386,6 +398,12 @@ class ParameterProcessor:
                     except json.JSONDecodeError as e:
                         logger.warning(f"JSON decode error in non-templated payload: {e}")
                         # Keep original as string
+                elif payload.startswith("$"):
+                    # Direct expression payload
+                    payload = ExpressionEvaluator.evaluate_expression(
+                        payload, state, self.source_descriptions
+                    )
+                    logger.debug(f"Processed expression payload: {payload}")
             except Exception as e:
                 logger.error(f"Error processing payload: {e}")
                 logger.error(f"Original payload: {payload}")
@@ -402,12 +420,6 @@ class ParameterProcessor:
                 payload, state, self.source_descriptions
             )
             logger.debug(f"Processed list payload: {payload}")
-        elif isinstance(payload, str) and payload.startswith("$"):
-            # Direct expression payload
-            payload = ExpressionEvaluator.evaluate_expression(
-                payload, state, self.source_descriptions
-            )
-            logger.debug(f"Processed expression payload: {payload}")
 
         # Handle replacements
         replacements = request_body.get("replacements", [])
@@ -439,6 +451,14 @@ class ParameterProcessor:
                                 current = current[part]
                 except (KeyError, IndexError, TypeError) as e:
                     logger.error(f"Error applying replacement to target {target}: {e}")
+        
+        ## Handle Null values
+        if content_type == "application/json":
+            rebuilt_payload = {}
+            for key, value in payload.items():
+                if value is not None:
+                    rebuilt_payload[key] = value
+            payload = rebuilt_payload
 
         return {"contentType": content_type, "payload": payload}
 
@@ -645,133 +665,3 @@ class ParameterProcessor:
 
         logger.debug(f"Prepared parameters: {prepared_params}")
         return prepared_params
-
-    # --- DEPRECATION NOTICE ---
-    # Consider refactoring prepare_parameters or merging logic if significant overlap
-    # exists after full implementation of prepare_operation_parameters.
-    def prepare_parameters(self, step: dict, state: ExecutionState) -> dict[str, Any]:
-        """
-        Prepare parameters for an operation execution
-
-        Args:
-            step: Step definition
-            state: Current execution state
-
-        Returns:
-            Dictionary of prepared parameters
-        """
-        parameters = {}
-
-        # Process parameters from the step definition
-        for param in step.get("parameters", []):
-            name = param.get("name")
-            location = param.get("in")
-            value = param.get("value")
-
-            # Process the value to resolve any expressions
-            if isinstance(value, str):
-                if value.startswith("$"):
-                    # Try array access handler first for common patterns
-                    array_value = ExpressionEvaluator.handle_array_access(value, state)
-                    if array_value is not None:
-                        value = array_value
-                    else:
-                        # Fall back to standard expression evaluation
-                        value = ExpressionEvaluator.evaluate_expression(
-                            value, state, self.source_descriptions
-                        )
-                elif "{" in value and "}" in value:
-                    # Template with expressions
-                    def replace_expr(match):
-                        expr = match.group(1)
-                        eval_value = ExpressionEvaluator.evaluate_expression(
-                            expr, state, self.source_descriptions
-                        )
-                        return "" if eval_value is None else str(eval_value)
-
-                    value = re.sub(r"\{([^}]+)\}", replace_expr, value)
-                # Special handling for "Bearer $dependencies.x.y" format - common in authorization headers
-                elif " $" in value:
-                    parts = value.split(" $", 1)
-                    prefix = parts[0] + " "
-                    expr = "$" + parts[1]
-
-                    # Add more debugging for dependency expressions
-                    if "dependencies" in expr:
-                        logger.debug(f"Processing dependency expression: {expr}")
-                        logger.debug(f"Dependencies available: {state.dependency_outputs}")
-                        if "." in expr:
-                            parts = expr.split(".")
-                            if len(parts) >= 3:
-                                dep_id = parts[1]
-                                output_key = parts[2]
-                                logger.debug(
-                                    f"Looking for dependency {dep_id}, output {output_key}"
-                                )
-
-                                if dep_id in state.dependency_outputs:
-                                    logger.debug(
-                                        f"Found dependency {dep_id} with outputs: {state.dependency_outputs[dep_id]}"
-                                    )
-                                    if output_key in state.dependency_outputs[dep_id]:
-                                        logger.debug(
-                                            f"Found output {output_key} with value: {state.dependency_outputs[dep_id][output_key]}"
-                                        )
-                                    else:
-                                        logger.debug(
-                                            f"Output {output_key} not found in dependency {dep_id}"
-                                        )
-                                else:
-                                    logger.debug(
-                                        f"Dependency {dep_id} not found in available dependencies"
-                                    )
-
-                    # Evaluate the expression part
-                    expr_value = ExpressionEvaluator.evaluate_expression(
-                        expr, state, self.source_descriptions
-                    )
-
-                    # More debugging about evaluation result
-                    if "dependencies" in expr:
-                        logger.debug(f"Evaluated dependency expression {expr} to: {expr_value}")
-
-                    if expr_value is not None:
-                        value = prefix + str(expr_value)
-                    else:
-                        logger.warning(
-                            f"Expression {expr} evaluated to None - keeping original value: {value}"
-                        )
-            elif isinstance(value, dict):
-                value = ExpressionEvaluator.process_object_expressions(
-                    value, state, self.source_descriptions
-                )
-            elif isinstance(value, list):
-                value = ExpressionEvaluator.process_array_expressions(
-                    value, state, self.source_descriptions
-                )
-
-            # Log the parameter evaluation process for debugging
-            logger.debug(
-                f"Parameter: {name}, Original value: {param.get('value')}, Evaluated value: {value}"
-            )
-
-            # Log if the value couldn't be properly evaluated
-            if isinstance(value, str) and "$" in value and (value.startswith("$") or "{$" in value):
-                logger.warning(
-                    f"Parameter '{name}' value '{value}' still contains expression syntax after evaluation"
-                )
-
-            # Organize parameters by location
-            if location == "path":
-                parameters.setdefault("path", {})[name] = value
-            elif location == "query":
-                parameters.setdefault("query", {})[name] = value
-            elif location == "header":
-                parameters.setdefault("header", {})[name] = value
-            elif location == "cookie":
-                parameters.setdefault("cookie", {})[name] = value
-            else:
-                # For workflow inputs
-                parameters[name] = value
-
-        return parameters

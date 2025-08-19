@@ -3,11 +3,12 @@
 Expression Evaluator for Arazzo Runner
 
 This module provides functions for evaluating runtime expressions used in Arazzo workflows.
+Supports regex-based transformations through x-transform configurations.
 """
 
 import logging
 import re
-from typing import Any
+from typing import Any, Dict, List, Union
 
 from .models import ExecutionState
 
@@ -150,6 +151,79 @@ class ExpressionEvaluator:
             return value
 
         return None
+
+    @staticmethod
+    def apply_regex_transforms(value: Any, transforms: List[Dict[str, Any]]) -> Any:
+        """
+        Apply regex transformations to a value. Much simpler approach.
+        
+        Args:
+            value: Input value to transform
+            transforms: List of transform configs with 'pattern' and 'result'
+            
+        Returns:
+            Transformed value
+        """
+        if not transforms:
+            return value
+            
+        current_value = str(value) if value is not None else ""
+        
+        for transform in transforms:
+            if transform.get("type") != "regex":
+                continue
+                
+            pattern = transform.get("pattern")
+            result_template = transform.get("result")
+            
+            if not pattern or not result_template:
+                continue
+                
+            try:
+                match = re.search(pattern, current_value)
+                if match:
+                    result = result_template
+                    
+                    # First, handle escaping by temporarily replacing escaped sequences
+                    # \\1 -> literal \1, \\<name> -> literal \<name>
+                    escape_map = {}
+                    
+                    # Handle escaped backslashes (\\1 -> \1)
+                    escape_counter = 0
+                    while f"\\\\{escape_counter + 1}" in result:
+                        escape_counter += 1
+                        placeholder = f"__ESCAPED_BACKSLASH_{escape_counter}__"
+                        result = result.replace(f"\\\\{escape_counter}", placeholder)
+                        escape_map[placeholder] = f"\\{escape_counter}"
+                    
+                    # Handle escaped named groups (\\<name> -> \<name>)
+                    import re as re_module
+                    escaped_named_pattern = r'\\\\<([^>]+)>'
+                    escaped_named_matches = re_module.findall(escaped_named_pattern, result)
+                    for i, name in enumerate(escaped_named_matches):
+                        placeholder = f"__ESCAPED_NAMED_{i}__"
+                        result = result.replace(f"\\\\<{name}>", placeholder)
+                        escape_map[placeholder] = f"\\<{name}>"
+                    
+                    # Replace named groups: \<name> -> matched value
+                    for name, value in match.groupdict().items():
+                        if value is not None:
+                            result = result.replace(f"\\<{name}>", value)
+                    
+                    # Replace numbered groups: \1, \2, etc.
+                    for i, group in enumerate(match.groups(), 1):
+                        if group is not None:
+                            result = result.replace(f"\\{i}", group)
+                    
+                    # Restore escaped sequences
+                    for placeholder, literal in escape_map.items():
+                        result = result.replace(placeholder, literal)
+                        
+                    current_value = result
+            except re.error:
+                continue  # Skip invalid patterns
+                
+        return current_value
 
     @staticmethod
     def evaluate_expression(
@@ -531,7 +605,7 @@ class ExpressionEvaluator:
     def process_object_expressions(
         obj: dict, state: ExecutionState, source_descriptions: dict[str, Any] = None
     ) -> dict:
-        """Process dictionary values, evaluating any expressions"""
+        """Process dictionary values, evaluating expressions and applying regex transforms"""
         if not isinstance(obj, dict):
             return obj
 
@@ -543,10 +617,23 @@ class ExpressionEvaluator:
                     value, state, source_descriptions
                 )
             elif isinstance(value, dict):
-                # Process nested dictionary
-                result[key] = ExpressionEvaluator.process_object_expressions(
-                    value, state, source_descriptions
-                )
+                # Check if this is a parameter with x-transform
+                if "value" in value and "x-transform" in value:
+                    # Evaluate the base value first
+                    base_value = value.get("value")
+                    if isinstance(base_value, str) and base_value.startswith("$"):
+                        base_value = ExpressionEvaluator.evaluate_expression(
+                            base_value, state, source_descriptions
+                        )
+                    # Apply transforms
+                    result[key] = ExpressionEvaluator.apply_regex_transforms(
+                        base_value, value.get("x-transform", [])
+                    )
+                else:
+                    # Process nested dictionary
+                    result[key] = ExpressionEvaluator.process_object_expressions(
+                        value, state, source_descriptions
+                    )
             elif isinstance(value, list):
                 # Process nested list
                 result[key] = ExpressionEvaluator.process_array_expressions(
@@ -560,7 +647,7 @@ class ExpressionEvaluator:
     def process_array_expressions(
         arr: list, state: ExecutionState, source_descriptions: dict[str, Any] = None
     ) -> list:
-        """Process list values, evaluating any expressions"""
+        """Process list values, evaluating expressions and applying regex transforms"""
         if not isinstance(arr, list):
             return arr
 
@@ -572,10 +659,25 @@ class ExpressionEvaluator:
                     ExpressionEvaluator.evaluate_expression(item, state, source_descriptions)
                 )
             elif isinstance(item, dict):
-                # Process nested dictionary
-                result.append(
-                    ExpressionEvaluator.process_object_expressions(item, state, source_descriptions)
-                )
+                # Check if this is a parameter with x-transform
+                if "value" in item and "x-transform" in item:
+                    # Evaluate the base value first
+                    base_value = item.get("value")
+                    if isinstance(base_value, str) and base_value.startswith("$"):
+                        base_value = ExpressionEvaluator.evaluate_expression(
+                            base_value, state, source_descriptions
+                        )
+                    # Apply transforms
+                    result.append(
+                        ExpressionEvaluator.apply_regex_transforms(
+                            base_value, item.get("x-transform", [])
+                        )
+                    )
+                else:
+                    # Process nested dictionary
+                    result.append(
+                        ExpressionEvaluator.process_object_expressions(item, state, source_descriptions)
+                    )
             elif isinstance(item, list):
                 # Process nested list
                 result.append(
