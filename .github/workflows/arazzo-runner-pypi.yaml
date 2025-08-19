@@ -16,8 +16,6 @@ permissions:
 jobs:
   check-version:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     outputs:
       version_changed: ${{ steps.check.outputs.changed }}
     steps:
@@ -48,7 +46,6 @@ jobs:
     needs: check-version
     if: needs.check-version.outputs.version_changed == 'true'
     permissions:
-      contents: read
       actions: write
 
     steps:
@@ -86,6 +83,7 @@ jobs:
       url: https://pypi.org/p/arazzo-runner  # Replace <package-name> with your PyPI project name
     permissions:
       actions: read
+      contents: none
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
     steps:
@@ -111,6 +109,7 @@ jobs:
 
     permissions:
       actions: read
+      contents: none
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
     steps:
