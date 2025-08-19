@@ -62,26 +62,33 @@ class ServerProcessor:
                 var_name=var_name,
                 prefix=prefix
             )
+            # 1. Look for the value in the runtime_params (keyed by var_name)
+            # The var meets exactly what the spec says, ie: http://{env}.api.com/v1/users/{userId}
+            # and runtime_params is {"env": "dev", "userId": "123"}
+            if server_runtime_params and var_name in server_runtime_params:
+                resolved_value = server_runtime_params[var_name]
+                if resolved_value is not None:
+                    logger.debug(f"Server variable '{var_name}' (using key '{var_name}'): resolved from runtime_params.")
 
-            # 1. Try to use value from runtime_params (keyed by env_var_name)
-            if server_runtime_params and env_var_name in server_runtime_params:
+            # 2. Else, try to use value from runtime_params (keyed by env_var_name)
+            if resolved_value is None and server_runtime_params and env_var_name in server_runtime_params:
                 resolved_value = server_runtime_params[env_var_name]
                 if resolved_value is not None:
                     logger.debug(f"Server variable '{var_name}' (using key '{env_var_name}'): resolved from runtime_params.")
             
-            # 2. Else, if not resolved from runtime_params (or if value was None), try os.getenv
+            # 3. Else, if not resolved from runtime_params (or if value was None), try os.getenv
             if resolved_value is None:
                 env_os_value = os.getenv(env_var_name)
                 if env_os_value is not None:
                     resolved_value = env_os_value
                     logger.debug(f"Server variable '{var_name}' (using env var '{env_var_name}'): resolved from environment.")
 
-            # 3. Else, if still not resolved, use ServerVariable.default_value
+            # 4. Else, if still not resolved, use ServerVariable.default_value
             if resolved_value is None and server_var_details.default_value is not None:
                 resolved_value = server_var_details.default_value
                 logger.debug(f"Server variable '{var_name}': resolved from default_value.")
 
-            # 4. If still unresolved, this variable is mandatory and no value was found
+            # 5. If still unresolved, this variable is mandatory and no value was found
             if resolved_value is None:
                 raise ValueError(
                     f"Required server variable '{var_name}' could not be resolved for URL template "
@@ -89,7 +96,7 @@ class ServerProcessor:
                     f"environment (variable: '{env_var_name}'), or as a default."
                 )
 
-            # 5. If ServerVariable.enum_values is set, log a warning if the resolved value is not in the enum
+            # 6. If ServerVariable.enum_values is set, log a warning if the resolved value is not in the enum
             if server_var_details.enum_values and resolved_value not in server_var_details.enum_values:
                 logger.warning(
                     f"Value '{resolved_value}' for server variable '{var_name}' is not in its defined "
