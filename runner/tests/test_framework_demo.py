@@ -7,6 +7,7 @@ This module provides example tests that demonstrate how to use the Arazzo testin
 
 
 from arazzo_runner import WorkflowExecutionStatus
+
 from .base_test import ArazzoTestCase
 
 
@@ -351,7 +352,7 @@ class TestArazzoFramework(ArazzoTestCase):
         arazzo_doc = self.create_arazzo_spec(arazzo_spec, "error_workflow")
 
         # Load the OpenAPI spec and configure mocks
-        spec_name = self.load_test_openapi_spec(openapi_path)
+        self.load_test_openapi_spec(openapi_path)
 
         # Direct mock configuration for failed login
         self.http_client.add_static_response(

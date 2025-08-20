@@ -1,13 +1,14 @@
-import os
-import tempfile
 import json
+import os
 import shutil
+import tempfile
 import time
 import unittest
 from typing import Any
 
 from arazzo_runner import ArazzoRunner, WorkflowExecutionStatus
 from arazzo_runner.blob_store import InMemoryBlobStore, LocalFileBlobStore
+
 from .base_test import ArazzoTestCase
 from .mocks.http_client import MockResponse, RequestMatcher
 
@@ -41,6 +42,7 @@ class TestInMemoryBlobStore(unittest.TestCase):
             store.load(id1)
         self.assertEqual(store.load(id2), b"data2")
         self.assertEqual(store.load(id3), b"data3")
+
 
 class TestLocalFileBlobStore(unittest.TestCase):
     def setUp(self):
@@ -125,9 +127,7 @@ class TestBlobLogicInWorkflow(ArazzoTestCase):
                             "200": {
                                 "description": "binary data",
                                 "content": {
-                                    "audio/mpeg": {
-                                        "schema": {"type": "string", "format": "binary"}
-                                    }
+                                    "audio/mpeg": {"schema": {"type": "string", "format": "binary"}}
                                 },
                             }
                         },
@@ -200,9 +200,7 @@ class TestBlobLogicInWorkflow(ArazzoTestCase):
         arazzo_spec: dict[str, Any] = {
             "arazzo": "1.0.0",
             "info": {"title": "Blob Workflow", "version": "1.0.0"},
-            "sourceDescriptions": [
-                {"name": "blobApi", "url": openapi_path, "type": "openapi"}
-            ],
+            "sourceDescriptions": [{"name": "blobApi", "url": openapi_path, "type": "openapi"}],
             "workflows": [arazzo_workflow],
         }
 
@@ -271,4 +269,4 @@ class TestBlobLogicInWorkflow(ArazzoTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main() 
+    unittest.main()

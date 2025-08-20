@@ -119,7 +119,6 @@ class RealHTTPExecutor:
             return
 
         headers = kwargs.get("headers", {})
-        params = kwargs.get("params", {})
 
         # Apply API key authentication in headers
         for auth_name, auth_value in self.auth_values.items():

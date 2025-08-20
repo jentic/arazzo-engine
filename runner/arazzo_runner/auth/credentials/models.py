@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Any, Union
+from typing import Any
 
 from arazzo_runner.auth.models import AuthValue, RequestAuthValue, SecurityScheme
 
@@ -30,10 +30,11 @@ class Credential:
     security_scheme: SecurityScheme | None
         The OpenAPI `SecurityScheme` object that this credential fulfils.
     """
+
     id: str
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     # Fields that are populated by the provider and/or transformer
-    auth_value: Union[AuthValue, None] = None
-    request_auth_value: Union[RequestAuthValue, None] = None
-    security_scheme: Union[SecurityScheme, None] = None
+    auth_value: AuthValue | None = None
+    request_auth_value: RequestAuthValue | None = None
+    security_scheme: SecurityScheme | None = None

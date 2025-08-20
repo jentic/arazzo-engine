@@ -7,22 +7,36 @@ workflow specification. It builds an execution tree based on the possible paths 
 executes OpenAPI operations sequentially, handling success/failure conditions and flow control.
 """
 
+import json
 import logging
 from collections.abc import Callable
-import json
-from typing import Any, Optional, Dict
+from typing import Any
+
 import requests
 
 from .auth.auth_processor import AuthProcessor
+from .auth.credentials.provider import CredentialProvider, CredentialProviderFactory
 from .evaluator import ExpressionEvaluator
 from .executor import StepExecutor
+from .executor.server_processor import ServerProcessor
 from .http import HTTPExecutor
 from .models import (
-    ActionType, ArazzoDoc, ExecutionState, OpenAPIDoc, StepStatus, WorkflowExecutionStatus, WorkflowExecutionResult, RuntimeParams
+    ActionType,
+    ArazzoDoc,
+    ExecutionState,
+    OpenAPIDoc,
+    RuntimeParams,
+    StepStatus,
+    WorkflowExecutionResult,
+    WorkflowExecutionStatus,
 )
-from .utils import dump_state, load_arazzo_doc, load_source_descriptions, load_openapi_file, deprecated
-from .auth.credentials.provider import CredentialProviderFactory, CredentialProvider
-from .executor.server_processor import ServerProcessor
+from .utils import (
+    deprecated,
+    dump_state,
+    load_arazzo_doc,
+    load_openapi_file,
+    load_source_descriptions,
+)
 
 logger = logging.getLogger("arazzo-runner")
 
@@ -35,11 +49,11 @@ class ArazzoRunner:
 
     def __init__(
         self,
-        arazzo_doc: Optional[ArazzoDoc] = None,
+        arazzo_doc: ArazzoDoc | None = None,
         source_descriptions: dict[str, OpenAPIDoc] = None,
         http_client=None,
-        auth_provider: Optional[CredentialProvider] = None,
-        blob_store=None
+        auth_provider: CredentialProvider | None = None,
+        blob_store=None,
     ):
         """
         Initialize the runner with Arazzo document and source descriptions
@@ -69,19 +83,23 @@ class ArazzoRunner:
         # Initialize authentication provider with auth_requirements
         if auth_provider:
             self.auth_provider = auth_provider
-            self.auth_provider.strategy.set_auth_requirements(auth_config.get("auth_requirements", []))
+            self.auth_provider.strategy.set_auth_requirements(
+                auth_config.get("auth_requirements", [])
+            )
         else:
             self.auth_provider = CredentialProviderFactory.create_default(
                 auth_requirements=auth_config.get("auth_requirements", []),
                 env_mapping=auth_config.get("env_mappings", {}),
-                http_client=http_client
+                http_client=http_client,
             )
 
         # Initialize HTTP client
         http_executor = HTTPExecutor(http_client, self.auth_provider)
 
         # Initialize step executor
-        self.step_executor = StepExecutor(http_executor, self.source_descriptions, blob_store=blob_store)
+        self.step_executor = StepExecutor(
+            http_executor, self.source_descriptions, blob_store=blob_store
+        )
 
         # Execution state
         self.execution_states = {}
@@ -95,7 +113,14 @@ class ArazzoRunner:
         }
 
     @classmethod
-    def from_arazzo_path(cls, arazzo_path: str, base_path: str = None, http_client=None, auth_provider=None, blob_store=None):
+    def from_arazzo_path(
+        cls,
+        arazzo_path: str,
+        base_path: str = None,
+        http_client=None,
+        auth_provider=None,
+        blob_store=None,
+    ):
         """
         Initialize the runner with an Arazzo document path
 
@@ -110,12 +135,16 @@ class ArazzoRunner:
             raise ValueError("Arazzo document path is required to initialize the runner.")
 
         arazzo_doc = load_arazzo_doc(arazzo_path)
-        source_descriptions = load_source_descriptions(arazzo_doc, arazzo_path, base_path, http_client)
-        return cls(arazzo_doc=arazzo_doc,
-                   source_descriptions=source_descriptions,
-                   http_client=http_client,
-                   auth_provider=auth_provider,
-                   blob_store=blob_store)
+        source_descriptions = load_source_descriptions(
+            arazzo_doc, arazzo_path, base_path, http_client
+        )
+        return cls(
+            arazzo_doc=arazzo_doc,
+            source_descriptions=source_descriptions,
+            http_client=http_client,
+            auth_provider=auth_provider,
+            blob_store=blob_store,
+        )
 
     @classmethod
     def from_openapi_path(cls, openapi_path: str, blob_store=None):
@@ -142,9 +171,9 @@ class ArazzoRunner:
         return cls(
             arazzo_doc=None,
             source_descriptions=source_descriptions,
-            http_client=None, 
+            http_client=None,
             auth_provider=None,
-            blob_store=blob_store
+            blob_store=blob_store,
         )
 
     def register_callback(self, event_type: str, callback: Callable):
@@ -168,7 +197,12 @@ class ArazzoRunner:
             except Exception as e:
                 logger.error(f"Error in {event_type} callback: {e}")
 
-    def start_workflow(self, workflow_id: str, inputs: Optional[Dict[str, Any]] = None, runtime_params: Optional[RuntimeParams] = None) -> str:
+    def start_workflow(
+        self,
+        workflow_id: str,
+        inputs: dict[str, Any] | None = None,
+        runtime_params: RuntimeParams | None = None,
+    ) -> str:
         """
         Start a new workflow execution
 
@@ -208,7 +242,10 @@ class ArazzoRunner:
                 while True:
                     # execute_next_step will now retrieve runtime_params from the state
                     result = self.execute_next_step(dep_execution_id)
-                    if result.get("status") in [WorkflowExecutionStatus.WORKFLOW_COMPLETE, WorkflowExecutionStatus.ERROR]:
+                    if result.get("status") in [
+                        WorkflowExecutionStatus.WORKFLOW_COMPLETE,
+                        WorkflowExecutionStatus.ERROR,
+                    ]:
                         break
 
                 # Get the dependency workflow outputs
@@ -237,8 +274,8 @@ class ArazzoRunner:
         state = ExecutionState(
             workflow_id=workflow_id,
             inputs=inputs or {},
-            dependency_outputs=dependency_outputs, # Store dependency outputs
-            runtime_params=runtime_params # Store runtime parameters in ExecutionState
+            dependency_outputs=dependency_outputs,  # Store dependency outputs
+            runtime_params=runtime_params,  # Store runtime parameters in ExecutionState
         )
 
         # Initialize step statuses
@@ -262,7 +299,7 @@ class ArazzoRunner:
         self,
         workflow_id: str,
         inputs: dict[str, Any] = None,
-        runtime_params: Optional[RuntimeParams] = None
+        runtime_params: RuntimeParams | None = None,
     ) -> WorkflowExecutionResult:
         """
         Start and execute a workflow until completion, returning the outputs.
@@ -275,6 +312,7 @@ class ArazzoRunner:
         Returns:
             A WorkflowExecutionResult object containing the status, workflow_id, outputs, and any error
         """
+
         def on_workflow_start(execution_id, workflow_id, inputs):
             logger.debug(f"\n=== Starting workflow: {workflow_id} ===")
             logger.debug(f"Inputs: {json.dumps(inputs, indent=2)}")
@@ -299,14 +337,17 @@ class ArazzoRunner:
         self.register_callback("workflow_complete", on_workflow_complete)
 
         execution_id = self.start_workflow(workflow_id, inputs, runtime_params)
-        
+
         while True:
             result = self.execute_next_step(execution_id)
-            
-            if result.get("status") in [WorkflowExecutionStatus.WORKFLOW_COMPLETE, WorkflowExecutionStatus.ERROR]:
+
+            if result.get("status") in [
+                WorkflowExecutionStatus.WORKFLOW_COMPLETE,
+                WorkflowExecutionStatus.ERROR,
+            ]:
                 # Get the execution state to access step outputs
                 state = self.execution_states[execution_id]
-                
+
                 # Convert the dictionary result to a WorkflowExecutionResult object
                 execution_result = WorkflowExecutionResult(
                     status=result["status"],
@@ -314,7 +355,7 @@ class ArazzoRunner:
                     outputs=result.get("outputs", {}),
                     step_outputs=state.step_outputs if state.step_outputs else None,
                     inputs=inputs,
-                    error=result.get("error")
+                    error=result.get("error"),
                 )
                 return execution_result
 
@@ -385,7 +426,7 @@ class ArazzoRunner:
         state.status[step_id] = StepStatus.RUNNING
 
         # Determine if this is the final step – used to control blob-storage behaviour
-        is_final_step = (next_step_idx == len(steps) - 1)
+        is_final_step = next_step_idx == len(steps) - 1
 
         # Dump state before executing the step for debugging
         logger.info(f"===== EXECUTING STEP: {step_id} =====")
@@ -504,7 +545,10 @@ class ArazzoRunner:
 
                     # Update current step
                     state.current_step_id = steps[next_step_idx].get("stepId")
-                    return {"status": WorkflowExecutionStatus.GOTO_STEP, "step_id": state.current_step_id}
+                    return {
+                        "status": WorkflowExecutionStatus.GOTO_STEP,
+                        "step_id": state.current_step_id,
+                    }
             elif next_action["type"] == ActionType.RETRY:
                 # Retry the current step
                 # We don't change the step_id so it will retry on next execution
@@ -512,7 +556,11 @@ class ArazzoRunner:
 
                 # If there's a delay, we should return that information
                 retry_delay = next_action.get("retry_after", 0)
-                return {"status": WorkflowExecutionStatus.RETRY, "step_id": step_id, "retry_after": retry_delay}
+                return {
+                    "status": WorkflowExecutionStatus.RETRY,
+                    "step_id": step_id,
+                    "retry_after": retry_delay,
+                }
 
             # Default: continue to next step
             return {
@@ -536,7 +584,11 @@ class ArazzoRunner:
                 error=str(e),
             )
 
-            return {"status": WorkflowExecutionStatus.STEP_ERROR, "step_id": step_id, "error": str(e)}
+            return {
+                "status": WorkflowExecutionStatus.STEP_ERROR,
+                "step_id": step_id,
+                "error": str(e),
+            }
 
     def _execute_nested_workflow(self, step: dict, state: ExecutionState) -> dict:
         """Execute a nested workflow"""
@@ -589,7 +641,10 @@ class ArazzoRunner:
         # Execute the nested workflow until completion
         while True:
             result = self.execute_next_step(execution_id)
-            if result.get("status") in [WorkflowExecutionStatus.WORKFLOW_COMPLETE, WorkflowExecutionStatus.ERROR]:
+            if result.get("status") in [
+                WorkflowExecutionStatus.WORKFLOW_COMPLETE,
+                WorkflowExecutionStatus.ERROR,
+            ]:
                 break
 
         # Get the nested workflow outputs
@@ -612,9 +667,9 @@ class ArazzoRunner:
     def execute_operation(
         self,
         inputs: dict[str, Any],
-        operation_id: Optional[str] = None,
-        operation_path: Optional[str] = None,
-        runtime_params: Optional[RuntimeParams] = None,
+        operation_id: str | None = None,
+        operation_path: str | None = None,
+        runtime_params: RuntimeParams | None = None,
     ) -> dict:
         """
         Execute a single API operation directly, outside of a workflow context.
@@ -645,7 +700,9 @@ class ArazzoRunner:
             raise ValueError("Provide either operation_id or operation_path, not both.")
 
         log_identifier = f"ID='{operation_id}'" if operation_id else f"Path='{operation_path}'"
-        logger.debug(f"ArazzoRunner: Received request to execute operation directly: {log_identifier}")
+        logger.debug(
+            f"ArazzoRunner: Received request to execute operation directly: {log_identifier}"
+        )
 
         try:
             # Delegate to StepExecutor's implementation
@@ -663,16 +720,20 @@ class ArazzoRunner:
             raise e
         except Exception as e:
             # Catch unexpected errors
-            logger.exception(f"ArazzoRunner: Unexpected error executing operation {log_identifier}: {e}")
+            logger.exception(
+                f"ArazzoRunner: Unexpected error executing operation {log_identifier}: {e}"
+            )
             # Wrap or re-raise depending on desired error handling strategy
             raise RuntimeError(f"Unexpected error during operation execution: {e}") from e
 
-    @deprecated("Use ArazzoRunner.generate_env_mappings instead. Will drop support in a future release.")
+    @deprecated(
+        "Use ArazzoRunner.generate_env_mappings instead. Will drop support in a future release."
+    )
     def get_env_mappings(self) -> dict[str, Any]:
         """
         DEPRECATED: Use ArazzoRunner.generate_env_mappings instead.
         Returns the environment variable mappings for both authentication and server variables.
-       
+
         Returns:
             Dictionary containing:
             - 'auth': Environment variable mappings for authentication
@@ -683,7 +744,7 @@ class ArazzoRunner:
             auth_mappings = self.auth_provider.env_mappings
         except AttributeError:
             auth_mappings = {}
-        
+
         # Get authentication environment mappings via the EnvironmentVariableFetchStrategy
         try:
             auth_mappings = self.auth_provider.strategy._env_mapping
@@ -691,18 +752,18 @@ class ArazzoRunner:
             auth_mappings = {}
 
         result = {"auth": auth_mappings}
-        
+
         # Get server variable environment mappings
         server_mappings = self.step_executor.server_processor.get_env_mappings()
         # Only include server mappings if they exist
         if server_mappings:
             result["servers"] = server_mappings
-        
+
         return result
 
     @staticmethod
     def generate_env_mappings(
-        arazzo_docs: Optional[list["ArazzoDoc"]] = None,
+        arazzo_docs: list["ArazzoDoc"] | None = None,
         source_descriptions: dict[str, "OpenAPIDoc"] = None,
     ) -> dict:
         """

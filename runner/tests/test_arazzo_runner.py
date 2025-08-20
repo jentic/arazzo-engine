@@ -7,10 +7,10 @@ testing with fixtures, see test_fixture_discovery.py which implements an automat
 fixture-based testing framework.
 """
 
+import json
 import os
 import tempfile
 import unittest
-import json
 
 import yaml
 
@@ -55,17 +55,17 @@ class MockResponse:
             self.headers["Content-Type"] = "application/json"
 
         self.content = content or b""
-        
+
         # Generate content attribute like real requests.Response
         if content is not None:
             # Use explicitly provided content
             self.content = content
         elif self._json_data is not None:
             # JSON content gets encoded as UTF-8 bytes
-            self.content = json.dumps(self._json_data).encode('utf-8')
+            self.content = json.dumps(self._json_data).encode("utf-8")
         elif self.text:
             # Text content gets encoded as UTF-8 bytes
-            self.content = self.text.encode('utf-8')
+            self.content = self.text.encode("utf-8")
         else:
             # Default to empty bytes
             self.content = b""

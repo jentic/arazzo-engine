@@ -6,12 +6,13 @@ This module provides HTTP request handling for the Arazzo Runner.
 """
 import logging
 from typing import Any
-from typing import Optional
-from arazzo_runner.auth.models import SecurityOption, RequestAuthValue, AuthLocation
-from arazzo_runner.auth.credentials.provider import CredentialProvider
+
+import requests
+
 from arazzo_runner.auth.credentials.fetch import FetchOptions
 from arazzo_runner.auth.credentials.models import Credential
-import requests
+from arazzo_runner.auth.credentials.provider import CredentialProvider
+from arazzo_runner.auth.models import AuthLocation, RequestAuthValue, SecurityOption
 from arazzo_runner.blob_utils import analyze_response_for_blob
 
 # Configure logging
@@ -21,7 +22,7 @@ logger = logging.getLogger("arazzo-runner.http")
 class HTTPExecutor:
     """HTTP client for executing API requests in Arazzo workflows"""
 
-    def __init__(self, http_client=None, auth_provider: Optional[CredentialProvider] = None):
+    def __init__(self, http_client=None, auth_provider: CredentialProvider | None = None):
         """
         Initialize the HTTP client
 
@@ -30,45 +31,45 @@ class HTTPExecutor:
             auth_provider: Optional authentication provider
         """
         self.http_client = http_client or requests.Session()
-        self.auth_provider: Optional[CredentialProvider] = auth_provider
+        self.auth_provider: CredentialProvider | None = auth_provider
 
     def _get_content_type_category(self, content_type: str | None) -> str:
         """
         Categorize the content type to determine how to handle the request body.
-        
+
         Args:
             content_type: The content type string from the request body
-            
+
         Returns:
             One of: 'multipart', 'json', 'form', 'raw', or 'unknown'
         """
         if not content_type:
-            return 'unknown'
-            
+            return "unknown"
+
         content_type_lower = content_type.lower()
-        
+
         if "multipart/form-data" in content_type_lower:
-            return 'multipart'
+            return "multipart"
         elif "json" in content_type_lower:
-            return 'json'
+            return "json"
         elif "form" in content_type_lower or "x-www-form-urlencoded" in content_type_lower:
-            return 'form'
+            return "form"
         else:
-            return 'raw'
+            return "raw"
 
     def _is_binary_content(self, content_type: str) -> bool:
         """
         Check if content type represents binary data.
-        
+
         Args:
             content_type: The Content-Type header value
-            
+
         Returns:
             True if content is binary, False otherwise
         """
         if not content_type:
             return False
-            
+
         content_type_lower = content_type.lower()
         binary_prefixes = [
             "application/octet-stream",
@@ -78,16 +79,16 @@ class HTTPExecutor:
             "application/pdf",
             "application/zip",
             "application/x-tar",
-            "application/gzip"
+            "application/gzip",
         ]
-        
+
         return any(content_type_lower.startswith(prefix) for prefix in binary_prefixes)
 
     def _get_response_content(self, response) -> Any:
         """
         Get appropriate response content based on content type.
         Returns the actual data without any blob storage logic.
-        
+
         Processing order: JSON -> Binary -> Text
 
         Args:
@@ -97,23 +98,29 @@ class HTTPExecutor:
             The response content in appropriate format (JSON, text, or bytes)
         """
         content_type = response.headers.get("Content-Type", "")
-        
+
         # 1. Try JSON first for JSON content types
         if "json" in content_type.lower():
             try:
                 return response.json()
             except Exception:
                 logger.debug("Failed to parse JSON despite JSON content-type, falling back")
-        
+
         # 2. For binary content types, return raw bytes
         if self._is_binary_content(content_type):
             return response.content
-        
+
         # 3. Default to text for everything else
         return response.text
 
     def execute_request(
-        self, method: str, url: str, parameters: dict[str, Any], request_body: dict | None, security_options: list[SecurityOption] | None = None, source_name: str | None = None
+        self,
+        method: str,
+        url: str,
+        parameters: dict[str, Any],
+        request_body: dict | None,
+        security_options: list[SecurityOption] | None = None,
+        source_name: str | None = None,
     ) -> dict:
         """
         Execute an HTTP request using the configured client
@@ -150,7 +157,9 @@ class HTTPExecutor:
                 logger.debug(f"Option {i} requirements: {option}")
 
         # Apply authentication headers from auth_provider if available
-        self._apply_auth_to_request(url, headers, query_params, cookies, security_options, source_name)
+        self._apply_auth_to_request(
+            url, headers, query_params, cookies, security_options, source_name
+        )
 
         # Prepare request body
         data = None
@@ -167,10 +176,12 @@ class HTTPExecutor:
                 if content_type:
                     # Content type specified but no payload - set header but no body
                     headers["Content-Type"] = content_type
-                    logger.debug(f"Content type '{content_type}' specified but payload is None - sending empty body with header")
+                    logger.debug(
+                        f"Content type '{content_type}' specified but payload is None - sending empty body with header"
+                    )
                 # If no content_type either, just send empty body (no header needed)
-                
-            elif content_category == 'multipart':
+
+            elif content_category == "multipart":
                 # Path 1: Multipart form data with file uploads
                 files = {}
                 data = {}
@@ -192,36 +203,42 @@ class HTTPExecutor:
                         data[key] = value
                 # Do NOT set Content-Type header here; `requests` will do it with the correct boundary
 
-            elif content_category == 'json':
+            elif content_category == "json":
                 # Path 2: JSON content
                 headers["Content-Type"] = content_type
                 json_data = payload
 
-            elif content_category == 'form':
+            elif content_category == "form":
                 # Path 3: Form-encoded content
                 headers["Content-Type"] = content_type
                 if isinstance(payload, dict):
                     data = payload
                 else:
-                    logger.warning(f"Form content type specified, but payload is not a dictionary: {type(payload)}. Sending as raw data.")
+                    logger.warning(
+                        f"Form content type specified, but payload is not a dictionary: {type(payload)}. Sending as raw data."
+                    )
                     data = payload
 
-            elif content_category == 'raw':
+            elif content_category == "raw":
                 # Path 4: Other explicit content types (raw data)
                 headers["Content-Type"] = content_type
                 if isinstance(payload, (str, bytes)):
                     data = payload
                 else:
                     # Attempt to serialize other types? Or raise error? Let's log and convert to string for now.
-                    logger.warning(f"Payload type {type(payload)} not directly supported for raw data. Converting to string.")
+                    logger.warning(
+                        f"Payload type {type(payload)} not directly supported for raw data. Converting to string."
+                    )
                     data = str(payload)
 
-            elif content_category == 'unknown' and payload is not None:
+            elif content_category == "unknown" and payload is not None:
                 # Path 5: No content type specified but payload exists - try to infer
                 if isinstance(payload, dict):
                     headers["Content-Type"] = "application/json"
                     json_data = payload
-                    logger.debug("No content type specified, inferring application/json for dict payload")
+                    logger.debug(
+                        "No content type specified, inferring application/json for dict payload"
+                    )
                 elif isinstance(payload, (bytes, bytearray)):
                     data = payload
                     logger.debug("No content type specified, sending raw bytes")
@@ -229,7 +246,9 @@ class HTTPExecutor:
                     data = payload
                     logger.debug("No content type specified, sending raw string")
                 else:
-                    logger.warning(f"Payload provided but contentType is missing and type {type(payload)} cannot be inferred; body not sent.")
+                    logger.warning(
+                        f"Payload provided but contentType is missing and type {type(payload)} cannot be inferred; body not sent."
+                    )
 
         # Log request details for debugging
         logger.debug(f"Making {method} request to {url}")
@@ -253,7 +272,7 @@ class HTTPExecutor:
 
         # Get the response content in appropriate format
         body_value = self._get_response_content(response)
-        
+
         # Analyze blob storage metadata without actually storing
         is_binary = self._is_binary_content(response.headers.get("Content-Type", ""))
         blob_metadata = analyze_response_for_blob(response, is_binary)
@@ -292,12 +311,12 @@ class HTTPExecutor:
             # If security options are provided, use them to resolve credentials
             if security_options:
                 logger.debug(f"Resolving credentials for security options: {security_options}")
-                
+
                 # Get auth values for the security requirements
-                fetch_options = FetchOptions(
-                    source_name=source_name
+                fetch_options = FetchOptions(source_name=source_name)
+                credentials: list[Credential] = self.auth_provider.get_credentials(
+                    security_options, fetch_options
                 )
-                credentials: list[Credential] = self.auth_provider.get_credentials(security_options, fetch_options)
                 if not credentials:
                     logger.debug("No credentials resolved for the security requirements")
                     return

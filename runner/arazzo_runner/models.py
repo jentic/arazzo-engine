@@ -7,12 +7,12 @@ This module defines the data models and enums used by the Arazzo Runner.
 
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
-from typing import Any, Dict, Optional, List, Union
-from pydantic import BaseModel, Field, validator, ConfigDict
+from typing import Any, Optional
 
+from pydantic import BaseModel, ConfigDict, Field
 
-OpenAPIDoc = Dict[str, Any]
-ArazzoDoc = Dict[str, Any]
+OpenAPIDoc = dict[str, Any]
+ArazzoDoc = dict[str, Any]
 
 
 class StepStatus(Enum):
@@ -55,9 +55,9 @@ class WorkflowExecutionStatus(StrEnum):
 @dataclass
 class WorkflowExecutionResult:
     """Represents the result of a workflow execution
-    
+
     This class models the structure of the result returned by the execute_workflow method.
-    
+
     Attributes:
         status: The status of the workflow execution (e.g., WORKFLOW_COMPLETE, ERROR)
         workflow_id: The ID of the executed workflow
@@ -66,12 +66,13 @@ class WorkflowExecutionResult:
         inputs: The original inputs provided to the workflow
         error: Optional error message if the workflow execution failed
     """
+
     status: WorkflowExecutionStatus
     workflow_id: str
     outputs: dict[str, Any] = field(default_factory=dict)
-    step_outputs: Optional[dict[str, dict[str, Any]]] = None
-    inputs: Optional[dict[str, Any]] = None
-    error: Optional[str] = None
+    step_outputs: dict[str, dict[str, Any]] | None = None
+    inputs: dict[str, Any] | None = None
+    error: str | None = None
 
 
 @dataclass
@@ -85,7 +86,7 @@ class ExecutionState:
     workflow_outputs: dict[str, Any] = None
     dependency_outputs: dict[str, dict[str, Any]] = None
     status: dict[str, StepStatus] = None
-    runtime_params: Optional['RuntimeParams'] = None
+    runtime_params: Optional["RuntimeParams"] = None
 
     def __post_init__(self):
         """Initialize default values"""
@@ -104,29 +105,29 @@ class ExecutionState:
 class ServerVariable(BaseModel):
     """Represents a variable for server URL template substitution."""
 
-    description: Optional[str] = None
-    default_value: Optional[str] = Field(None, alias="default")
-    enum_values: Optional[List[str]] = Field(None, alias="enum")
+    description: str | None = None
+    default_value: str | None = Field(None, alias="default")
+    enum_values: list[str] | None = Field(None, alias="enum")
 
-    model_config = ConfigDict(populate_by_name=True, extra='allow')
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class ServerConfiguration(BaseModel):
     """Represents an API server configuration with a templated URL and variables."""
 
     url_template: str = Field(alias="url")
-    description: Optional[str] = None
-    variables: Dict[str, ServerVariable] = Field(default_factory=dict)
-    api_title_prefix: Optional[str] = None # Derived from spec's info.title
+    description: str | None = None
+    variables: dict[str, ServerVariable] = Field(default_factory=dict)
+    api_title_prefix: str | None = None  # Derived from spec's info.title
 
-    model_config = ConfigDict(populate_by_name=True, extra='allow')
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
 
 class RuntimeParams(BaseModel):
     """
     Container for all runtime parameters that may influence workflow or operation execution.
     """
-    servers: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Server variable overrides for server resolution."
+
+    servers: dict[str, str] | None = Field(
+        default=None, description="Server variable overrides for server resolution."
     )

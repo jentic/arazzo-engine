@@ -68,7 +68,7 @@ class OpenAPIMocker:
             else:
                 spec = yaml.safe_load(content)
         except Exception as e:
-            raise ValueError(f"Failed to parse OpenAPI spec at {spec_path}: {e}")
+            raise ValueError(f"Failed to parse OpenAPI spec at {spec_path}") from e
 
         # Store the spec
         self.specs[name] = spec
@@ -113,7 +113,7 @@ class OpenAPIMocker:
 
         # Process all paths
         for path, path_item in spec.get("paths", {}).items():
-            for method, operation in path_item.items():
+            for method in path_item.items():
                 if method.lower() not in [
                     "get",
                     "post",
@@ -141,7 +141,9 @@ class OpenAPIMocker:
         base_url: str | None = None,
         operation_id: str | None = None,
         success_rate: float = 1.0,
-        custom_response_generator: Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]] | None = None,
+        custom_response_generator: (
+            Callable[[dict[str, Any], dict[str, Any]], dict[str, Any]] | None
+        ) = None,
     ) -> None:
         """
         Configure a mock response for a specific operation

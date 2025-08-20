@@ -95,8 +95,8 @@ class SuccessCriteriaChecker:
                         else:
                             # Try to evaluate literals (booleans, numbers, etc.)
                             try:
-                                right_value = eval(right_value)
-                            except:
+                                right_value = eval(right_value)  # noqa: S307
+                            except Exception:
                                 # If it's not a valid Python expression, treat as string
                                 right_value = right_value.strip("\"'")
 

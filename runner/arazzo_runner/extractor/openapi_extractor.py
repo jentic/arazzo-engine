@@ -6,24 +6,24 @@ This module provides functionality to extract input parameters and output schema
 from an OpenAPI specification for a given API operation.
 """
 
+import copy
 import logging
-from typing import Any, Dict, List, Optional, Set, Union
+import re
+from typing import Any
 
 import jsonpointer
-import copy
-import re
 
-from arazzo_runner.executor.operation_finder import OperationFinder
 from arazzo_runner.auth.models import SecurityOption
+from arazzo_runner.executor.operation_finder import OperationFinder
 
 # Configure logging (using the same logger as operation_finder for consistency)
 logger = logging.getLogger("arazzo_runner.extractor")
 
 
 def _format_security_options_to_dict_list(
-    security_options_list: List[SecurityOption],
-    operation_info: Dict[str, Any] # For logging context
-) -> List[Dict[str, List[str]]]:
+    security_options_list: list[SecurityOption],
+    operation_info: dict[str, Any],  # For logging context
+) -> list[dict[str, list[str]]]:
     """
     Converts a list of SecurityOption objects into a list of dictionaries
     representing OpenAPI security requirements.
@@ -47,17 +47,17 @@ def _format_security_options_to_dict_list(
                 try:
                     current_option_dict[sec_req.scheme_name] = sec_req.scopes
                 except AttributeError as e:
-                    op_path = operation_info.get('path', 'unknown_path')
-                    op_method = operation_info.get('http_method', 'unknown_method').upper()
+                    op_path = operation_info.get("path", "unknown_path")
+                    op_method = operation_info.get("http_method", "unknown_method").upper()
                     logger.warning(
                         f"Missing attributes on SecurityRequirement object for operation {op_method} {op_path}. Error: {e}"
                     )
-        
+
         # Handle OpenAPI's concept of an empty security requirement object {},
         # (optional authentication), represented by an empty list of requirements.
-        if sec_opt.requirements == []: # Explicitly check for an empty list
+        if sec_opt.requirements == []:  # Explicitly check for an empty list
             formatted_requirements.append({})
-        elif current_option_dict: # Add if populated from non-empty requirements
+        elif current_option_dict:  # Add if populated from non-empty requirements
             formatted_requirements.append(current_option_dict)
 
     return formatted_requirements
@@ -78,7 +78,8 @@ def _schema_brief(schema: Any) -> str:
     except Exception:
         return "<unprintable schema>"
 
-def _resolve_ref(spec: Dict[str, Any], ref: str) -> Dict[str, Any]:
+
+def _resolve_ref(spec: dict[str, Any], ref: str) -> dict[str, Any]:
     """
     Resolve a single JSON Pointer ``$ref`` to its target object.
 
@@ -92,12 +93,14 @@ def _resolve_ref(spec: Dict[str, Any], ref: str) -> Dict[str, Any]:
     - Uses a small per-call memoization cache to avoid redundant pointer resolution.
     """
     logger.debug(f"Attempting to resolve ref: {ref}")
-    
+
     # Use function attributes for per-call caches without changing the signature.
     # These are reset on each top-level invocation.
-    def _resolve_with_state(spec: Dict[str, Any], ref: str, stack: Set[str], cache: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    def _resolve_with_state(
+        spec: dict[str, Any], ref: str, stack: set[str], cache: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         # Ensure the ref starts with '#/' as expected for internal refs
-        if not ref.startswith('#/'):
+        if not ref.startswith("#/"):
             raise ValueError(
                 f"Invalid or unsupported $ref format: {ref}. Only internal refs starting with '#/' are supported."
             )
@@ -108,7 +111,9 @@ def _resolve_ref(spec: Dict[str, Any], ref: str) -> Dict[str, Any]:
 
         # Detect circular references along the current resolution path
         if ref in stack:
-            logger.debug(f"Circular $ref detected while resolving {ref}. Returning non-expanded $ref to break the cycle.")
+            logger.debug(
+                f"Circular $ref detected while resolving {ref}. Returning non-expanded $ref to break the cycle."
+            )
             # Do not expand further; return the $ref dict as a safe placeholder
             return {"$ref": ref}
 
@@ -122,7 +127,9 @@ def _resolve_ref(spec: Dict[str, Any], ref: str) -> Dict[str, Any]:
                 result = _resolve_with_state(spec, inner_ref, stack, cache)
             else:
                 if not isinstance(resolved_data, dict):
-                    logger.warning(f"Resolved $ref '{ref}' is not a dictionary, returning empty dict.")
+                    logger.warning(
+                        f"Resolved $ref '{ref}' is not a dictionary, returning empty dict."
+                    )
                     result = {}
                 else:
                     result = copy.deepcopy(resolved_data)
@@ -149,9 +156,9 @@ def _resolve_ref(spec: Dict[str, Any], ref: str) -> Dict[str, Any]:
 
 def _resolve_schema_refs(
     schema_part: Any,
-    full_spec: Dict[str, Any],
-    visited_refs: Optional[Set[str]] = None,
-    cache: Optional[Dict[str, Any]] = None,
+    full_spec: dict[str, Any],
+    visited_refs: set[str] | None = None,
+    cache: dict[str, Any] | None = None,
 ) -> Any:
     """
     Recursively resolve ``$ref`` within a schema fragment with cycle safety and memoization.
@@ -188,13 +195,17 @@ def _resolve_schema_refs(
                 result = memo[ref]
             else:
                 if ref in stack:
-                    logger.debug(f"Circular reference detected for '{ref}'. Returning $ref placeholder.")
+                    logger.debug(
+                        f"Circular reference detected for '{ref}'. Returning $ref placeholder."
+                    )
                     return {"$ref": ref}
                 stack.add(ref)
                 try:
                     target = jsonpointer.resolve_pointer(full_spec, ref[1:])
                     if not isinstance(target, (dict, list)):
-                        logger.warning(f"Resolved $ref '{ref}' is not a dict/list. Returning empty dict.")
+                        logger.warning(
+                            f"Resolved $ref '{ref}' is not a dict/list. Returning empty dict."
+                        )
                         result = {}
                     else:
                         # Provisional entry breaks indirect cycles
@@ -211,11 +222,11 @@ def _resolve_schema_refs(
             siblings = {k: v for k, v in schema_part.items() if k != "$ref"}
             if siblings and isinstance(result, dict):
                 # Resolve sibling values first
-                resolved_siblings: Dict[str, Any] = {}
+                resolved_siblings: dict[str, Any] = {}
                 for k, v in siblings.items():
                     resolved_siblings[k] = _resolve_schema_refs(v, full_spec, stack, memo)
                 # Start from siblings, then overlay result so result wins on conflicts
-                merged: Dict[str, Any] = dict(resolved_siblings)
+                merged: dict[str, Any] = dict(resolved_siblings)
                 for k, v in result.items():
                     merged[k] = v
                 return merged
@@ -229,12 +240,12 @@ def _resolve_schema_refs(
 
 
 def extract_operation_io(
-    spec: Dict[str, Any],
+    spec: dict[str, Any],
     http_path: str,
     http_method: str,
-    input_max_depth: Optional[int] = None,
-    output_max_depth: Optional[int] = None
-) -> Dict[str, Dict[str, Any]]:
+    input_max_depth: int | None = None,
+    output_max_depth: int | None = None,
+) -> dict[str, dict[str, Any]]:
     """
     Finds the specified operation within the spec and extracts input parameters
     structured as an OpenAPI object schema and the full schema for the success
@@ -248,7 +259,7 @@ def extract_operation_io(
         output_max_depth: If set, limits the depth of the output structure.
 
     Returns:
-        A dictionary containing 'inputs', 'outputs', and 'security_requirements'. 
+        A dictionary containing 'inputs', 'outputs', and 'security_requirements'.
         Returns the full, unsimplified dict structure if both max depth arguments are None.
         'inputs' is structured like an OpenAPI schema object:
             {'type': 'object', 'properties': {param_name: {param_schema_or_simple_type}, ...}}
@@ -299,10 +310,10 @@ def extract_operation_io(
         return {"inputs": {}, "outputs": {}, "security_requirements": []}
 
     # Initialize with new structure for inputs
-    extracted_details: Dict[str, Any] = {
+    extracted_details: dict[str, Any] = {
         "inputs": {"type": "object", "properties": {}, "required": []},
         "outputs": {},
-        "security_requirements": []
+        "security_requirements": [],
     }
     operation = operation_info.get("operation")
     if not operation or not isinstance(operation, dict):
@@ -310,8 +321,10 @@ def extract_operation_io(
         return extracted_details
 
     # Extract security requirements using OperationFinder
-    security_options_list: List[SecurityOption] = finder.extract_security_requirements(operation_info)
-    
+    security_options_list: list[SecurityOption] = finder.extract_security_requirements(
+        operation_info
+    )
+
     extracted_details["security_requirements"] = _format_security_options_to_dict_list(
         security_options_list, operation_info
     )
@@ -322,91 +335,108 @@ def extract_operation_io(
     # Check for path-level parameters first
     path_item_ref = f"#/paths/{operation_info.get('path', '').lstrip('/')}"
     try:
-        escaped_path = operation_info.get('path', '').lstrip('/').replace('~', '~0').replace('/', '~1')
+        escaped_path = (
+            operation_info.get("path", "").lstrip("/").replace("~", "~0").replace("/", "~1")
+        )
         path_item_ref = f"#/paths/{escaped_path}"
         path_item = jsonpointer.resolve_pointer(spec, path_item_ref[1:])
-        if path_item and isinstance(path_item, dict) and 'parameters' in path_item:
-            for param in path_item['parameters']:
+        if path_item and isinstance(path_item, dict) and "parameters" in path_item:
+            for param in path_item["parameters"]:
                 try:
                     resolved_param = param
-                    if '$ref' in param:
-                        resolved_param = _resolve_ref(spec, param['$ref'])
-                    param_key = (resolved_param.get('name'), resolved_param.get('in'))
+                    if "$ref" in param:
+                        resolved_param = _resolve_ref(spec, param["$ref"])
+                    param_key = (resolved_param.get("name"), resolved_param.get("in"))
                     if param_key not in seen_params:
                         all_parameters.append(resolved_param)
                         seen_params.add(param_key)
                 except (jsonpointer.JsonPointerException, ValueError, KeyError) as e:
-                    logger.warning(f"Skipping path-level parameter due to resolution/format error: {e}")
+                    logger.warning(
+                        f"Skipping path-level parameter due to resolution/format error: {e}"
+                    )
     except jsonpointer.JsonPointerException:
         logger.debug(f"Could not find or resolve path item: {path_item_ref}")
 
     # Add/override with operation-level parameters
-    if 'parameters' in operation:
-        for param in operation['parameters']:
+    if "parameters" in operation:
+        for param in operation["parameters"]:
             try:
                 resolved_param = param
-                if '$ref' in param:
-                    resolved_param = _resolve_ref(spec, param['$ref'])
-                param_key = (resolved_param.get('name'), resolved_param.get('in'))
-                existing_index = next((i for i, p in enumerate(all_parameters) if (p.get('name'), p.get('in')) == param_key), None)
+                if "$ref" in param:
+                    resolved_param = _resolve_ref(spec, param["$ref"])
+                param_key = (resolved_param.get("name"), resolved_param.get("in"))
+                existing_index = next(
+                    (
+                        i
+                        for i, p in enumerate(all_parameters)
+                        if (p.get("name"), p.get("in")) == param_key
+                    ),
+                    None,
+                )
                 if existing_index is not None:
                     all_parameters[existing_index] = resolved_param
                 elif param_key not in seen_params:
                     all_parameters.append(resolved_param)
                     seen_params.add(param_key)
             except (jsonpointer.JsonPointerException, ValueError, KeyError) as e:
-                logger.warning(f"Skipping operation-level parameter due to resolution/format error: {e}")
+                logger.warning(
+                    f"Skipping operation-level parameter due to resolution/format error: {e}"
+                )
 
     # --- Ensure all URL path parameters are present and required ---
     # Find all {param} in the http_path
-    url_param_names = re.findall(r'{([^}/]+)}', http_path)
+    url_param_names = re.findall(r"{([^}/]+)}", http_path)
     for url_param in url_param_names:
-        param_key = (url_param, 'path')
+        param_key = (url_param, "path")
         if param_key not in seen_params:
-            all_parameters.append({
-                'name': url_param,
-                'in': 'path',
-                'required': True,
-                'schema': {'type': 'string'}
-            })
+            all_parameters.append(
+                {"name": url_param, "in": "path", "required": True, "schema": {"type": "string"}}
+            )
             seen_params.add(param_key)
     # --- End ensure URL params ---
 
     # Process collected parameters into simplified inputs
     for param in all_parameters:
-        param_name = param.get('name')
-        param_in = param.get('in')
-        param_schema = param.get('schema')
-        if param_name and param_in != 'body':  # Body handled separately
+        param_name = param.get("name")
+        param_in = param.get("in")
+        param_schema = param.get("schema")
+        if param_name and param_in != "body":  # Body handled separately
             if not param_schema:
-                logger.warning(f"Parameter '{param_name}' in '{param_in}' is missing schema, mapping type to 'any'")
-                param_type = 'any'
+                logger.warning(
+                    f"Parameter '{param_name}' in '{param_in}' is missing schema, mapping type to 'any'"
+                )
             else:
                 # Resolve schema ref if present
-                if isinstance(param_schema, dict) and '$ref' in param_schema:
+                if isinstance(param_schema, dict) and "$ref" in param_schema:
                     # Defer full resolution to _resolve_schema_refs to properly handle cycles
                     try:
                         param_schema = _resolve_schema_refs(param_schema, spec)
                     except Exception as ref_e:
-                        logger.warning(f"Could not resolve schema $ref for parameter '{param_name}': {ref_e}")
-                        param_schema = {} # Fallback to empty schema
-            openapi_type = 'string'  # Default OpenAPI type
+                        logger.warning(
+                            f"Could not resolve schema $ref for parameter '{param_name}': {ref_e}"
+                        )
+                        param_schema = {}  # Fallback to empty schema
+            openapi_type = "string"  # Default OpenAPI type
             if isinstance(param_schema, dict):
-                oapi_type_from_schema = param_schema.get('type')
+                oapi_type_from_schema = param_schema.get("type")
                 # Map to basic OpenAPI types
-                if oapi_type_from_schema in ['string', 'integer', 'number', 'boolean', 'array', 'object']:
+                if oapi_type_from_schema in [
+                    "string",
+                    "integer",
+                    "number",
+                    "boolean",
+                    "array",
+                    "object",
+                ]:
                     openapi_type = oapi_type_from_schema
                 # TODO: More nuanced mapping (e.g., number format to float/double?)?
 
             # Add to properties as { 'type': 'openapi_type_string' }
             # Required status will be tracked in the top-level 'required' list
-            is_required = param.get('required', False) # Default to false if not present
-            param_input = {
-                "type": openapi_type,
-                "schema": param_schema or {}
-            }
+            is_required = param.get("required", False)  # Default to false if not present
+            param_input = {"type": openapi_type, "schema": param_schema or {}}
             # Add description if it exists
-            param_description = param.get('description')
+            param_description = param.get("description")
             if param_description:
                 param_input["description"] = param_description
             extracted_details["inputs"]["properties"][param_name] = param_input
@@ -416,10 +446,10 @@ def extract_operation_io(
                     extracted_details["inputs"]["required"].append(param_name)
 
     # Process Request Body for inputs
-    if 'requestBody' in operation:
+    if "requestBody" in operation:
         try:
-            request_body = operation['requestBody']
-            if '$ref' in request_body:
+            request_body = operation["requestBody"]
+            if "$ref" in request_body:
                 # Resolve requestBody schema using cycle-safe resolver.
                 try:
                     request_body = _resolve_schema_refs(request_body, spec)
@@ -428,8 +458,8 @@ def extract_operation_io(
                     logger.warning(f"Could not resolve requestBody: {e}")
 
             # Check for application/json content
-            json_content = request_body.get('content', {}).get('application/json', {})
-            body_schema = json_content.get('schema')
+            json_content = request_body.get("content", {}).get("application/json", {})
+            body_schema = json_content.get("schema")
 
             if body_schema:
                 # Let the recursive resolver handle any $ref and cycles
@@ -437,26 +467,33 @@ def extract_operation_io(
                 # Recursively resolve nested refs within the body schema
                 fully_resolved_body_schema = _resolve_schema_refs(body_schema, spec)
 
-                # --- Flatten body properties into inputs --- 
-                if isinstance(fully_resolved_body_schema, dict) and fully_resolved_body_schema.get("type") == "object":
+                # --- Flatten body properties into inputs ---
+                if (
+                    isinstance(fully_resolved_body_schema, dict)
+                    and fully_resolved_body_schema.get("type") == "object"
+                ):
                     body_properties = fully_resolved_body_schema.get("properties", {})
                     for prop_name, prop_schema in body_properties.items():
                         if prop_name in extracted_details["inputs"]["properties"]:
                             # Handle potential name collisions (e.g., param 'id' and body field 'id')
                             # Current approach: Body property overwrites if name collides. Log warning.
-                            logger.warning(f"Body property '{prop_name}' overwrites existing parameter with the same name.")
+                            logger.warning(
+                                f"Body property '{prop_name}' overwrites existing parameter with the same name."
+                            )
                         extracted_details["inputs"]["properties"][prop_name] = prop_schema
 
                     # Add required body properties to the main 'required' list
-                    body_required = fully_resolved_body_schema.get('required', [])
+                    body_required = fully_resolved_body_schema.get("required", [])
                     for req_prop_name in body_required:
                         if req_prop_name not in extracted_details["inputs"]["required"]:
                             extracted_details["inputs"]["required"].append(req_prop_name)
                 else:
                     # If body is not an object (e.g., array, primitive) or has no properties, don't flatten.
                     # Log a warning as we are not adding it under 'body' key either per the requirement.
-                    logger.warning(f"Request body for {http_method.upper()} {http_path} is not an object with properties. Skipping flattening.")
-                # --- End flatten --- 
+                    logger.warning(
+                        f"Request body for {http_method.upper()} {http_path} is not an object with properties. Skipping flattening."
+                    )
+                # --- End flatten ---
 
                 # Removed code that added the schema under 'body'
                 # Removed code that checked 'required' on the nested 'body' object
@@ -465,26 +502,30 @@ def extract_operation_io(
             logger.warning(f"Skipping request body processing due to error: {e}")
 
     # Process 200 or 201 Response for outputs
-    if 'responses' in operation:
-        responses = operation.get('responses', {})
+    if "responses" in operation:
+        responses = operation.get("responses", {})
         # Prioritize 200, fallback to 201 for success output schema
-        success_response = responses.get('200') or responses.get('201')
+        success_response = responses.get("200") or responses.get("201")
         if success_response:
             try:
                 resolved_response = success_response
-                if isinstance(success_response, dict) and '$ref' in success_response:
+                if isinstance(success_response, dict) and "$ref" in success_response:
                     # Resolve response object safely with schema resolver
                     resolved_response = _resolve_schema_refs(success_response, spec)
 
                 # Check for application/json content in the resolved successful response
-                json_content = resolved_response.get('content', {}).get('application/json', {})
-                response_schema = json_content.get('schema')
+                json_content = resolved_response.get("content", {}).get("application/json", {})
+                response_schema = json_content.get("schema")
 
                 if response_schema:
                     # Recursively resolve nested refs within the response schema
-                    logger.debug(f"Output schema BEFORE recursive resolve: {_schema_brief(response_schema)}")
+                    logger.debug(
+                        f"Output schema BEFORE recursive resolve: {_schema_brief(response_schema)}"
+                    )
                     fully_resolved_output_schema = _resolve_schema_refs(response_schema, spec)
-                    logger.debug(f"Output schema AFTER recursive resolve: {_schema_brief(fully_resolved_output_schema)}")
+                    logger.debug(
+                        f"Output schema AFTER recursive resolve: {_schema_brief(fully_resolved_output_schema)}"
+                    )
                     extracted_details["outputs"] = fully_resolved_output_schema
 
             except (jsonpointer.JsonPointerException, ValueError, KeyError) as e:
@@ -495,34 +536,40 @@ def extract_operation_io(
     # --- Limit output depth (conditionally) ---
     if input_max_depth is not None:
         if isinstance(extracted_details.get("inputs"), (dict, list)):
-            extracted_details["inputs"] = _limit_dict_depth(extracted_details["inputs"], input_max_depth)
+            extracted_details["inputs"] = _limit_dict_depth(
+                extracted_details["inputs"], input_max_depth
+            )
     if output_max_depth is not None:
         if isinstance(extracted_details.get("outputs"), (dict, list)):
-            extracted_details["outputs"] = _limit_dict_depth(extracted_details["outputs"], output_max_depth)
+            extracted_details["outputs"] = _limit_dict_depth(
+                extracted_details["outputs"], output_max_depth
+            )
 
     # If both max depths are None, return the full, unsimplified details
     return extracted_details
 
 
-def _limit_dict_depth(data: Union[Dict, List, Any], max_depth: int, current_depth: int = 0) -> Union[Dict, List, Any]:
+def _limit_dict_depth(
+    data: dict | list | Any, max_depth: int, current_depth: int = 0
+) -> dict | list | Any:
     """Recursively limits the depth of a dictionary or list structure."""
 
     if isinstance(data, dict):
         if current_depth >= max_depth:
-            return data.get('type', 'object')  # Limit hit for dict
+            return data.get("type", "object")  # Limit hit for dict
         else:
             # Recurse into dict
             limited_dict = {}
             for key, value in data.items():
                 # Special case to preserve enum lists
-                if key == 'enum' and isinstance(value, list):
+                if key == "enum" and isinstance(value, list):
                     limited_dict[key] = value
                 else:
                     limited_dict[key] = _limit_dict_depth(value, max_depth, current_depth + 1)
             return limited_dict
     elif isinstance(data, list):
         if current_depth >= max_depth:
-            return 'array'  # Limit hit for list
+            return "array"  # Limit hit for list
         else:
             # Recurse into list
             limited_list = []
