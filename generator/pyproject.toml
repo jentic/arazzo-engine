@@ -1,0 +1,54 @@
+[project]
+name = "arazzo_generator"
+version = "0.1.0"
+description = "Tool for analyzing OpenAPI specifications and generating meaningful Arazzo workflows by identifying logical API sequences and patterns."
+authors = [
+    {name = "Jentic", email = "hello@jentic.com"},
+]
+requires-python = ">=3.11,<4.0"
+readme = "./README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+
+dependencies = [
+    "requests>=2.25.0",
+    "openapi-spec-validator>=0.5.0",
+    "prance>=0.22.0",
+    "click>=8.0.0",
+    "jsonschema>=4.0.0",
+    "Levenshtein~=0.27.1",
+    "fastapi>=0.95.0",
+    "uvicorn>=0.22.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "litellm>=1.0.0",
+    "python-dotenv>=1.1.1"
+]
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "isort>=5.0.0",
+    "flake8>=5.0.0"
+]
+
+[tool.pdm.scripts]
+arazzo = "python -m generator.arazzo_generator.cli.run"
+validate = "python -m generator.arazzo_generator.cli.run validate"
+generate = "python -m generator.arazzo_generator.cli.run generate"
+batch = "python -m generator.arazzo_generator.cli.run batch"
+api = "python -m generator.arazzo_generator.api.run"
+test = "pytest"
+format = {cmd = "bash -c 'black generator/arazzo_generator/ tests/ && isort generator/arazzo_generator/ tests/'"}
+check-format = {cmd = "bash -c 'black --check generator/arazzo_generator/ tests/ && isort --check-only generator/arazzo_generator/ tests/ || exit 0'"}
+lint = "python -m flake8 --max-line-length=100 --exclude=.git,__pycache__,.pdm-build,build,dist,venv,env,.venv "
+
+[tool.black]
+line-length = 100
+
+[project.urls]
+Homepage = "https://github.com/jentic/arazzo-engine"
+Documentation = "https://github.com/jentic/arazzo-engine#readme"
+Issues = "https://github.com/jentic/arazzo-engine/issues"

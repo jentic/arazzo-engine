@@ -1,0 +1,35 @@
+[llm]
+# LLM configuration for the arazzo generator
+llm_provider = "gemini"
+llm_model = "gemini/gemini-2.0-flash"
+
+[logging]
+# Log format
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Output destinations (console, file, or both)
+destinations = ["console", "file"]
+
+# Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+level = "INFO"
+
+# File logging configuration
+[logging.file]
+log_dir = "generator/logs"
+filename = "jentic.log"
+
+# Application settings
+[app]
+environment = "development"
+debug = false
+
+# Logging paths 
+[logging.paths]
+logs_dir = "generator/logs"
+batch_logs_dir = "generator/batch_logs"
+
+# Batch processing folders
+[batch.paths]
+# These are default paths to test folders within this arazzo generator repo. These can be set to other paths if desired.
+openapi_dir = "generator/examples/openapi_specs"
+workflow_dir = "generator/examples/workflows"
