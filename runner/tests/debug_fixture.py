@@ -24,9 +24,6 @@ def debug_login_fixture():
     # Load Arazzo spec
     arazzo_path = os.path.join(fixture_dir, "login_workflow.yaml")
 
-    # Load OpenAPI spec
-    openapi_path = os.path.join(fixture_dir, "login_api.yaml")
-
     # Create mock HTTP client
     http_client = MockHTTPExecutor()
 

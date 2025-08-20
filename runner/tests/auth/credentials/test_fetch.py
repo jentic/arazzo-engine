@@ -1,9 +1,9 @@
 from arazzo_runner.auth.credentials.fetch import EnvironmentVariableFetchStrategy
 from arazzo_runner.auth.models import (
+    AuthType,
+    EnvVarKeys,
     SecurityOption,
     SecurityRequirement,
-    EnvVarKeys,
-    AuthType,
 )
 
 
@@ -43,8 +43,7 @@ def test_environment_variable_fetch_strategy_api_key(monkeypatch):
     # Exercise
     # ---------------------------------------------------------------------
     strategy = EnvironmentVariableFetchStrategy(
-        env_mapping=env_mapping,
-        auth_requirements=[auth_requirement]
+        env_mapping=env_mapping, auth_requirements=[auth_requirement]
     )
     credentials = strategy.fetch([security_option])
 
@@ -81,10 +80,9 @@ def test_environment_variable_missing_key():
     )
 
     strategy = EnvironmentVariableFetchStrategy(
-        env_mapping=env_mapping,
-        auth_requirements=[auth_requirement]
+        env_mapping=env_mapping, auth_requirements=[auth_requirement]
     )
     credentials = strategy.fetch([security_option])
 
     assert len(credentials) == 1
-    assert credentials[0].auth_value is None, "Auth value should be None when env var is absent"  
+    assert credentials[0].auth_value is None, "Auth value should be None when env var is absent"

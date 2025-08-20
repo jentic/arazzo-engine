@@ -26,7 +26,8 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 [tool.pdm.scripts]
-lint = {composite = ["black .", "isort .", "ruff check .", "mypy ."]}
+lint = {composite = ["black .", "isort .", "ruff check ."]}
+typecheck = "mypy ."
 test = "pytest"
 test-real = "python -m tests.run_real_tests"
 
@@ -37,7 +38,7 @@ python_functions = "test_*"
 
 [tool.black]
 line-length = 100
-target-version = ["py310"]
+target-version = ["py311"]
 
 [tool.isort]
 profile = "black"
@@ -57,9 +58,16 @@ warn_unused_ignores = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
+
+[tool.ruff.lint]
 select = ["E", "F", "B", "W", "I", "N", "UP", "YTT", "S"]
-ignore = []
+ignore = ["UP038"]
+extend-ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S311"]
+
 [dependency-groups]
 dev = [
     "pytest>=7.4.0",

@@ -9,8 +9,8 @@ import logging
 import sys
 from typing import Any
 
+from .models import RuntimeParams, StepStatus
 from .runner import ArazzoRunner
-from .models import StepStatus, RuntimeParams
 from .utils import set_log_level
 
 logger = logging.getLogger("arazzo-runner-cli")
@@ -26,7 +26,7 @@ def parse_inputs(inputs_str: str) -> dict[str, Any]:
             raise ValueError("Inputs must be a JSON object (dictionary).")
         return inputs
     except json.JSONDecodeError as e:
-        raise ValueError(f"Invalid JSON format for inputs: {e}")
+        raise ValueError("Invalid JSON format for inputs") from e
 
 
 async def main():
@@ -39,78 +39,95 @@ async def main():
         help="Set the logging level (default: WARNING)",
     )
 
-    subparsers = parser.add_subparsers(dest="operation", required=True, help='Operation to perform')
+    subparsers = parser.add_subparsers(dest="operation", required=True, help="Operation to perform")
 
     # Subparser for 'show-env-mappings'
-    parser_env = subparsers.add_parser('show-env-mappings', help='Show environment variable mappings for authentication')
+    parser_env = subparsers.add_parser(
+        "show-env-mappings", help="Show environment variable mappings for authentication"
+    )
     # Group to require one path source
     env_path_group = parser_env.add_mutually_exclusive_group(required=True)
     env_path_group.add_argument(
         "arazzo_path",
-        nargs='?', # Make positional optional *within the group*
-        default=None, # Explicitly default to None
-        help="Path to the Arazzo YAML file to provide context (use this OR --openapi-path)"
+        nargs="?",  # Make positional optional *within the group*
+        default=None,  # Explicitly default to None
+        help="Path to the Arazzo YAML file to provide context (use this OR --openapi-path)",
     )
     env_path_group.add_argument(
         "--openapi-path",
-        help="Path to the OpenAPI spec file to provide context (use this OR arazzo_path)"
+        help="Path to the OpenAPI spec file to provide context (use this OR arazzo_path)",
     )
     parser_env.set_defaults(func=handle_show_env_mappings)
 
     # Subparser for 'execute-workflow'
-    parser_exec_wf = subparsers.add_parser('execute-workflow', help='Execute a complete workflow')
+    parser_exec_wf = subparsers.add_parser("execute-workflow", help="Execute a complete workflow")
     parser_exec_wf.add_argument(
-        "arazzo_path",
-        help="Path to the Arazzo YAML file" # Required for this command
+        "arazzo_path", help="Path to the Arazzo YAML file"  # Required for this command
     )
-    parser_exec_wf.add_argument("--workflow-id", required=True, help="ID of the workflow to execute")
+    parser_exec_wf.add_argument(
+        "--workflow-id", required=True, help="ID of the workflow to execute"
+    )
     parser_exec_wf.add_argument("--inputs", help="JSON string of workflow inputs", default="{}")
     parser_exec_wf.add_argument(
         "--server-variables",
         default="{}",
-        help="Runtime parameters for server variable resolution as a JSON string (e.g., '{\"MY_API_SERVER\": \"your-instance\"}')"
+        help='Runtime parameters for server variable resolution as a JSON string (e.g., \'{"MY_API_SERVER": "your-instance"}\')',
     )
     parser_exec_wf.set_defaults(func=handle_execute_workflow)
 
     # Subparser for 'execute-operation'
-    parser_exec_op = subparsers.add_parser('execute-operation', help='Execute a single API operation directly')
+    parser_exec_op = subparsers.add_parser(
+        "execute-operation", help="Execute a single API operation directly"
+    )
     # Use mutually exclusive group for path specifiers
     path_group = parser_exec_op.add_mutually_exclusive_group(required=True)
     path_group.add_argument(
-        "--arazzo-path",
-        help="Path to the Arazzo YAML file containing the operation definition"
+        "--arazzo-path", help="Path to the Arazzo YAML file containing the operation definition"
     )
     path_group.add_argument(
-        "--openapi-path",
-        help="Path to the OpenAPI spec file containing the operation definition"
+        "--openapi-path", help="Path to the OpenAPI spec file containing the operation definition"
     )
     # Operation identifiers
     exec_group = parser_exec_op.add_mutually_exclusive_group(required=True)
     exec_group.add_argument("--operation-id", help="ID of the operation to execute")
-    exec_group.add_argument("--operation-path", help="HTTP method and path (e.g., 'GET /users/{id}')")
-    parser_exec_op.add_argument("--inputs", default="{}", help="Inputs for the operation as a JSON string")
+    exec_group.add_argument(
+        "--operation-path", help="HTTP method and path (e.g., 'GET /users/{id}')"
+    )
+    parser_exec_op.add_argument(
+        "--inputs", default="{}", help="Inputs for the operation as a JSON string"
+    )
     parser_exec_op.add_argument(
         "--server-variables",
         default="{}",
-        help="Runtime parameters for server variable resolution as a JSON string (e.g., '{\"MY_API_SERVER\": \"your-instance\"}')"
+        help='Runtime parameters for server variable resolution as a JSON string (e.g., \'{"MY_API_SERVER": "your-instance"}\')',
     )
     parser_exec_op.set_defaults(func=handle_execute_operation)
 
     # Subparser for 'list-workflows'
-    parser_list_wf = subparsers.add_parser('list-workflows', help='List all workflow IDs in an Arazzo file')
+    parser_list_wf = subparsers.add_parser(
+        "list-workflows", help="List all workflow IDs in an Arazzo file"
+    )
     parser_list_wf.add_argument("arazzo_path", help="Path to the Arazzo YAML file")
     parser_list_wf.set_defaults(func=handle_list_workflows)
 
     # Subparser for 'describe-workflow'
-    parser_desc_wf = subparsers.add_parser('describe-workflow', help='Show details of a specific workflow')
+    parser_desc_wf = subparsers.add_parser(
+        "describe-workflow", help="Show details of a specific workflow"
+    )
     parser_desc_wf.add_argument("arazzo_path", help="Path to the Arazzo YAML file")
-    parser_desc_wf.add_argument("--workflow-id", required=True, help="ID of the workflow to describe")
+    parser_desc_wf.add_argument(
+        "--workflow-id", required=True, help="ID of the workflow to describe"
+    )
     parser_desc_wf.set_defaults(func=handle_describe_workflow)
 
     # Subparser for 'generate-example'
-    parser_gen_ex = subparsers.add_parser('generate-example', help='Generate an example execution command for a workflow')
+    parser_gen_ex = subparsers.add_parser(
+        "generate-example", help="Generate an example execution command for a workflow"
+    )
     parser_gen_ex.add_argument("arazzo_path", help="Path to the Arazzo YAML file")
-    parser_gen_ex.add_argument("--workflow-id", required=True, help="ID of the workflow to generate example for")
+    parser_gen_ex.add_argument(
+        "--workflow-id", required=True, help="ID of the workflow to generate example for"
+    )
     parser_gen_ex.set_defaults(func=handle_generate_example)
 
     args = parser.parse_args()
@@ -120,23 +137,24 @@ async def main():
 
     # Adjust log level based on command or explicit flag
     # Suppress logs for inspection commands unless overridden
-    if args.operation in ["list-workflows", "describe-workflow", "generate-example"] and args.log_level == "INFO":
-         # Suppress standard INFO/DEBUG logs for these commands by default
-         set_log_level("WARNING")
+    if (
+        args.operation in ["list-workflows", "describe-workflow", "generate-example"]
+        and args.log_level == "INFO"
+    ):
+        # Suppress standard INFO/DEBUG logs for these commands by default
+        set_log_level("WARNING")
     else:
-         # Use the specified or default log level for other commands
-         set_log_level(args.log_level)
+        # Use the specified or default log level for other commands
+        set_log_level(args.log_level)
 
     # Removed argument validation section as it's handled by argparse structure now
-
-    runner = None # Runner will be initialized within handlers now
     try:
         # --- Command Execution ---
         # Call the function associated with the chosen subparser
         # Pass runner (always None initially) and args to the handler
         # The handler function is responsible for ensuring the runner is initialized.
-        if hasattr(args, 'func'):
-            await args.func(None, args) # Pass None for runner
+        if hasattr(args, "func"):
+            await args.func(None, args)  # Pass None for runner
         else:
             # Should not happen due to required=True on subparsers
             parser.print_help()
@@ -182,9 +200,9 @@ async def handle_execute_workflow(runner: ArazzoRunner | None, args: argparse.Na
     logger.info("Executing workflow...")
     # Initialize runner
     if not args.arazzo_path:
-         # Should be caught by argparse, but defensive check
-         logger.error("Arazzo path is required for execute-workflow.")
-         sys.exit(1)
+        # Should be caught by argparse, but defensive check
+        logger.error("Arazzo path is required for execute-workflow.")
+        sys.exit(1)
     logger.info(f"Initializing runner with Arazzo file: {args.arazzo_path}")
     runner = ArazzoRunner.from_arazzo_path(args.arazzo_path)
     if not runner:
@@ -214,9 +232,7 @@ async def handle_execute_workflow(runner: ArazzoRunner | None, args: argparse.Na
 
     try:
         result = runner.execute_workflow(
-            args.workflow_id, 
-            inputs, 
-            runtime_params=runtime_params  # Pass the RuntimeParams object
+            args.workflow_id, inputs, runtime_params=runtime_params  # Pass the RuntimeParams object
         )
     except Exception as e:
         logger.error(f"Failed to execute workflow: {e}", exc_info=True)
@@ -229,7 +245,7 @@ async def handle_execute_workflow(runner: ArazzoRunner | None, args: argparse.Na
     # Check for failure in outputs (if possible)
     try:
         state = None
-        for exec_id, st in runner.execution_states.items():
+        for st in runner.execution_states.values():
             if st.workflow_id == args.workflow_id:
                 state = st
                 break
@@ -245,22 +261,24 @@ async def handle_execute_workflow(runner: ArazzoRunner | None, args: argparse.Na
     sys.exit(0 if all_success else 1)
 
 
-async def handle_execute_operation(runner: ArazzoRunner | None, args: argparse.Namespace): # Runner can be None initially
+async def handle_execute_operation(
+    runner: ArazzoRunner | None, args: argparse.Namespace
+):  # Runner can be None initially
     """Handles the execute_operation command."""
     # Runner is always passed as None now, initialize here
     logger.info("Executing direct operation...")
     try:
         # Initialize runner based on provided path
         if args.arazzo_path:
-             logger.info(f"Initializing runner with Arazzo file: {args.arazzo_path}")
-             runner = ArazzoRunner.from_arazzo_path(args.arazzo_path)
+            logger.info(f"Initializing runner with Arazzo file: {args.arazzo_path}")
+            runner = ArazzoRunner.from_arazzo_path(args.arazzo_path)
         elif args.openapi_path:
-             logger.info(f"Initializing runner with OpenAPI file: {args.openapi_path}")
-             runner = ArazzoRunner.from_openapi_path(args.openapi_path)
+            logger.info(f"Initializing runner with OpenAPI file: {args.openapi_path}")
+            runner = ArazzoRunner.from_openapi_path(args.openapi_path)
         else:
-             # This state should be prevented by the mutually exclusive group requirement
-             logger.error("Cannot execute operation: No Arazzo or OpenAPI path specified.")
-             sys.exit(1)
+            # This state should be prevented by the mutually exclusive group requirement
+            logger.error("Cannot execute operation: No Arazzo or OpenAPI path specified.")
+            sys.exit(1)
 
         # Ensure runner got initialized successfully
         if not runner:
@@ -288,17 +306,17 @@ async def handle_execute_operation(runner: ArazzoRunner | None, args: argparse.N
         # REMOVED await as execute_operation is synchronous
         # Create a RuntimeParams object with the server parameters
         runtime_params = RuntimeParams(servers=server_params_dict)
-        
+
         result = runner.execute_operation(
             operation_id=args.operation_id,  # Pass directly
-            operation_path=args.operation_path, # Pass directly
+            operation_path=args.operation_path,  # Pass directly
             inputs=inputs_dict,
-            runtime_params=runtime_params  # Pass the RuntimeParams object
+            runtime_params=runtime_params,  # Pass the RuntimeParams object
         )
         # Remove 'headers' from result if present
-        if isinstance(result, dict) and 'headers' in result:
+        if isinstance(result, dict) and "headers" in result:
             result = dict(result)  # Make a shallow copy to avoid mutating originals
-            result.pop('headers')
+            result.pop("headers")
         logger.info(f"Operation Result: {json.dumps(result, indent=2)}")
         # Determine exit code based on HTTP status (e.g., 2xx is success)
         status_code = result.get("status_code", 500)
@@ -337,7 +355,9 @@ async def handle_list_workflows(runner: ArazzoRunner | None, args: argparse.Name
         sys.exit(0)
     except Exception as e:
         # Use logger for exceptions even if standard output is suppressed
-        logging.getLogger("arazzo-runner-cli").error(f"Failed to list workflows: {e}", exc_info=True)
+        logging.getLogger("arazzo-runner-cli").error(
+            f"Failed to list workflows: {e}", exc_info=True
+        )
         sys.exit(1)
 
 
@@ -403,7 +423,9 @@ async def handle_describe_workflow(runner: ArazzoRunner | None, args: argparse.N
         # --- End copied logic ---
         sys.exit(0)
     except Exception as e:
-        logging.getLogger("arazzo-runner-cli").error(f"Failed to describe workflow: {e}", exc_info=True)
+        logging.getLogger("arazzo-runner-cli").error(
+            f"Failed to describe workflow: {e}", exc_info=True
+        )
         sys.exit(1)
 
 
@@ -420,10 +442,10 @@ async def handle_generate_example(runner: ArazzoRunner | None, args: argparse.Na
 
         # Initialize runner to access Arazzo data
         runner = ArazzoRunner.from_arazzo_path(args.arazzo_path)
-         # Check runner and runner.arazzo_doc
+        # Check runner and runner.arazzo_doc
         if not runner or not runner.arazzo_doc:
-             logger.error("Runner initialization or Arazzo doc loading failed.")
-             sys.exit(1)
+            logger.error("Runner initialization or Arazzo doc loading failed.")
+            sys.exit(1)
 
         # --- Logic copied from arazzo_runner ---
         workflows = runner.arazzo_doc.get("workflows", [])
@@ -470,17 +492,19 @@ async def handle_generate_example(runner: ArazzoRunner | None, args: argparse.Na
             f"pdm run python -m arazzo_runner execute-workflow "
             f"{file_path} "
             f"--workflow-id {args.workflow_id} "
-            f"--inputs \"{inputs_json_string}\""
+            f'--inputs "{inputs_json_string}"'
         )
         print(example_cmd)
         # --- End copied logic ---
         sys.exit(0)
 
-    except KeyError: # Added specific catch if workflow not found during input generation
-         print(f"Error: Workflow ID '{args.workflow_id}' not found when generating example.")
-         sys.exit(1)
+    except KeyError:  # Added specific catch if workflow not found during input generation
+        print(f"Error: Workflow ID '{args.workflow_id}' not found when generating example.")
+        sys.exit(1)
     except Exception as e:
-        logging.getLogger("arazzo-runner-cli").error(f"Failed to generate example: {e}", exc_info=True)
+        logging.getLogger("arazzo-runner-cli").error(
+            f"Failed to generate example: {e}", exc_info=True
+        )
         sys.exit(1)
 
 

@@ -8,12 +8,11 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, Optional, List
+import warnings
+from typing import Any
+
 import jsonpointer
 import yaml
-import warnings
-
-from .models import ServerConfiguration, ServerVariable
 
 # Configure logging
 logging.basicConfig(
@@ -40,7 +39,9 @@ def load_arazzo_doc(arazzo_path: str) -> dict:
             return json.loads(content)
 
 
-def load_source_descriptions(arazzo_doc: dict, arazzo_path: str, base_path: str, http_client) -> dict[str, Any]:
+def load_source_descriptions(
+    arazzo_doc: dict, arazzo_path: str, base_path: str, http_client
+) -> dict[str, Any]:
     """
     Load referenced OpenAPI descriptions
 
@@ -58,7 +59,6 @@ def load_source_descriptions(arazzo_doc: dict, arazzo_path: str, base_path: str,
     for source in source_descriptions_list:
         source_name = source.get("name")
         source_url = source.get("url")
-        source_type = source.get("type", "openapi")
 
         if not source_name or not source_url:
             continue
@@ -88,7 +88,9 @@ def load_source_descriptions(arazzo_doc: dict, arazzo_path: str, base_path: str,
                     source_path = path
                     break
             if not source_path:
-                raise FileNotFoundError(f"Could not find source file for {source_name} using any known base path candidates: {candidate_paths}")
+                raise FileNotFoundError(
+                    f"Could not find source file for {source_name} using any known base path candidates: {candidate_paths}"
+                )
             try:
                 with open(source_path) as f:
                     content = f.read()
@@ -217,8 +219,8 @@ def load_openapi_file(openapi_path: str) -> dict[str, Any]:
     try:
         if not os.path.isfile(openapi_path):
             raise FileNotFoundError(f"OpenAPI file not found: {openapi_path}")
-        
-        with open(openapi_path, 'r') as f:
+
+        with open(openapi_path) as f:
             content = f.read()
 
         # Try parsing as YAML, then JSON
@@ -228,14 +230,18 @@ def load_openapi_file(openapi_path: str) -> dict[str, Any]:
             try:
                 return json.loads(content)
             except json.JSONDecodeError as json_err:
-                logger.error(f"Failed to parse OpenAPI spec as YAML or JSON from {openapi_path}: {json_err}")
+                logger.error(
+                    f"Failed to parse OpenAPI spec as YAML or JSON from {openapi_path}: {json_err}"
+                )
                 raise ValueError(f"Failed to parse OpenAPI spec from {openapi_path}") from json_err
 
     except FileNotFoundError:
         logger.error(f"OpenAPI file not found: {openapi_path}")
         raise
     except Exception as e:
-        logger.error(f"An unexpected error occurred while loading OpenAPI spec from {openapi_path}: {e}")
+        logger.error(
+            f"An unexpected error occurred while loading OpenAPI spec from {openapi_path}: {e}"
+        )
         raise ValueError(f"Could not load OpenAPI spec from {openapi_path}") from e
 
 
@@ -260,32 +266,32 @@ def set_log_level(level: str):
 def sanitize_for_env_var(text: str) -> str:
     """
     Sanitize a string for use in environment variable names.
-    
+
     Args:
         text: The text to sanitize
-        
+
     Returns:
         Sanitized text suitable for environment variables
     """
     # Convert to uppercase
     sanitized = text.upper()
-    
+
     # Replace hyphens with underscores
-    sanitized = sanitized.replace('-', '_')
-    
+    sanitized = sanitized.replace("-", "_")
+
     # Replace other non-alphanumeric characters with underscores
-    sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', sanitized)
-    
+    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", sanitized)
+
     # Replace multiple consecutive underscores with a single underscore
-    sanitized = re.sub(r'_+', '_', sanitized)
-    
+    sanitized = re.sub(r"_+", "_", sanitized)
+
     # Remove leading and trailing underscores
-    sanitized = sanitized.strip('_')
-    
+    sanitized = sanitized.strip("_")
+
     return sanitized
 
 
-def extract_api_title_prefix(title: str) -> Optional[str]:
+def extract_api_title_prefix(title: str) -> str | None:
     """
     Derives an API title prefix from the OpenAPI spec's info.title.
     The prefix is the first non-skip word of the title, uppercased, with non-alphanumeric
@@ -302,67 +308,65 @@ def extract_api_title_prefix(title: str) -> Optional[str]:
     if not title or not title.strip():
         logger.debug("API title is empty or not provided, no prefix will be generated.")
         return None
-        
+
     # List of words to skip if they appear as the first word
-    SKIP_WORDS = {'the', 'a', 'an', 'openapi', 'api', 'swagger'}
-    
+    skip_words = {"the", "a", "an", "openapi", "api", "swagger"}
+
     # Split the title into words and remove any empty strings
     words = [word for word in title.strip().split() if word]
-        
+
     for word in words:
-        if word.lower() not in SKIP_WORDS:
+        if word.lower() not in skip_words:
             return sanitize_for_env_var(word)
 
     return words[0]
 
 
-def create_env_var_name(
-    var_name: str, 
-    prefix: Optional[str] = None
-) -> str:
+def create_env_var_name(var_name: str, prefix: str | None = None) -> str:
     """
     Create a standardized environment variable name with an optional prefix.
-    
+
     Args:
         var_name: The base variable name
         prefix: Optional prefix (e.g., "MY_API_")
-        
+
     Returns:
         A properly formatted environment variable name
     """
     # Sanitize the base variable name
     sanitized_var_name = sanitize_for_env_var(var_name)
-    
+
     # Construct parts of the environment variable name
     parts = []
-    
+
     # Add prefix if provided
     if prefix:
         parts.append(prefix)
-    
+
     # Add the sanitized variable name
     parts.append(sanitized_var_name)
-    
+
     # Join all parts with underscores
     env_var_name = "_".join(parts)
-    
+
     return env_var_name
 
 
 def deprecated(reason: str):
     """
     Decorator to mark a function as deprecated.
-    
+
     Args:
         reason: Reason for deprecation
     """
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             warnings.warn(
-                f"{func.__name__} is deprecated: {reason}",
-                DeprecationWarning,
-                stacklevel=2
+                f"{func.__name__} is deprecated: {reason}", DeprecationWarning, stacklevel=2
             )
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator

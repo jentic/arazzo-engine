@@ -331,7 +331,7 @@ class ExpressionEvaluator:
             logger.debug(f"Path parts: {path_parts}")
             logger.debug(f"Context keys: {list(context.keys())}")
 
-            for i, part in enumerate(path_parts):
+            for part in path_parts:
                 path_so_far += f".{part}"
 
                 if current is None:
@@ -442,8 +442,8 @@ class ExpressionEvaluator:
                         left_value = None
                     else:
                         try:
-                            left_value = eval(left_expr.strip())
-                        except:
+                            left_value = eval(left_expr.strip())  # noqa: S307
+                        except Exception:
                             left_value = left_expr.strip()
 
                 # Evaluate right side
@@ -461,8 +461,8 @@ class ExpressionEvaluator:
                         right_value = None
                     else:
                         try:
-                            right_value = eval(right_expr.strip())
-                        except:
+                            right_value = eval(right_expr.strip())  # noqa: S307
+                        except Exception:
                             right_value = right_expr.strip()
 
                 logger.debug(f"Comparison: {left_value} {operator} {right_value}")
@@ -518,7 +518,7 @@ class ExpressionEvaluator:
             logger.debug(f"Processed condition for eval: {condition_with_values}")
 
             # Evaluate the condition
-            result = eval(condition_with_values)
+            result = eval(condition_with_values)  # noqa: S307
             return bool(result)
         except Exception as e:
             logger.error(f"Error evaluating condition {condition}: {e}")

@@ -42,143 +42,16 @@ class ParameterProcessor:
         Returns:
             The referenced object.
         """
-        if not ref.startswith('#/'):
+        if not ref.startswith("#/"):
             raise ValueError(f"Only local refs are supported, got: {ref}")
-        parts = ref.lstrip('#/').split('/')
+        parts = ref.lstrip("#/").split("/")
         obj = root
         for part in parts:
             obj = obj[part]
         # Recursively resolve nested $ref
-        if isinstance(obj, dict) and '$ref' in obj:
-            return ParameterProcessor._resolve_ref(obj['$ref'], root)
+        if isinstance(obj, dict) and "$ref" in obj:
+            return ParameterProcessor._resolve_ref(obj["$ref"], root)
         return obj
-
-    def prepare_parameters(self, step: dict, state: ExecutionState) -> dict[str, Any]:
-        """
-        Prepare parameters for an operation execution
-
-        Args:
-            step: Step definition
-            state: Current execution state
-
-        Returns:
-            Dictionary of prepared parameters
-        """
-        parameters = {}
-
-        # Process parameters from the step definition
-        for param in step.get("parameters", []):
-            name = param.get("name")
-            location = param.get("in")
-            value = param.get("value")
-
-            # Process the value to resolve any expressions
-            if isinstance(value, str):
-                if value.startswith("$"):
-                    # Try array access handler first for common patterns
-                    array_value = ExpressionEvaluator.handle_array_access(value, state)
-                    if array_value is not None:
-                        value = array_value
-                    else:
-                        # Fall back to standard expression evaluation
-                        value = ExpressionEvaluator.evaluate_expression(
-                            value, state, self.source_descriptions
-                        )
-                elif "{" in value and "}" in value:
-                    # Template with expressions
-                    def replace_expr(match):
-                        expr = match.group(1)
-                        eval_value = ExpressionEvaluator.evaluate_expression(
-                            expr, state, self.source_descriptions
-                        )
-                        return "" if eval_value is None else str(eval_value)
-
-                    value = re.sub(r"\{([^}]+)\}", replace_expr, value)
-                # Special handling for "Bearer $dependencies.x.y" format - common in authorization headers
-                elif " $" in value:
-                    parts = value.split(" $", 1)
-                    prefix = parts[0] + " "
-                    expr = "$" + parts[1]
-
-                    # Add more debugging for dependency expressions
-                    if "dependencies" in expr:
-                        logger.debug(f"Processing dependency expression: {expr}")
-                        logger.debug(f"Dependencies available: {state.dependency_outputs}")
-                        if "." in expr:
-                            parts = expr.split(".")
-                            if len(parts) >= 3:
-                                dep_id = parts[1]
-                                output_key = parts[2]
-                                logger.debug(
-                                    f"Looking for dependency {dep_id}, output {output_key}"
-                                )
-
-                                if dep_id in state.dependency_outputs:
-                                    logger.debug(
-                                        f"Found dependency {dep_id} with outputs: {state.dependency_outputs[dep_id]}"
-                                    )
-                                    if output_key in state.dependency_outputs[dep_id]:
-                                        logger.debug(
-                                            f"Found output {output_key} with value: {state.dependency_outputs[dep_id][output_key]}"
-                                        )
-                                    else:
-                                        logger.debug(
-                                            f"Output {output_key} not found in dependency {dep_id}"
-                                        )
-                                else:
-                                    logger.debug(
-                                        f"Dependency {dep_id} not found in available dependencies"
-                                    )
-
-                    # Evaluate the expression part
-                    expr_value = ExpressionEvaluator.evaluate_expression(
-                        expr, state, self.source_descriptions
-                    )
-
-                    # More debugging about evaluation result
-                    if "dependencies" in expr:
-                        logger.debug(f"Evaluated dependency expression {expr} to: {expr_value}")
-
-                    if expr_value is not None:
-                        value = prefix + str(expr_value)
-                    else:
-                        logger.warning(
-                            f"Expression {expr} evaluated to None - keeping original value: {value}"
-                        )
-            elif isinstance(value, dict):
-                value = ExpressionEvaluator.process_object_expressions(
-                    value, state, self.source_descriptions
-                )
-            elif isinstance(value, list):
-                value = ExpressionEvaluator.process_array_expressions(
-                    value, state, self.source_descriptions
-                )
-
-            # Log the parameter evaluation process for debugging
-            logger.debug(
-                f"Parameter: {name}, Original value: {param.get('value')}, Evaluated value: {value}"
-            )
-
-            # Log if the value couldn't be properly evaluated
-            if isinstance(value, str) and "$" in value and (value.startswith("$") or "{$" in value):
-                logger.warning(
-                    f"Parameter '{name}' value '{value}' still contains expression syntax after evaluation"
-                )
-
-            # Organize parameters by location
-            if location == "path":
-                parameters.setdefault("path", {})[name] = value
-            elif location == "query":
-                parameters.setdefault("query", {})[name] = value
-            elif location == "header":
-                parameters.setdefault("header", {})[name] = value
-            elif location == "cookie":
-                parameters.setdefault("cookie", {})[name] = value
-            else:
-                # For workflow inputs
-                parameters[name] = value
-
-        return parameters
 
     def _rehydrate_blob_reference(self, value, key):
         """
@@ -197,7 +70,9 @@ class ParameterProcessor:
                 "filename": value.get("filename", "attachment"),
                 "contentType": blob_info.get("content_type", "application/octet-stream"),
             }
-            logger.debug(f"Rehydrated blob '{value['blob_ref']}' for field '{key}' ({len(blob_data)} bytes)")
+            logger.debug(
+                f"Rehydrated blob '{value['blob_ref']}' for field '{key}' ({len(blob_data)} bytes)"
+            )
             return result
         except FileNotFoundError:
             logger.error(f"Blob {value['blob_ref']} not found for field '{key}'")
@@ -289,7 +164,7 @@ class ParameterProcessor:
                                 # Keep actual data structure for direct inclusion in JSON
                                 try:
                                     # First try to stringify to ensure it's JSON-safe
-                                    json_str = json.dumps(value)
+                                    json.dumps(value)
                                     # Return the original value (not the string) for use in the template
                                     return value
                                 except Exception as e:
@@ -489,7 +364,9 @@ class ParameterProcessor:
             if isinstance(param, dict) and "$ref" in param:
                 source_name = operation_details.get("source")
                 if not source_name or source_name not in self.source_descriptions:
-                    raise ValueError(f"Cannot resolve $ref: source '{source_name}' not found in source_descriptions.")
+                    raise ValueError(
+                        f"Cannot resolve $ref: source '{source_name}' not found in source_descriptions."
+                    )
                 param = self._resolve_ref(param["$ref"], self.source_descriptions[source_name])
             key = (param.get("name"), param.get("in"))
             param_map[key] = param
@@ -515,7 +392,9 @@ class ParameterProcessor:
             required = param_def.get("required", False)
 
             if not name or not location:
-                logger.warning(f"Skipping parameter definition missing name or location: {param_def}")
+                logger.warning(
+                    f"Skipping parameter definition missing name or location: {param_def}"
+                )
                 continue
 
             if name in inputs:
@@ -525,12 +404,16 @@ class ParameterProcessor:
                     used_input_keys.add(name)
                     logger.debug(f"Mapped input '{name}' to {location} parameter.")
                 else:
-                    logger.warning(f"Unsupported parameter location '{location}' for parameter '{name}'.")
+                    logger.warning(
+                        f"Unsupported parameter location '{location}' for parameter '{name}'."
+                    )
             elif required:
                 logger.error(f"Required parameter '{name}' (in: {location}) missing from inputs.")
                 raise ValueError(f"Required parameter '{name}' (in: {location}) is missing.")
             else:
-                logger.debug(f"Optional parameter '{name}' (in: {location}) not provided in inputs.")
+                logger.debug(
+                    f"Optional parameter '{name}' (in: {location}) not provided in inputs."
+                )
 
         # 4. Process request body
         operation = operation_details.get("operation")  # Get operation dict or None
@@ -577,13 +460,15 @@ class ParameterProcessor:
 
             if potential_body_keys:
                 payload_dict = {k: inputs[k] for k in potential_body_keys}
-                logger.debug(f"Identified potential request body payload from unused inputs: {list(potential_body_keys)}")
-                used_input_keys.update(potential_body_keys) # Mark these inputs as used
+                logger.debug(
+                    f"Identified potential request body payload from unused inputs: {list(potential_body_keys)}"
+                )
+                used_input_keys.update(potential_body_keys)  # Mark these inputs as used
 
                 # Determine content type based on the spec's definition
                 content_schema = request_body_def.get("content", {})
                 if content_schema and isinstance(content_schema, dict):
-                     # If we detect a file upload (bytes or blob_ref) we must choose multipart/form-data
+                    # If we detect a file upload (bytes or blob_ref) we must choose multipart/form-data
                     contains_file = False
                     for _k, _v in payload_dict.items():
                         if isinstance(_v, (bytes, bytearray)):
@@ -601,11 +486,17 @@ class ParameterProcessor:
                         determined_content_type = next(iter(content_schema.keys()), None)
 
                     if determined_content_type:
-                        logger.debug(f"Determined request body content type: {determined_content_type}")
+                        logger.debug(
+                            f"Determined request body content type: {determined_content_type}"
+                        )
                     else:
-                         logger.warning("Could not determine content type from requestBody definition, even though payload was identified.")
+                        logger.warning(
+                            "Could not determine content type from requestBody definition, even though payload was identified."
+                        )
                 else:
-                    logger.warning("requestBody definition found, but 'content' map is missing or invalid.")
+                    logger.warning(
+                        "requestBody definition found, but 'content' map is missing or invalid."
+                    )
 
                 # If multipart/form-data, wrap bytes payloads for file uploads
                 if (
@@ -625,23 +516,31 @@ class ParameterProcessor:
                 }
             # Check requirement if spec defines a body but no payload was found
             elif body_required:
-                 logger.error("Required request body is missing from inputs (spec defines body, but no unused inputs found).")
-                 raise ValueError("Required request body is missing.")
-            else: # Optional body defined in spec, but no payload provided
-                 logger.debug("Optional request body defined in spec, but not provided or identified in inputs.")
+                logger.error(
+                    "Required request body is missing from inputs (spec defines body, but no unused inputs found)."
+                )
+                raise ValueError("Required request body is missing.")
+            else:  # Optional body defined in spec, but no payload provided
+                logger.debug(
+                    "Optional request body defined in spec, but not provided or identified in inputs."
+                )
 
         # If spec does NOT define a request body, but we HAVE potential body keys -> Log warning
         elif potential_body_keys:
-             logger.warning(
-                 f"Inputs provided but not used for parameters and no requestBody defined in spec: {list(potential_body_keys)}. These inputs are being ignored."
-             )
-             # Body remains None in prepared_params
+            logger.warning(
+                f"Inputs provided but not used for parameters and no requestBody defined in spec: {list(potential_body_keys)}. These inputs are being ignored."
+            )
+            # Body remains None in prepared_params
 
         # Final check for requirement (redundant if logic above is correct, but safe)
         if body_required and prepared_params.get("body") is None:
-             # This case should theoretically be caught above, but acts as a safeguard
-            logger.error("Consistency check failed: Required body specified, but no body was prepared.")
-            raise ValueError("Required request body was specified but could not be prepared from inputs.")
+            # This case should theoretically be caught above, but acts as a safeguard
+            logger.error(
+                "Consistency check failed: Required body specified, but no body was prepared."
+            )
+            raise ValueError(
+                "Required request body was specified but could not be prepared from inputs."
+            )
 
         logger.debug(f"Prepared parameters: {prepared_params}")
         return prepared_params

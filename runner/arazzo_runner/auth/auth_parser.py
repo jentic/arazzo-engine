@@ -5,27 +5,17 @@ Authentication Parser for Arazzo Runner.
 This module extracts authentication requirements from OpenAPI specifications
 and Arazzo workflows.
 """
+# ruff: noqa: F401
+
 
 import logging
-from enum import Enum
 from typing import Any
 
-import yaml
-
 from .models import (
-    ApiKeyScheme,
     AuthLocation,
     AuthType,
-    SecurityScheme,
-    CustomScheme,
-    HttpAuthScheme,
     HttpSchemeType,
-    OAuth2Scheme,
-    OAuth2FlowType,
-    OAuth2Urls,
-    OpenIDScheme,
-    SecurityRequirement,
-    SecurityOption,
+    SecurityScheme,
     auth_requirement_to_schema,
 )
 
@@ -126,7 +116,7 @@ class AuthRequirement:
             result["source_description_id"] = self.source_description_id
 
         return result
-        
+
     def to_pydantic_schema(self) -> SecurityScheme:
         """Convert to a Pydantic schema object."""
         return auth_requirement_to_schema(self)
@@ -175,9 +165,9 @@ def extract_auth_from_openapi(openapi_spec: dict[str, Any]) -> list[AuthRequirem
 
             auth_requirements.append(
                 AuthRequirement(
-                    auth_type=auth_type, 
-                    name=param_name, 
-                    location=location, 
+                    auth_type=auth_type,
+                    name=param_name,
+                    location=location,
                     description=description,
                     security_scheme_name=scheme_name,
                     api_title=api_title,
@@ -235,7 +225,7 @@ def extract_auth_from_openapi(openapi_spec: dict[str, Any]) -> list[AuthRequirem
             continue  # Skip OpenID Connect entirely
             # --- END ARAZZO RUNNER CHANGE ---
             # Original code for adding OpenID if supported would go here
-            
+
         else:
             # Custom or unknown authentication type
             auth_requirements.append(
@@ -278,7 +268,7 @@ def extract_auth_from_arazzo(arazzo_spec: dict[str, Any]) -> list[AuthRequiremen
             # Extract parameters from operation
             params = operation.get("parameters", [])
             _extract_auth_params_from_list(params, auth_params)
-    
+
     # Check for steps in workflows
     workflows = arazzo_spec.get("workflows", [])
     for workflow in workflows:
@@ -303,8 +293,8 @@ def extract_auth_from_arazzo(arazzo_spec: dict[str, Any]) -> list[AuthRequiremen
                 name=param_name,
                 location=location,
                 description=description,
-                api_title='Arazzo',
-                source_description_id='Arazzo'
+                api_title="Arazzo",
+                source_description_id="Arazzo",
             )
         )
 

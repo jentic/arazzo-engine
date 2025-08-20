@@ -1,6 +1,6 @@
 import pytest
+
 from arazzo_runner.http import HTTPExecutor
-from arazzo_runner.blob_store import InMemoryBlobStore
 
 
 class MockCredentialProvider:
@@ -17,9 +17,7 @@ def basic_http_client() -> HTTPExecutor:
     return HTTPExecutor()
 
 
-@pytest.fixture  
+@pytest.fixture
 def http_client() -> HTTPExecutor:
     """HTTP client with mock auth provider for tests"""
-    return HTTPExecutor(
-        auth_provider=MockCredentialProvider()
-    ) 
+    return HTTPExecutor(auth_provider=MockCredentialProvider())

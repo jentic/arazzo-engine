@@ -146,7 +146,9 @@ class TestAuthParser(unittest.TestCase):
 
     def test_extract_auth_requirements_combined(self):
         """Test extracting authentication from both OpenAPI and Arazzo specs."""
-        auth_reqs = extract_auth_from_openapi(self.openapi_spec_api_key) + extract_auth_from_arazzo(self.arazzo_spec)
+        auth_reqs = extract_auth_from_openapi(self.openapi_spec_api_key) + extract_auth_from_arazzo(
+            self.arazzo_spec
+        )
 
         self.assertEqual(len(auth_reqs), 2)
         auth_types = [req.auth_type for req in auth_reqs]
@@ -242,11 +244,11 @@ class TestAuthParser(unittest.TestCase):
                 "securitySchemes": {
                     "openId": {
                         "type": "openIdConnect",
-                        "openIdConnectUrl": "https://example.com/.well-known/openid-configuration"
+                        "openIdConnectUrl": "https://example.com/.well-known/openid-configuration",
                     }
                 }
             },
-            "security": [{"openId": []}]
+            "security": [{"openId": []}],
         }
         auth_reqs = extract_auth_from_openapi(spec)
         self.assertEqual(len(auth_reqs), 0, "OpenID Connect should be skipped")
@@ -261,19 +263,19 @@ class TestAuthParser(unittest.TestCase):
                     "mixedOAuth": {
                         "type": "oauth2",
                         "flows": {
-                            "implicit": { # Unsupported
+                            "implicit": {  # Unsupported
                                 "authorizationUrl": "https://example.com/auth_implicit",
-                                "scopes": {"read": "Read access"}
+                                "scopes": {"read": "Read access"},
                             },
-                            "clientCredentials": { # Supported
+                            "clientCredentials": {  # Supported
                                 "tokenUrl": "https://example.com/token_cc",
-                                "scopes": {"internal": "Internal access"}
-                            }
-                        }
+                                "scopes": {"internal": "Internal access"},
+                            },
+                        },
                     }
                 }
             },
-            "security": [{"mixedOAuth": ["internal"]}]
+            "security": [{"mixedOAuth": ["internal"]}],
         }
         auth_reqs = extract_auth_from_openapi(spec)
         self.assertEqual(len(auth_reqs), 2, "All flows should be extracted")
@@ -288,29 +290,34 @@ class TestAuthParser(unittest.TestCase):
             "info": {"title": "Test Mixed Schemes", "version": "1.0.0"},
             "components": {
                 "securitySchemes": {
-                    "apiKeyAuth": { # Supported
-                        "type": "apiKey", "name": "X-API-Key", "in": "header"
+                    "apiKeyAuth": {  # Supported
+                        "type": "apiKey",
+                        "name": "X-API-Key",
+                        "in": "header",
                     },
-                    "bearerAuth": { # Supported
-                        "type": "http", "scheme": "bearer"
-                    },
-                    "oauthImplicit": { # Unsupported
+                    "bearerAuth": {"type": "http", "scheme": "bearer"},  # Supported
+                    "oauthImplicit": {  # Unsupported
                         "type": "oauth2",
-                        "flows": {"implicit": {"authorizationUrl": "https://e.com/auth", "scopes": {"r": "r"}}}
+                        "flows": {
+                            "implicit": {
+                                "authorizationUrl": "https://e.com/auth",
+                                "scopes": {"r": "r"},
+                            }
+                        },
                     },
-                    "openIdAuth": { # Unsupported
+                    "openIdAuth": {  # Unsupported
                         "type": "openIdConnect",
-                        "openIdConnectUrl": "https://e.com/.well-known"
-                    }
+                        "openIdConnectUrl": "https://e.com/.well-known",
+                    },
                 }
             },
             # Security field might reference a mix, but extraction should only yield supported ones
             "security": [
                 {"apiKeyAuth": []},
                 {"bearerAuth": []},
-                {"oauthImplicit": ["r"]}, 
-                {"openIdAuth": []}
-            ]
+                {"oauthImplicit": ["r"]},
+                {"openIdAuth": []},
+            ],
         }
         auth_reqs = extract_auth_from_openapi(spec)
         self.assertEqual(len(auth_reqs), 3, "All schemes must be extracted")
