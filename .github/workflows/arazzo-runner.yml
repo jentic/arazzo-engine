@@ -1,4 +1,4 @@
-name: Arazzo Runner CI pipeline
+name: Arazzo Runner CI
 
 on:
   push:
