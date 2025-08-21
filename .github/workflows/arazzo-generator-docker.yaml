@@ -1,5 +1,8 @@
 name: Arazzo Generator Docker build & push
 
+permissions:
+  contents: read
+  
 on:
   push:
 

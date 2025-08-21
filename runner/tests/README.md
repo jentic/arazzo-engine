@@ -144,19 +144,19 @@ To run all fixtures tests in mock mode:
 ```bash
 pdm run test
 # or specifically
-pdm run pytest generator/arazzo_generator/tests/arazzo_runner/test_fixture_discovery.py
+pdm run pytest tests/test_fixture_discovery.py
 ```
 
 To run tests for a specific fixture:
 
 ```bash
-pdm run pytest generator/arazzo_generator/tests/arazzo_runner/test_fixture_discovery.py::Test_fixture_name::test_workflows
+pdm run pytest tests/test_fixture_discovery.py::Test_fixture_name::test_workflows
 ```
 
 For example, to run just the pet coupons workflow tests:
 
 ```bash
-pdm run pytest generator/arazzo_generator/tests/arazzo_runner/test_fixture_discovery.py::Test_pet_coupons::test_workflows
+pdm run pytest tests/test_fixture_discovery.py::Test_pet_coupons::test_workflows
 ```
 
 ### Real Mode
