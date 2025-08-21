@@ -4,8 +4,8 @@ import unittest
 
 import yaml
 
-from generator.arazzo_generator.utils.utils import encode_json_pointer, to_kebab_case
-from generator.arazzo_generator.utils.yaml_utils import NoWrapSafeDumper, fix_output_references
+from arazzo_generator.utils.utils import encode_json_pointer, to_kebab_case
+from arazzo_generator.utils.yaml_utils import NoWrapSafeDumper, fix_output_references
 
 
 class TestUtils(unittest.TestCase):

@@ -25,28 +25,61 @@ dependencies = [
     "python-dotenv>=1.1.1"
 ]
 
-[tool.pdm.dev-dependencies]
+[project.scripts]
+arazzo-generator = "arazzo_generator.__main__:run_main"
+
+[project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
-    "black>=22.0.0",
-    "isort>=5.0.0",
-    "flake8>=5.0.0"
+    "black>=23.7.0",
+    "isort>=5.12.0",
+    "ruff>=0.0.289",
+    "mypy>=1.5.1",
 ]
 
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
 [tool.pdm.scripts]
-arazzo = "python -m generator.arazzo_generator.cli.run"
-validate = "python -m generator.arazzo_generator.cli.run validate"
-generate = "python -m generator.arazzo_generator.cli.run generate"
-batch = "python -m generator.arazzo_generator.cli.run batch"
-api = "python -m generator.arazzo_generator.api.run"
+arazzo = "python -m arazzo_generator.cli.run"
+validate = "python -m arazzo_generator.cli.run validate"
+generate = "python -m arazzo_generator.cli.run generate"
+batch = "python -m arazzo_generator.cli.run batch"
+api = "python -m arazzo_generator.api.run"
 test = "pytest"
-format = {cmd = "bash -c 'black generator/arazzo_generator/ tests/ && isort generator/arazzo_generator/ tests/'"}
-check-format = {cmd = "bash -c 'black --check generator/arazzo_generator/ tests/ && isort --check-only generator/arazzo_generator/ tests/ || exit 0'"}
-lint = "python -m flake8 --max-line-length=100 --exclude=.git,__pycache__,.pdm-build,build,dist,venv,env,.venv "
+format = {cmd = "bash -c 'black arazzo_generator/ tests/ && isort arazzo_generator/ tests/'"}
+check-format = {cmd = "bash -c 'black --check arazzo_generator/ tests/ && isort --check-only arazzo_generator/ tests/ || exit 0'"}
+lint = {composite = ["black .", "isort .", "ruff check .", "mypy ."]}
+
+[tool.setuptools.packages.find]
+where = ["."]
 
 [tool.black]
 line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.11"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+strict_optional = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "B", "W", "I", "N", "UP", "YTT", "S"]
+ignore = []
 
 [project.urls]
 Homepage = "https://github.com/jentic/arazzo-engine"

@@ -9,14 +9,14 @@ import logging
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from generator.arazzo_generator.analyzers.workflow_analysis_manager import WorkflowAnalysisManager
-from generator.arazzo_generator.generator.arazzo_generator import ArazzoGenerator
-from generator.arazzo_generator.llm.direct_arazzo_generator import DirectArazzoGenerator
-from generator.arazzo_generator.parser.openapi_parser import OpenAPIParser
-from generator.arazzo_generator.utils.exceptions import InvalidUserWorkflow, SpecValidationError
-from generator.arazzo_generator.utils.logging import get_logger
-from generator.arazzo_generator.utils.serializer import ArazzoSerializer
-from generator.arazzo_generator.validator.arazzo_validator import ArazzoValidator
+from arazzo_generator.analyzers.workflow_analysis_manager import WorkflowAnalysisManager
+from arazzo_generator.generator.arazzo_generator import ArazzoGenerator
+from arazzo_generator.llm.direct_arazzo_generator import DirectArazzoGenerator
+from arazzo_generator.parser.openapi_parser import OpenAPIParser
+from arazzo_generator.utils.exceptions import InvalidUserWorkflow, SpecValidationError
+from arazzo_generator.utils.logging import get_logger
+from arazzo_generator.utils.serializer import ArazzoSerializer
+from arazzo_generator.validator.arazzo_validator import ArazzoValidator
 
 logger = get_logger(__name__)
 

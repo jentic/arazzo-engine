@@ -2,8 +2,8 @@
 
 from typing import Any, Dict, List
 
-from generator.arazzo_generator.utils.logging import get_logger
-from generator.arazzo_generator.utils.serializer import ArazzoSerializer
+from arazzo_generator.utils.logging import get_logger
+from arazzo_generator.utils.serializer import ArazzoSerializer
 
 from .components import ArazzoComponentsBuilder
 from .output_mapping_validator import OutputMappingValidator

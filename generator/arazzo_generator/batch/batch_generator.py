@@ -7,9 +7,9 @@ import time
 from datetime import datetime
 from typing import List, Optional, Tuple
 
-from generator.arazzo_generator.generator.generator_service import generate_arazzo
-from generator.arazzo_generator.utils.config import get_config, get_project_root
-from generator.arazzo_generator.utils.logging import get_logger
+from arazzo_generator.generator.generator_service import generate_arazzo
+from arazzo_generator.utils.config import get_config, get_project_root
+from arazzo_generator.utils.logging import get_logger
 
 from .utils import get_openapi_files, get_output_path, write_summary_entry
 
@@ -36,7 +36,7 @@ class BatchProcessor:
             logs_dir: Directory to save logs (overrides config if provided)
             summary_file: Path to the summary file
             max_retries: Maximum number of retries for failed specifications
-            save_logs: If True, save LLM logs to logs directory
+            save_logs: If True, save LLM logs to batch_logs directory
         """
         # Store LLM configuration
         self.llm_provider = llm_provider

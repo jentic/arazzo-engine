@@ -4,7 +4,7 @@ import unittest
 
 import pytest
 
-from generator.arazzo_generator.utils.exceptions import (ArazzoError, InvalidUserWorkflow,
+from arazzo_generator.utils.exceptions import (ArazzoError, InvalidUserWorkflow,
                                   SpecValidationError)
 
 

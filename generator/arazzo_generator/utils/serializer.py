@@ -5,8 +5,8 @@ from typing import Any, Dict
 
 import yaml
 
-from generator.arazzo_generator.utils.logging import get_logger
-from generator.arazzo_generator.utils.yaml_utils import NoWrapSafeDumper, fix_output_references
+from arazzo_generator.utils.logging import get_logger
+from arazzo_generator.utils.yaml_utils import NoWrapSafeDumper, fix_output_references
 
 logger = get_logger(__name__)
 

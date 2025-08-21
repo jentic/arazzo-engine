@@ -2,7 +2,7 @@
 
 import unittest
 
-from generator.arazzo_generator.analyzers.base_analyzer import BaseAnalyzer
+from arazzo_generator.analyzers.base_analyzer import BaseAnalyzer
 
 
 class TestBaseAnalyzer(unittest.TestCase):

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import yaml
 
-from generator.arazzo_generator.utils.yaml_utils import NoWrapSafeDumper, fix_output_references
+from arazzo_generator.utils.yaml_utils import NoWrapSafeDumper, fix_output_references
 
 
 class TestFixOutputReferences(unittest.TestCase):

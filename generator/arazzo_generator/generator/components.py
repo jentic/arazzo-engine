@@ -2,7 +2,7 @@
 
 from typing import Any, Dict
 
-from generator.arazzo_generator.utils.logging import get_logger
+from arazzo_generator.utils.logging import get_logger
 
 logger = get_logger(__name__)
 

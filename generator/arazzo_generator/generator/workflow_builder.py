@@ -6,8 +6,8 @@ from typing import Any, Dict, Optional
 
 from Levenshtein import distance
 
-from generator.arazzo_generator.utils.logging import get_logger
-from generator.arazzo_generator.utils.utils import encode_json_pointer, to_kebab_case
+from arazzo_generator.utils.logging import get_logger
+from arazzo_generator.utils.utils import encode_json_pointer, to_kebab_case
 
 logger = get_logger(__name__)
 

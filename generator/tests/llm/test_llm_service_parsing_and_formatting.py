@@ -1,10 +1,10 @@
 from unittest.mock import patch
-from generator.arazzo_generator.llm.litellm_service import LiteLLMService
+from arazzo_generator.llm.litellm_service import LiteLLMService
 
 
 class TestParsingandFormatting:
     # Tests the parsing of the workflow response
-    @patch("generator.arazzo_generator.llm.litellm_service.logger")
+    @patch("arazzo_generator.llm.litellm_service.logger")
     def test_parse_workflow_response(self, mock_logger):
         svc = LiteLLMService(api_key="test-key")
         assert svc.api_key == "test-key"
@@ -20,7 +20,7 @@ class TestParsingandFormatting:
         assert mock_logger.debug.called
 
     # Tests the parsing of the workflow response when the JSON is malformed
-    @patch("generator.arazzo_generator.llm.litellm_service.logger")
+    @patch("arazzo_generator.llm.litellm_service.logger")
     def test_parse_workflow_response_malformed_json(self, mock_logger):
         svc = LiteLLMService(api_key="test-key")
 

@@ -3,8 +3,8 @@
 import copy
 import unittest
 
-from generator.arazzo_generator.generator.reference_validator import ReferenceValidato
-from generator.arazzo_generator.utils.logging import get_logger
+from arazzo_generator.generator.reference_validator import ReferenceValidato
+from arazzo_generator.utils.logging import get_logger
 
 
 class TestReferenceValidator(unittest.TestCase):
@@ -134,7 +134,7 @@ class TestReferenceValidator(unittest.TestCase):
         # The logs show that the implementation is fixing the output reference in parameters
         # but not in the requestBody. Let's check if the log message exists instead.
         # Use the same logger that ReferenceValidator uses
-        logger = get_logger("generator.arazzo_generator.generator.reference_validator")
+        logger = get_logger("arazzo_generator.generator.reference_validator")
 
         with self.assertLogs(logger=logger, level="WARNING") as log:
             # Re-run validation to capture logs

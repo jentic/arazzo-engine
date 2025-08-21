@@ -62,7 +62,7 @@ docker-compose -f docker/docker-compose.yml up arazzo-api
 docker run --rm \
   --env-file docker/.env \
   -v $(pwd)/output:/app/output \
-  jentic-arazzo-generator python -m generator.arazzo_generator.cli.main generate <url> --output /app/output/result.yaml
+  jentic-arazzo-generator python -m arazzo_generator.cli.main generate <url> --output /app/output/result.yaml
 
 # Using docker-compose (from the project root)
 docker-compose -f docker/docker-compose.yml run arazzo-cli generate <url> --output /app/output/result.yaml

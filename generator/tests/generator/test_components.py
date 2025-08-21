@@ -2,7 +2,7 @@
 
 import unittest
 
-from generator.arazzo_generator.generator.components import ArazzoComponentsBuilder
+from arazzo_generator.generator.components import ArazzoComponentsBuilder
 
 
 class TestArazzoComponentsBuilder(unittest.TestCase):

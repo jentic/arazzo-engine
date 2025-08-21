@@ -3,8 +3,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from generator.arazzo_generator.generator.arazzo_generator import ArazzoGenerator
-from generator.arazzo_generator.utils.utils import to_kebab_case
+from arazzo_generator.generator.arazzo_generator import ArazzoGenerator
+from arazzo_generator.utils.utils import to_kebab_case
 
 
 class TestArazzoGenerator(unittest.TestCase):
@@ -276,7 +276,7 @@ class TestArazzoGenerator(unittest.TestCase):
         result = generator.generate()
         self.assertIsNone(result)
 
-    @patch("generator.arazzo_generator.generator.arazzo_generator.WorkflowBuilder")
+    @patch("arazzo_generator.generator.arazzo_generator.WorkflowBuilder")
     def test_generate_with_workflows(self, mock_workflow_builder_class):
         """Test generate method with workflows."""
         # Configure the mock
@@ -382,7 +382,7 @@ class TestArazzoGenerator(unittest.TestCase):
         self.assertEqual(result["workflows"][0]["workflowId"], "pet-management")
         self.assertIn("components", result)
 
-    @patch("generator.arazzo_generator.generator.arazzo_generator.WorkflowBuilder")
+    @patch("arazzo_generator.generator.arazzo_generator.WorkflowBuilder")
     def test_generate_no_valid_workflows(self, mock_workflow_builder_class):
         """Test generate method when no valid workflows are created."""
         # Configure the mock to return None for all workflows
@@ -405,7 +405,7 @@ class TestArazzoGenerator(unittest.TestCase):
         # Verify the result is None since no valid workflows were created
         self.assertIsNone(result)
 
-    @patch("generator.arazzo_generator.generator.arazzo_generator.ArazzoSerializer")
+    @patch("arazzo_generator.generator.arazzo_generator.ArazzoSerializer")
     def test_to_yaml(self, mock_serializer):
         """Test to_yaml method."""
         # Configure the mock
@@ -426,7 +426,7 @@ class TestArazzoGenerator(unittest.TestCase):
         # Verify the result
         self.assertEqual(result, "yaml_content")
 
-    @patch("generator.arazzo_generator.generator.arazzo_generator.ArazzoSerializer")
+    @patch("arazzo_generator.generator.arazzo_generator.ArazzoSerializer")
     def test_to_json(self, mock_serializer):
         """Test to_json method."""
         # Configure the mock
@@ -794,7 +794,7 @@ class TestArazzoGenerator(unittest.TestCase):
 
         # Mock the WorkflowBuilder to return a simple workflow for each input
         with patch(
-            "generator.arazzo_generator.generator.arazzo_generator.WorkflowBuilder.create_workflow"
+            "arazzo_generator.generator.arazzo_generator.WorkflowBuilder.create_workflow"
         ) as mock_create_workflow:
             # Configure the mock to return a simple workflow for each input
             mock_create_workflow.side_effect = lambda workflow: {

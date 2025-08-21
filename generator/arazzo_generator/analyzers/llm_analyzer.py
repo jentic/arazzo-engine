@@ -7,10 +7,10 @@ OpenAPI specifications.
 
 from typing import Any, Dict, List, Optional
 
-from generator.arazzo_generator.utils.logging import get_logger
+from arazzo_generator.utils.logging import get_logger
 
-from ..llm.litellm_service import LiteLLMService
-from .base_analyzer import BaseAnalyzer
+from arazzo_generator.llm.litellm_service import LiteLLMService
+from arazzo_generator.analyzers.base_analyzer import BaseAnalyzer
 
 logger = get_logger(__name__)
 

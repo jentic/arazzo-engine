@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     # Start the server
     uvicorn.run(
-        "generator.arazzo_generator.api.app:app",
+        "arazzo_generator.api.app:app",
         host=args.host,
         port=args.port,
         reload=args.reload,

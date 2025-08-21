@@ -8,9 +8,9 @@ from typing import Optional, Tuple
 import click
 from dotenv import load_dotenv
 
-from generator.arazzo_generator.batch.batch_generator import BatchProcessor
-from generator.arazzo_generator.generator.generator_service import generate_arazzo, validate_arazzo
-from generator.arazzo_generator.utils.logging import get_logger, setup_logging
+from arazzo_generator.batch.batch_generator import BatchProcessor
+from arazzo_generator.generator.generator_service import generate_arazzo, validate_arazzo
+from arazzo_generator.utils.logging import get_logger, setup_logging
 
 # Load environment variables from .env file
 load_dotenv()

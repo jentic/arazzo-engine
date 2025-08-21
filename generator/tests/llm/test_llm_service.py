@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from generator.arazzo_generator.llm.litellm_service import LiteLLMService
+from arazzo_generator.llm.litellm_service import LiteLLMService
 
 
 # Section 1: Fixtures and helpers
@@ -55,13 +55,13 @@ def dummy_request_bodies():
 # Section 4: analyze_endpoints tests
 class TestLLMServiceAnalyzeEndpoints:
     # Tests successful endpoint analysis
-    @patch("generator.arazzo_generator.llm.litellm_service.LiteLLMService.is_available", return_value=True)
-    @patch("generator.arazzo_generator.llm.litellm_service.LiteLLMService._make_request")
-    @patch("generator.arazzo_generator.llm.litellm_service.LiteLLMService._parse_workflow_response")
-    @patch("generator.arazzo_generator.llm.litellm_service.log_llm_response")
-    @patch("generator.arazzo_generator.llm.litellm_service.log_llm_prompt")
+    @patch("arazzo_generator.llm.litellm_service.LiteLLMService.is_available", return_value=True)
+    @patch("arazzo_generator.llm.litellm_service.LiteLLMService._make_request")
+    @patch("arazzo_generator.llm.litellm_service.LiteLLMService._parse_workflow_response")
+    @patch("arazzo_generator.llm.litellm_service.log_llm_response")
+    @patch("arazzo_generator.llm.litellm_service.log_llm_prompt")
     @patch(
-        "generator.arazzo_generator.llm.litellm_service.setup_log_directory",
+        "arazzo_generator.llm.litellm_service.setup_log_directory",
         return_value=("/tmp", "timestamp"),
     )
     def test_analyze_endpoints_success(
@@ -141,16 +141,16 @@ class TestLLMServiceAnalyzeEndpoints:
         )
 
     # Tests endpoint analysis failure
-    @patch("generator.arazzo_generator.llm.litellm_service.LiteLLMService.is_available", return_value=True)
-    @patch("generator.arazzo_generator.llm.litellm_service.LiteLLMService._make_request")
-    @patch("generator.arazzo_generator.llm.litellm_service.LiteLLMService._parse_workflow_response")
-    @patch("generator.arazzo_generator.llm.litellm_service.log_llm_response")
-    @patch("generator.arazzo_generator.llm.litellm_service.log_llm_prompt")
+    @patch("arazzo_generator.llm.litellm_service.LiteLLMService.is_available", return_value=True)
+    @patch("arazzo_generator.llm.litellm_service.LiteLLMService._make_request")
+    @patch("arazzo_generator.llm.litellm_service.LiteLLMService._parse_workflow_response")
+    @patch("arazzo_generator.llm.litellm_service.log_llm_response")
+    @patch("arazzo_generator.llm.litellm_service.log_llm_prompt")
     @patch(
-        "generator.arazzo_generator.llm.litellm_service.setup_log_directory",
+        "arazzo_generator.llm.litellm_service.setup_log_directory",
         return_value=("/tmp", "timestamp"),
     )
-    @patch("generator.arazzo_generator.llm.litellm_service.logger")
+    @patch("arazzo_generator.llm.litellm_service.logger")
     def test_analyze_endpoints_failure(
         self,
         mock_logger,

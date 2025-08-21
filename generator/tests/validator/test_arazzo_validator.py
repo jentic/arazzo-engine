@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import yaml
 
-from generator.arazzo_generator.validator.arazzo_validator import ArazzoValidator
+from arazzo_generator.validator.arazzo_validator import ArazzoValidator
 
 
 class TestArazzoValidator(unittest.TestCase):

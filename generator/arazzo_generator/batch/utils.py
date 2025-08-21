@@ -6,8 +6,8 @@ import glob
 import os
 from datetime import datetime
 
-from generator.arazzo_generator.utils.config import get_config, get_project_root
-from generator.arazzo_generator.utils.logging import get_logger
+from arazzo_generator.utils.config import get_config, get_project_root
+from arazzo_generator.utils.logging import get_logger
 
 logger = get_logger(__name__)
 

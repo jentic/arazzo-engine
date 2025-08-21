@@ -1,7 +1,7 @@
 import os
 from unittest.mock import patch
 
-from generator.arazzo_generator.llm.litellm_service import LiteLLMService
+from arazzo_generator.llm.litellm_service import LiteLLMService
 
 
 class TestLLMServiceInitialization:

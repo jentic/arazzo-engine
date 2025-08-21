@@ -177,7 +177,7 @@ For detailed Docker instructions including AWS ECS deployment, see the [Docker R
 
 ```bash
 # Run the API server
-pdm run uvicorn generator.arazzo_generator.api.app:app --host 0.0.0.0 --port 8000
+pdm run uvicorn arazzo_generator.api.app:app --host 0.0.0.0 --port 8000
 ```
 
 ```bash

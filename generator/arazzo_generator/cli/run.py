@@ -3,7 +3,7 @@
 
 import sys
 
-from generator.arazzo_generator.utils.logging import get_logger
+from arazzo_generator.utils.logging import get_logger
 
 from .main import cli
 

@@ -3,8 +3,8 @@
 import unittest
 from unittest.mock import patch
 
-from generator.arazzo_generator.generator.workflow_builder import WorkflowBuilder
-from generator.arazzo_generator.utils.utils import to_kebab_case
+from arazzo_generator.generator.workflow_builder import WorkflowBuilder
+from arazzo_generator.utils.utils import to_kebab_case
 
 
 class TestWorkflowBuilder(unittest.TestCase):

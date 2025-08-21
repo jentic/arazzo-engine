@@ -5,7 +5,7 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from generator.arazzo_generator.analyzers.llm_analyzer import LLMAnalyzer
+from arazzo_generator.analyzers.llm_analyzer import LLMAnalyzer
 
 
 class TestLLMAnalyzer(unittest.TestCase):
@@ -50,7 +50,7 @@ class TestLLMAnalyzer(unittest.TestCase):
             )
             self.sample_workflows = json.loads(json_content)
 
-    @patch("generator.arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
+    @patch("arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
     def test_init(self, mock_llm_service_class):
         """Test initialization of the LLMAnalyzer."""
         # Create analyzer with default provider
@@ -96,7 +96,7 @@ class TestLLMAnalyzer(unittest.TestCase):
             api_key="test_key", llm_model="test_model", llm_provider="openai"
         )
 
-    @patch("generator.arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
+    @patch("arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
     def test_is_available(self, mock_llm_service_class):
         """Test the is_available method."""
         # Configure the mock
@@ -133,7 +133,7 @@ class TestLLMAnalyzer(unittest.TestCase):
         self.assertFalse(analyzer.is_available())
         mock_service.is_available.assert_called_once()
 
-    @patch("generator.arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
+    @patch("arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
     def test_analyze_service_available(self, mock_llm_service_class):
         """Test the analyze method when the LLM service is available."""
         # Configure the mock
@@ -185,7 +185,7 @@ class TestLLMAnalyzer(unittest.TestCase):
         self.assertIn("summary", operation)
         self.assertIn("tags", operation)
 
-    @patch("generator.arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
+    @patch("arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
     def test_analyze_service_not_available(self, mock_llm_service_class):
         """Test the analyze method when the LLM service is not available."""
         # Configure the mock
@@ -211,7 +211,7 @@ class TestLLMAnalyzer(unittest.TestCase):
         self.assertEqual(result, [])
         self.assertEqual(analyzer.workflows, [])
 
-    @patch("generator.arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
+    @patch("arazzo_generator.analyzers.llm_analyzer.LiteLLMService")
     def test_analyze_service_exception(self, mock_llm_service_class):
         """Test the analyze method when the LLM service raises an exception."""
         # Configure the mock

@@ -3,10 +3,10 @@
 import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import generator.arazzo_generator.utils.logging as logging_module
+import arazzo_generator.utils.logging as logging_module
 import pytest
 
-from generator.arazzo_generator.utils.logging import (_current_session_log_dir, get_logger,
+from arazzo_generator.utils.logging import (_current_session_log_dir, get_logger,
                                log_llm_prompt, log_llm_response,
                                setup_log_directory, setup_logging)
 
@@ -34,7 +34,7 @@ def mock_config(monkeypatch):
     def mock_get_config():
         return MockConfig()
 
-    monkeypatch.setattr("generator.arazzo_generator.utils.logging.get_config", mock_get_config)
+    monkeypatch.setattr("arazzo_generator.utils.logging.get_config", mock_get_config)
     return MockConfig
 
 
@@ -49,7 +49,7 @@ def mock_datetime():
 @pytest.fixture
 def mock_get_project_root():
     """Fixture to mock get_project_root."""
-    with patch("generator.arazzo_generator.utils.logging.get_project_root") as mock_root:
+    with patch("arazzo_generator.utils.logging.get_project_root") as mock_root:
         mock_root.return_value = Path("/project")
         yield mock_root
 
@@ -100,8 +100,8 @@ class TestLogging:
 
     @patch("pathlib.Path.mkdir")
     @patch("pathlib.Path.is_absolute", return_value=False)
-    @patch("generator.arazzo_generator.utils.logging.get_project_root", return_value=Path("/project"))
-    @patch("generator.arazzo_generator.utils.logging.datetime")
+    @patch("arazzo_generator.utils.logging.get_project_root", return_value=Path("/project"))
+    @patch("arazzo_generator.utils.logging.datetime")
     def test_setup_logging_with_file(
         self,
         mock_datetime,
@@ -144,9 +144,9 @@ class TestLogging:
         )
 
     @patch("pathlib.Path.mkdir")
-    @patch("generator.arazzo_generator.utils.logging.get_project_root")
-    @patch("generator.arazzo_generator.utils.logging.datetime")
-    @patch("generator.arazzo_generator.utils.logging.get_config")
+    @patch("arazzo_generator.utils.logging.get_project_root")
+    @patch("arazzo_generator.utils.logging.datetime")
+    @patch("arazzo_generator.utils.logging.get_config")
     def test_setup_log_directory_new_session(
         self, mock_get_config, mock_datetime, mock_get_project_root, mock_mkdir
     ):
@@ -192,8 +192,8 @@ class TestLogging:
             logging_module._current_session_log_dir = original_dir
 
     @patch("pathlib.Path.mkdir")
-    @patch("generator.arazzo_generator.utils.logging.datetime")
-    @patch("generator.arazzo_generator.utils.logging.get_project_root", return_value=Path("/project"))
+    @patch("arazzo_generator.utils.logging.datetime")
+    @patch("arazzo_generator.utils.logging.get_project_root", return_value=Path("/project"))
     def test_setup_log_directory_existing_session(
         self, mock_get_project_root, mock_datetime, mock_mkdir
     ):

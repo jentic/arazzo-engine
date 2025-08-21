@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from generator.arazzo_generator.llm.litellm_service import LiteLLMService
+from arazzo_generator.llm.litellm_service import LiteLLMService
 
 
 class TestLLMServiceWorkflowProcessing:

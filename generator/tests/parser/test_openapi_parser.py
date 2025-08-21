@@ -3,7 +3,7 @@
 import unittest
 from unittest.mock import patch
 
-from generator.arazzo_generator.parser.openapi_parser import OpenAPIParser
+from arazzo_generator.parser.openapi_parser import OpenAPIParser
 
 
 class TestOpenAPIParser(unittest.TestCase):

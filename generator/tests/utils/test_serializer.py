@@ -5,7 +5,7 @@ import unittest
 
 import yaml
 
-from generator.arazzo_generator.utils.serializer import ArazzoSerializer
+from arazzo_generator.utils.serializer import ArazzoSerializer
 
 
 class TestArazzoSerializer(unittest.TestCase):

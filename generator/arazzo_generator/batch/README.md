@@ -53,7 +53,7 @@ pdm run batch --spec-list /path/to/spec-list.txt
 The batch module can also be used programmatically:
 
 ```python
-from generator.arazzo_generator.batch.batch_generator import BatchProcessor
+from arazzo_generator.batch.batch_generator import BatchProcessor
 
 # Initialize batch processor
 processor = BatchProcessor(

@@ -1,12 +1,12 @@
 import json
 from unittest.mock import patch
 
-from generator.arazzo_generator.llm.litellm_service import LiteLLMService
+from arazzo_generator.llm.litellm_service import LiteLLMService
 
 
 class TestPromptBuilder:
     # Tests the build of the endpoint analysis prompt with workflows(optional)
-    @patch("generator.arazzo_generator.llm.litellm_service.logger")
+    @patch("arazzo_generator.llm.litellm_service.logger")
     def test_build_endpoint_analysis_prompt_with_workflows(self, mock_logger):
         svc = LiteLLMService(api_key="test-key")
         assert svc.api_key == "test-key"

@@ -4,8 +4,8 @@ from unittest.mock import patch
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from generator.arazzo_generator.api.app import GenerateRequest, app
-from generator.arazzo_generator.generator_service import generate_arazzo
+from arazzo_generator.api.app import GenerateRequest, app
+from arazzo_generator.generator_service import generate_arazzo
 
 
 # Testing the API root endpoint
@@ -20,7 +20,7 @@ def test_root():
 
 
 # Testing the /generate endpoint with a successful response
-@patch("generator.arazzo_generator.api.app.generate_arazzo")
+@patch("arazzo_generator.api.app.generate_arazzo")
 def test_generate_success(mock_generate):
     # Mock return values: (arazzo_spec, arazzo_content, is_valid, validation_errors, fallback_used)
     mock_generate.return_value = ({"mock": "spec"}, "mock content", True, [], False)
@@ -44,7 +44,7 @@ def test_generate_success(mock_generate):
 
 
 # Test /generate returns 500 with 'Failed to generate valid Arazzo specification' when arazzo_spec is None
-@patch("generator.arazzo_generator.api.app.generate_arazzo")
+@patch("arazzo_generator.api.app.generate_arazzo")
 def test_generate_arazzo_spec_none(mock_generate):
     mock_generate.return_value = (None, None, False, ["some error"], True)
     payload = {
@@ -68,7 +68,7 @@ def test_generate_arazzo_spec_none(mock_generate):
 
 
 # Test /generate returns 500 with 'Error generating Arazzo specification: ...' when an exception is raised
-@patch("generator.arazzo_generator.api.app.generate_arazzo")
+@patch("arazzo_generator.api.app.generate_arazzo")
 def test_generate_arazzo_exception(mock_generate):
     mock_generate.side_effect = RuntimeError("unexpected failure")
     payload = {
@@ -89,7 +89,7 @@ def test_generate_arazzo_exception(mock_generate):
 
 
 # Test /generate returns 422 with 'Invalid URL' when the URL is invalid
-@patch("generator.arazzo_generator.api.app.generate_arazzo")
+@patch("arazzo_generator.api.app.generate_arazzo")
 def test_generate_invalid_url(mock_generate):
     payload = {
         "url": "ftp://invalid-url.com/openapi.json",  # Invalid scheme
@@ -137,7 +137,7 @@ def test_api_and_service_parameters_match():
 
 
 # Workflow descriptions are optional so empty arrays should not cause a status error
-@patch("generator.arazzo_generator.api.app.generate_arazzo")
+@patch("arazzo_generator.api.app.generate_arazzo")
 def test_generate_workflow_descriptions_empty(mock_generate):
     mock_generate.return_value = ({"mock": "spec"}, "mock content", True, [], False)
     payload = {
@@ -159,7 +159,7 @@ def test_generate_workflow_descriptions_empty(mock_generate):
 
 
 # Workflow descriptions are valid strings so should not cause a status error
-@patch("generator.arazzo_generator.api.app.generate_arazzo")
+@patch("arazzo_generator.api.app.generate_arazzo")
 def test_generate_workflow_descriptions_success(mock_generate):
     mock_generate.return_value = ({"mock": "spec"}, "mock content", True, [], False)
     payload = {
@@ -183,7 +183,7 @@ def test_generate_workflow_descriptions_success(mock_generate):
 
 
 # Workflow descriptions invalid type (not strings) so should cause a status error
-@patch("generator.arazzo_generator.api.app.generate_arazzo")
+@patch("arazzo_generator.api.app.generate_arazzo")
 def test_generate_workflow_descriptions_with_non_string_elements(mock_generate):
     mock_generate.return_value = (
         {"mock": "spec"},
@@ -211,7 +211,7 @@ def test_generate_workflow_descriptions_with_non_string_elements(mock_generate):
 
 
 # Workflow descriptions contains empty strings, will still work because LLM workflow generation still occurs
-@patch("generator.arazzo_generator.api.app.generate_arazzo")
+@patch("arazzo_generator.api.app.generate_arazzo")
 def test_generate_workflow_descriptions_with_empty_strings(mock_generate):
     mock_generate.return_value = ({"mock": "spec"}, "mock content", True, [], True)
 
@@ -241,7 +241,7 @@ def test_generate_workflow_descriptions_with_empty_strings(mock_generate):
 
 
 # Test service fallback handling via API when invalid custom workflow descriptions used
-@patch("generator.arazzo_generator.api.app.generate_arazzo")
+@patch("arazzo_generator.api.app.generate_arazzo")
 def test_generate_fallback_used_invalid_workflow_descriptions(mock_generate):
     """Should return fallback_used True and an explanatory message when service triggers fallback."""
     mock_generate.return_value = (

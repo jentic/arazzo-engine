@@ -10,10 +10,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-from generator.arazzo_generator.generator.generator_service import generate_arazzo
-from generator.arazzo_generator.utils.config import get_config
-from generator.arazzo_generator.utils.exceptions import InvalidUserWorkflow, SpecValidationError
-from generator.arazzo_generator.utils.logging import get_logger
+from arazzo_generator.generator.generator_service import generate_arazzo
+from arazzo_generator.utils.config import get_config
+from arazzo_generator.utils.exceptions import InvalidUserWorkflow, SpecValidationError
+from arazzo_generator.utils.logging import get_logger
 
 logger = get_logger(__name__)
 config = get_config()
