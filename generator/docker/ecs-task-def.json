@@ -1,0 +1,55 @@
+{
+  "family": "jentic-arazzo-generator-task",
+  "networkMode": "bridge",
+  "requiresCompatibilities": [
+    "EC2"
+  ],
+  "executionRoleArn": "arn:aws:iam::YOUR_ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "jentic-arazzo-generator-container",
+      "image": "YOUR_ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/jentic-arazzo-generator:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 0,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "LLM_PROVIDER",
+          "value": "gemini"
+        },
+        {
+          "name": "LLM_MODEL",
+          "value": "gemini-pro"
+        },
+        {
+          "name": "API_SERVER_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "API_SERVER_PORT",
+          "value": "8000"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "GEMINI_API_KEY",
+          "valueFrom": "arn:aws:ssm:eu-west-1:YOUR_ACCOUNT_ID:parameter/jentic/arazzo/gemini_api_key"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/jentic-arazzo-generator-task",
+          "awslogs-region": "eu-west-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

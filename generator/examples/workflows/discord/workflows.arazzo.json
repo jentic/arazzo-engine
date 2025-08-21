@@ -1,0 +1,1698 @@
+{
+  "arazzo": "1.0.1",
+  "info": {
+    "title": "Jentic Generated Arazzo Specification",
+    "version": "1.0.0",
+    "description": "Automatically generated Arazzo specification from OpenAPI"
+  },
+  "sourceDescriptions": [
+    {
+      "name": "openapi_source",
+      "url": "/Users/sophiehind-smith/Documents/GitHub/jentic-arazzo-generator/examples/openapi_specs/discord.openapi.json",
+      "type": "openapi"
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "bot-setup-and-global-command-management",
+      "summary": "Guides a bot developer through setting up their bot, retrieving essential gateway information, registering global application commands, and preparing to handle user interactions.",
+      "description": "Guides a bot developer through setting up their bot, retrieving essential gateway information, registering global application commands, and preparing to handle user interactions.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "application_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "command_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "options": {
+            "type": "string"
+          },
+          "interaction_id": {
+            "type": "string"
+          },
+          "interaction_token": {
+            "type": "string"
+          },
+          "with_response": {
+            "type": "string"
+          },
+          "respond-to-interaction_body": {
+            "type": "object"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "get-my-application-info",
+          "description": "Retrieve basic information about the bot's application, including its ID.",
+          "operationId": "get_my_application",
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name",
+            "description": "$response.body#/description"
+          }
+        },
+        {
+          "stepId": "get-bot-gateway-info",
+          "description": "Get the WebSocket URL and shard recommendations necessary for the bot to connect to Discord's gateway.",
+          "operationId": "get_bot_gateway",
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "url": "$response.body#/url",
+            "session_start_limit": "$response.body#/session_start_limit",
+            "shards": "$response.body#/shards"
+          }
+        },
+        {
+          "stepId": "create-global-application-command",
+          "description": "Register a new global slash command for the bot, making it available across all guilds.",
+          "operationId": "create_application_command",
+          "parameters": [
+            {
+              "name": "application_id",
+              "in": "path",
+              "value": "$inputs.application_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "name": "$inputs.name"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name"
+          }
+        },
+        {
+          "stepId": "update-global-application-command",
+          "description": "Update an existing global slash command's properties, such as its name, description, or options.",
+          "operationId": "update_application_command",
+          "parameters": [
+            {
+              "name": "application_id",
+              "in": "path",
+              "value": "$inputs.application_id"
+            },
+            {
+              "name": "command_id",
+              "in": "path",
+              "value": "$inputs.command_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "name": "$inputs.name",
+              "description": "$inputs.description",
+              "options": "$inputs.options"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name"
+          }
+        },
+        {
+          "stepId": "respond-to-interaction",
+          "description": "Send a response to a user interaction, such as a slash command execution or button click.",
+          "operationId": "create_interaction_response",
+          "parameters": [
+            {
+              "name": "interaction_id",
+              "in": "path",
+              "value": "$inputs.interaction_id"
+            },
+            {
+              "name": "interaction_token",
+              "in": "path",
+              "value": "$inputs.interaction_token"
+            },
+            {
+              "name": "with_response",
+              "in": "query",
+              "value": "$inputs.with_response"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": "$inputs.respond-to-interaction_body"
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "interaction": "$response.body#/interaction"
+          }
+        }
+      ],
+      "outputs": {
+        "id": "$steps.update-global-application-command.outputs.id",
+        "name": "$steps.update-global-application-command.outputs.name",
+        "description": "$steps.get-my-application-info.outputs.description",
+        "url": "$steps.get-bot-gateway-info.outputs.url",
+        "session_start_limit": "$steps.get-bot-gateway-info.outputs.session_start_limit",
+        "shards": "$steps.get-bot-gateway-info.outputs.shards",
+        "interaction": "$steps.respond-to-interaction.outputs.interaction"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    },
+    {
+      "workflowId": "guild-creation-and-initial-setup",
+      "summary": "Allows a user or application to create a new Discord server (guild) and perform essential initial configurations like adding channels and roles, and setting up the welcome screen.",
+      "description": "Allows a user or application to create a new Discord server (guild) and perform essential initial configurations like adding channels and roles, and setting up the welcome screen.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "guild_id": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "hoist": {
+            "type": "string"
+          },
+          "mentionable": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "welcome_channels": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "string"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "create-new-guild",
+          "description": "Create a brand new Discord server with a specified name and initial settings.",
+          "operationId": "create_guild",
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "name": "$inputs.name"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name"
+          }
+        },
+        {
+          "stepId": "create-initial-channel",
+          "description": "Create a text or voice channel within the newly created guild to organize discussions or voice chats.",
+          "operationId": "create_guild_channel",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "name": "$inputs.name"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name"
+          }
+        },
+        {
+          "stepId": "create-initial-role",
+          "description": "Create a new role for the guild, defining permissions and member groups.",
+          "operationId": "create_guild_role",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "name": "$inputs.name",
+              "permissions": "$inputs.permissions",
+              "color": "$inputs.color",
+              "hoist": "$inputs.hoist",
+              "mentionable": "$inputs.mentionable"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name"
+          }
+        },
+        {
+          "stepId": "update-guild-welcome-screen",
+          "description": "Configure the welcome screen that new members see when they join the guild, guiding them to important channels.",
+          "operationId": "update_guild_welcome_screen",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "description": "$inputs.description",
+              "welcome_channels": "$inputs.welcome_channels",
+              "enabled": "$inputs.enabled"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "description": "$response.body#/description",
+            "welcome_channels": "$response.body#/welcome_channels"
+          }
+        }
+      ],
+      "outputs": {
+        "id": "$steps.create-initial-role.outputs.id",
+        "name": "$steps.create-initial-role.outputs.name",
+        "description": "$steps.update-guild-welcome-screen.outputs.description",
+        "welcome_channels": "$steps.update-guild-welcome-screen.outputs.welcome_channels"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    },
+    {
+      "workflowId": "managing-user-role-connections-for-an-application",
+      "summary": "Allows an application to define and manage metadata for its role connections, and to update a user's specific role connection data. This is crucial for applications that use Discord's role connection feature to verify user attributes.",
+      "description": "Allows an application to define and manage metadata for its role connections, and to update a user's specific role connection data. This is crucial for applications that use Discord's role connection feature to verify user attributes.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "application_id": {
+            "type": "string"
+          },
+          "update-application-role-connection-metadata_body": {
+            "type": "object"
+          },
+          "platform_name": {
+            "type": "string"
+          },
+          "platform_username": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "string"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "get-application-role-connection-metadata",
+          "description": "Retrieve the metadata definitions for role connections associated with the application, which dictate what information can be displayed.",
+          "operationId": "get_application_role_connections_metadata",
+          "parameters": [
+            {
+              "name": "application_id",
+              "in": "path",
+              "value": "$inputs.application_id"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "metadata_items": "$response.body#/metadata_items"
+          }
+        },
+        {
+          "stepId": "update-application-role-connection-metadata",
+          "description": "Update the metadata definitions for role connections, allowing the application to change the structure of verifiable user data.",
+          "operationId": "update_application_role_connections_metadata",
+          "parameters": [
+            {
+              "name": "application_id",
+              "in": "path",
+              "value": "$inputs.application_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": "$inputs.update-application-role-connection-metadata_body"
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "updated_metadata_items": "$response.body#/updated_metadata_items"
+          }
+        },
+        {
+          "stepId": "get-user-role-connection",
+          "description": "Retrieve a specific user's role connection data for the application, showing their linked accounts and metadata.",
+          "operationId": "get_application_user_role_connection",
+          "parameters": [
+            {
+              "name": "application_id",
+              "in": "path",
+              "value": "$inputs.application_id"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "platform_name": "$response.body#/platform_name",
+            "platform_username": "$response.body#/platform_username",
+            "metadata": "$response.body#/metadata"
+          }
+        },
+        {
+          "stepId": "update-user-role-connection",
+          "description": "Update a specific user's role connection data, allowing the application to push verified information to Discord.",
+          "operationId": "update_application_user_role_connection",
+          "parameters": [
+            {
+              "name": "application_id",
+              "in": "path",
+              "value": "$inputs.application_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "platform_name": "$inputs.platform_name",
+              "platform_username": "$inputs.platform_username",
+              "metadata": "$inputs.metadata"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "platform_name": "$response.body#/platform_name",
+            "platform_username": "$response.body#/platform_username",
+            "metadata": "$response.body#/metadata"
+          }
+        }
+      ],
+      "outputs": {
+        "metadata_items": "$steps.get-application-role-connection-metadata.outputs.metadata_items",
+        "updated_metadata_items": "$steps.update-application-role-connection-metadata.outputs.updated_metadata_items",
+        "platform_name": "$steps.update-user-role-connection.outputs.platform_name",
+        "platform_username": "$steps.update-user-role-connection.outputs.platform_username",
+        "metadata": "$steps.update-user-role-connection.outputs.metadata"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    },
+    {
+      "workflowId": "automated-messaging-via-webhooks",
+      "summary": "Enables external services to post messages to Discord channels using webhooks, and manage those messages (update or delete).",
+      "description": "Enables external services to post messages to Discord channels using webhooks, and manage those messages (update or delete).",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "webhook_id": {
+            "type": "string"
+          },
+          "webhook_token": {
+            "type": "string"
+          },
+          "wait": {
+            "type": "string"
+          },
+          "thread_id": {
+            "type": "string"
+          },
+          "with_components": {
+            "type": "string"
+          },
+          "send-webhook-message_body": {
+            "type": "object"
+          },
+          "message_id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "embeds": {
+            "type": "string"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "create-channel-webhook",
+          "description": "Create a new webhook in a specified channel, providing a unique URL for external services to send messages.",
+          "operationId": "create_webhook",
+          "parameters": [
+            {
+              "name": "channel_id",
+              "in": "path",
+              "value": "$inputs.channel_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "name": "$inputs.name"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "token": "$response.body#/token",
+            "channel_id": "$response.body#/channel_id"
+          }
+        },
+        {
+          "stepId": "send-webhook-message",
+          "description": "Send a message to the channel using the created webhook, allowing for automated notifications or content posting.",
+          "operationId": "execute_webhook",
+          "parameters": [
+            {
+              "name": "webhook_id",
+              "in": "path",
+              "value": "$inputs.webhook_id"
+            },
+            {
+              "name": "webhook_token",
+              "in": "path",
+              "value": "$inputs.webhook_token"
+            },
+            {
+              "name": "wait",
+              "in": "query",
+              "value": "$inputs.wait"
+            },
+            {
+              "name": "thread_id",
+              "in": "query",
+              "value": "$inputs.thread_id"
+            },
+            {
+              "name": "with_components",
+              "in": "query",
+              "value": "$inputs.with_components"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": "$inputs.send-webhook-message_body"
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "channel_id": "$response.body#/channel_id"
+          }
+        },
+        {
+          "stepId": "update-webhook-sent-message",
+          "description": "Edit a message previously sent by the webhook, useful for updating dynamic content or correcting errors.",
+          "operationId": "update_webhook_message",
+          "parameters": [
+            {
+              "name": "webhook_id",
+              "in": "path",
+              "value": "$inputs.webhook_id"
+            },
+            {
+              "name": "webhook_token",
+              "in": "path",
+              "value": "$inputs.webhook_token"
+            },
+            {
+              "name": "message_id",
+              "in": "path",
+              "value": "$inputs.message_id"
+            },
+            {
+              "name": "thread_id",
+              "in": "query",
+              "value": "$inputs.thread_id"
+            },
+            {
+              "name": "with_components",
+              "in": "query",
+              "value": "$inputs.with_components"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "content": "$inputs.content",
+              "embeds": "$inputs.embeds"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "channel_id": "$response.body#/channel_id"
+          }
+        },
+        {
+          "stepId": "delete-webhook-sent-message",
+          "description": "Delete a message previously sent by the webhook, for cleanup or removal of outdated information.",
+          "operationId": "delete_webhook_message",
+          "parameters": [
+            {
+              "name": "webhook_id",
+              "in": "path",
+              "value": "$inputs.webhook_id"
+            },
+            {
+              "name": "webhook_token",
+              "in": "path",
+              "value": "$inputs.webhook_token"
+            },
+            {
+              "name": "message_id",
+              "in": "path",
+              "value": "$inputs.message_id"
+            },
+            {
+              "name": "thread_id",
+              "in": "query",
+              "value": "$inputs.thread_id"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "message_data": "$response.body"
+          }
+        }
+      ],
+      "outputs": {
+        "id": "$steps.update-webhook-sent-message.outputs.id",
+        "token": "$steps.create-channel-webhook.outputs.token",
+        "channel_id": "$steps.update-webhook-sent-message.outputs.channel_id",
+        "message_data": "$steps.delete-webhook-sent-message.outputs.message_data"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    },
+    {
+      "workflowId": "moderating-messages-in-a-channel",
+      "summary": "A workflow for administrators or bots to manage messages within a specific channel, including listing, bulk deleting, and managing reactions and pins.",
+      "description": "A workflow for administrators or bots to manage messages within a specific channel, including listing, bulk deleting, and managing reactions and pins.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": "string"
+          },
+          "around": {
+            "type": "string"
+          },
+          "before": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "string"
+          },
+          "message_id": {
+            "type": "string"
+          },
+          "emoji_name": {
+            "type": "string"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "list-channel-messages",
+          "description": "Retrieve a list of messages from a specified channel, useful for reviewing content.",
+          "operationId": "list_messages",
+          "parameters": [
+            {
+              "name": "channel_id",
+              "in": "path",
+              "value": "$inputs.channel_id"
+            },
+            {
+              "name": "around",
+              "in": "query",
+              "value": "$inputs.around"
+            },
+            {
+              "name": "before",
+              "in": "query",
+              "value": "$inputs.before"
+            },
+            {
+              "name": "after",
+              "in": "query",
+              "value": "$inputs.after"
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "value": "$inputs.limit"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "messages": "$response.body#/messages"
+          }
+        },
+        {
+          "stepId": "bulk-delete-selected-messages",
+          "description": "Delete multiple messages in a channel, typically used for moderation to remove spam or inappropriate content.",
+          "operationId": "bulk_delete_messages",
+          "parameters": [
+            {
+              "name": "channel_id",
+              "in": "path",
+              "value": "$inputs.channel_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "messages": "$inputs.messages"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "messages_data": "$response.body"
+          }
+        },
+        {
+          "stepId": "add-reaction-to-message",
+          "description": "Add a reaction to a specific message, often used by bots to acknowledge commands or express sentiment.",
+          "operationId": "add_my_message_reaction",
+          "parameters": [
+            {
+              "name": "channel_id",
+              "in": "path",
+              "value": "$inputs.channel_id"
+            },
+            {
+              "name": "message_id",
+              "in": "path",
+              "value": "$inputs.message_id"
+            },
+            {
+              "name": "emoji_name",
+              "in": "path",
+              "value": "$inputs.emoji_name"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "message_data": "$response.body"
+          }
+        },
+        {
+          "stepId": "pin-important-message",
+          "description": "Pin an important message to the channel, making it easily accessible to all members.",
+          "operationId": "pin_message",
+          "parameters": [
+            {
+              "name": "channel_id",
+              "in": "path",
+              "value": "$inputs.channel_id"
+            },
+            {
+              "name": "message_id",
+              "in": "path",
+              "value": "$inputs.message_id"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "message_data": "$response.body"
+          }
+        }
+      ],
+      "outputs": {
+        "messages": "$steps.list-channel-messages.outputs.messages",
+        "messages_data": "$steps.bulk-delete-selected-messages.outputs.messages_data",
+        "message_data": "$steps.pin-important-message.outputs.message_data"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    },
+    {
+      "workflowId": "managing-guild-scheduled-events",
+      "summary": "Facilitates the creation, management, and tracking of scheduled events within a Discord guild, from initial setup to attendee tracking and event status updates.",
+      "description": "Facilitates the creation, management, and tracking of scheduled events within a Discord guild, from initial setup to attendee tracking and event status updates.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "guild_id": {
+            "type": "string"
+          },
+          "create-guild-event_body": {
+            "type": "object"
+          },
+          "guild_scheduled_event_id": {
+            "type": "string"
+          },
+          "with_member": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "string"
+          },
+          "before": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          },
+          "update-event-status_body": {
+            "type": "object"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "create-guild-event",
+          "description": "Create a new scheduled event in a guild, specifying its name, start time, privacy, and type (e.g., voice, stage, external).",
+          "operationId": "create_guild_scheduled_event",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": "$inputs.create-guild-event_body"
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name",
+            "status": "$response.body#/status",
+            "guild_id": "$response.body#/guild_id"
+          }
+        },
+        {
+          "stepId": "list-event-attendees",
+          "description": "Get a list of users who have RSVP'd (expressed interest) in a specific scheduled event.",
+          "operationId": "list_guild_scheduled_event_users",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            },
+            {
+              "name": "guild_scheduled_event_id",
+              "in": "path",
+              "value": "$inputs.guild_scheduled_event_id"
+            },
+            {
+              "name": "with_member",
+              "in": "query",
+              "value": "$inputs.with_member"
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "value": "$inputs.limit"
+            },
+            {
+              "name": "before",
+              "in": "query",
+              "value": "$inputs.before"
+            },
+            {
+              "name": "after",
+              "in": "query",
+              "value": "$inputs.after"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "users": "$response.body#/users"
+          }
+        },
+        {
+          "stepId": "update-event-status",
+          "description": "Update the status of a scheduled event (e.g., to 'ACTIVE' when it starts, or 'COMPLETED' when it ends).",
+          "operationId": "update_guild_scheduled_event",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            },
+            {
+              "name": "guild_scheduled_event_id",
+              "in": "path",
+              "value": "$inputs.guild_scheduled_event_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": "$inputs.update-event-status_body"
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "status": "$response.body#/status"
+          }
+        },
+        {
+          "stepId": "delete-guild-event",
+          "description": "Delete a scheduled event from the guild.",
+          "operationId": "delete_guild_scheduled_event",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            },
+            {
+              "name": "guild_scheduled_event_id",
+              "in": "path",
+              "value": "$inputs.guild_scheduled_event_id"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "event_data": "$response.body"
+          }
+        }
+      ],
+      "outputs": {
+        "id": "$steps.update-event-status.outputs.id",
+        "name": "$steps.create-guild-event.outputs.name",
+        "status": "$steps.update-event-status.outputs.status",
+        "guild_id": "$steps.create-guild-event.outputs.guild_id",
+        "users": "$steps.list-event-attendees.outputs.users",
+        "event_data": "$steps.delete-guild-event.outputs.event_data"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    },
+    {
+      "workflowId": "guild-member-management-admin",
+      "summary": "Provides tools for guild administrators to manage members, including listing, searching, adding/removing roles, and banning users.",
+      "description": "Provides tools for guild administrators to manage members, including listing, searching, adding/removing roles, and banning users.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "guild_id": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "role_id": {
+            "type": "string"
+          },
+          "delete_message_seconds": {
+            "type": "string"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "list-guild-members",
+          "description": "Retrieve a list of members in a specific guild, with options for pagination.",
+          "operationId": "list_guild_members",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "value": "$inputs.limit"
+            },
+            {
+              "name": "after",
+              "in": "query",
+              "value": "$inputs.after"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "members": "$response.body#/0/members"
+          }
+        },
+        {
+          "stepId": "search-guild-members",
+          "description": "Search for specific members within a guild by a query string.",
+          "operationId": "search_guild_members",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            },
+            {
+              "name": "limit",
+              "in": "query",
+              "value": "$inputs.limit"
+            },
+            {
+              "name": "query",
+              "in": "query",
+              "value": "$inputs.query"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "found_members": "$response.body#/0/found_members"
+          }
+        },
+        {
+          "stepId": "add-member-role",
+          "description": "Assign a specific role to a guild member.",
+          "operationId": "add_guild_member_role",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            },
+            {
+              "name": "user_id",
+              "in": "path",
+              "value": "$inputs.user_id"
+            },
+            {
+              "name": "role_id",
+              "in": "path",
+              "value": "$inputs.role_id"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "role_data": "$response.body"
+          }
+        },
+        {
+          "stepId": "ban-guild-member",
+          "description": "Ban a user from the guild, with an option to delete their recent messages.",
+          "operationId": "ban_user_from_guild",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            },
+            {
+              "name": "user_id",
+              "in": "path",
+              "value": "$inputs.user_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "delete_message_seconds": "$inputs.delete_message_seconds"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "member_data": "$response.body"
+          }
+        }
+      ],
+      "outputs": {
+        "members": "$steps.list-guild-members.outputs.members",
+        "found_members": "$steps.search-guild-members.outputs.found_members",
+        "role_data": "$steps.add-member-role.outputs.role_data",
+        "member_data": "$steps.ban-guild-member.outputs.member_data"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    },
+    {
+      "workflowId": "managing-guild-customization-emojis--stickers",
+      "summary": "Allows guild administrators to list existing, create new, and update custom emojis and stickers for their server, enhancing server personalization.",
+      "description": "Allows guild administrators to list existing, create new, and update custom emojis and stickers for their server, enhancing server personalization.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "guild_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "list-guild-emojis",
+          "description": "Retrieve all custom emojis available in a specific guild.",
+          "operationId": "list_guild_emojis",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "emojis": "$response.body#/emojis"
+          }
+        },
+        {
+          "stepId": "create-new-emoji",
+          "description": "Add a new custom emoji to the guild, providing its name and image data.",
+          "operationId": "create_guild_emoji",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "name": "$inputs.name",
+              "image": "$inputs.image"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name"
+          }
+        },
+        {
+          "stepId": "list-guild-stickers",
+          "description": "Retrieve all custom stickers available in a specific guild.",
+          "operationId": "list_guild_stickers",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "stickers": "$response.body#/0/stickers"
+          }
+        },
+        {
+          "stepId": "create-new-sticker",
+          "description": "Add a new custom sticker to the guild, including its name, tags, and file.",
+          "operationId": "create_guild_sticker",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "multipart/form-data",
+            "payload": {
+              "name": "$inputs.name",
+              "tags": "$inputs.tags",
+              "file": "$inputs.file"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name"
+          }
+        }
+      ],
+      "outputs": {
+        "emojis": "$steps.list-guild-emojis.outputs.emojis",
+        "id": "$steps.create-new-sticker.outputs.id",
+        "name": "$steps.create-new-sticker.outputs.name",
+        "stickers": "$steps.list-guild-stickers.outputs.stickers"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    },
+    {
+      "workflowId": "guild-template-management",
+      "summary": "Allows for the creation, synchronization, and management of guild templates, enabling easy replication of server structures for new guilds.",
+      "description": "Allows for the creation, synchronization, and management of guild templates, enabling easy replication of server structures for new guilds.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "guild_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "create-guild-template",
+          "description": "Create a new template from an existing guild's structure, including channels and roles.",
+          "operationId": "create_guild_template",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "name": "$inputs.name"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "code": "$response.body#/code",
+            "name": "$response.body#/name",
+            "guild_id": "$response.body#/guild_id"
+          }
+        },
+        {
+          "stepId": "list-guild-templates",
+          "description": "List all templates associated with a specific guild.",
+          "operationId": "list_guild_templates",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "templates": "$response.body#/templates"
+          }
+        },
+        {
+          "stepId": "sync-guild-template",
+          "description": "Synchronize a guild template with the current state of its source guild, updating the template to reflect recent changes.",
+          "operationId": "sync_guild_template",
+          "parameters": [
+            {
+              "name": "guild_id",
+              "in": "path",
+              "value": "$inputs.guild_id"
+            },
+            {
+              "name": "code",
+              "in": "path",
+              "value": "$inputs.code"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "code": "$response.body#/code",
+            "name": "$response.body#/name",
+            "is_dirty": "$response.body#/is_dirty"
+          }
+        },
+        {
+          "stepId": "create-guild-from-template",
+          "description": "Create a new guild based on an existing guild template, quickly setting up a server with predefined structure.",
+          "operationId": "create_guild_from_template",
+          "parameters": [
+            {
+              "name": "code",
+              "in": "path",
+              "value": "$inputs.code"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "name": "$inputs.name"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "name": "$response.body#/name"
+          }
+        }
+      ],
+      "outputs": {
+        "code": "$steps.sync-guild-template.outputs.code",
+        "name": "$steps.create-guild-from-template.outputs.name",
+        "guild_id": "$steps.create-guild-template.outputs.guild_id",
+        "templates": "$steps.list-guild-templates.outputs.templates",
+        "is_dirty": "$steps.sync-guild-template.outputs.is_dirty",
+        "id": "$steps.create-guild-from-template.outputs.id"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    },
+    {
+      "workflowId": "user-profile-management",
+      "summary": "Allows an authenticated user to retrieve and update their own profile information on Discord, such as username or avatar.",
+      "description": "Allows an authenticated user to retrieve and update their own profile information on Discord, such as username or avatar.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "get-my-profile",
+          "description": "Retrieve the authenticated user's detailed profile information, including PII like email if authorized.",
+          "operationId": "get_my_user",
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "username": "$response.body#/username",
+            "discriminator": "$response.body#/discriminator",
+            "email": "$response.body#/email",
+            "locale": "$response.body#/locale",
+            "mfa_enabled": "$response.body#/mfa_enabled",
+            "avatar": "$response.body#/avatar",
+            "banner": "$response.body#/banner"
+          }
+        },
+        {
+          "stepId": "update-my-profile",
+          "description": "Update the authenticated user's profile, such as changing their username or avatar.",
+          "operationId": "update_my_user",
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "username": "$inputs.username"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "id": "$response.body#/id",
+            "username": "$response.body#/username",
+            "avatar": "$response.body#/avatar",
+            "banner": "$response.body#/banner"
+          }
+        }
+      ],
+      "outputs": {
+        "id": "$steps.update-my-profile.outputs.id",
+        "username": "$steps.update-my-profile.outputs.username",
+        "discriminator": "$steps.get-my-profile.outputs.discriminator",
+        "email": "$steps.get-my-profile.outputs.email",
+        "locale": "$steps.get-my-profile.outputs.locale",
+        "mfa_enabled": "$steps.get-my-profile.outputs.mfa_enabled",
+        "avatar": "$steps.update-my-profile.outputs.avatar",
+        "banner": "$steps.update-my-profile.outputs.banner"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    }
+  ],
+  "components": {
+    "successActions": {
+      "default_success": {
+        "name": "default_success",
+        "type": "end"
+      }
+    },
+    "failureActions": {
+      "auth_failure": {
+        "name": "auth_failure",
+        "type": "end",
+        "criteria": [
+          {
+            "condition": "$statusCode == 401"
+          }
+        ]
+      },
+      "permission_denied": {
+        "name": "permission_denied",
+        "type": "end",
+        "criteria": [
+          {
+            "condition": "$statusCode == 403"
+          }
+        ]
+      },
+      "not_found": {
+        "name": "not_found",
+        "type": "end",
+        "criteria": [
+          {
+            "condition": "$statusCode == 404"
+          }
+        ]
+      },
+      "server_error": {
+        "name": "server_error",
+        "type": "retry",
+        "retryAfter": 2,
+        "retryLimit": 3,
+        "criteria": [
+          {
+            "condition": "$statusCode >= 500"
+          }
+        ]
+      },
+      "default_retry": {
+        "name": "default_retry",
+        "type": "retry",
+        "retryAfter": 1,
+        "retryLimit": 3
+      },
+      "default_failure": {
+        "name": "default_failure",
+        "type": "end"
+      }
+    }
+  }
+}

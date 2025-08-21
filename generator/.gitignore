@@ -1,0 +1,79 @@
+# -------------------------
+# General .gitignore for jentic-arazzo-generator
+# -------------------------
+
+# Python cache / build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.python-version
+build/
+dist/
+sdist/
+wheels/
+lib/
+lib64/
+var/
+parts/
+.eggs/
+*.egg-info/
+*.egg
+develop-eggs/
+downloads/
+
+# Virtual environments
+env/
+.venv/
+ENV/
+.pdm-python
+
+# Editor / IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS-specific files
+.DS_Store
+
+# Testing & coverage
+htmlcov/
+.tox/
+.nox/
+.coverage*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+*/.pytest_cache/
+
+# Logs & databases
+logs/
+batch_logs/
+*_llm_interaction/
+*.log
+*.sql
+*.sqlite
+dev-debug.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+!.env.example
+.env.*
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Node / JS
+node_modules/
+
+# Data & generated files
+*.txt
+

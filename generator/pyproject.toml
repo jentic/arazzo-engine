@@ -1,0 +1,87 @@
+[project]
+name = "arazzo_generator"
+version = "0.1.0"
+description = "Tool for analyzing OpenAPI specifications and generating meaningful Arazzo workflows by identifying logical API sequences and patterns."
+authors = [
+    {name = "Jentic", email = "hello@jentic.com"},
+]
+requires-python = ">=3.11,<4.0"
+readme = "./README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+
+dependencies = [
+    "requests>=2.25.0",
+    "openapi-spec-validator>=0.5.0",
+    "prance>=0.22.0",
+    "click>=8.0.0",
+    "jsonschema>=4.0.0",
+    "Levenshtein~=0.27.1",
+    "fastapi>=0.95.0",
+    "uvicorn>=0.22.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "litellm>=1.0.0",
+    "python-dotenv>=1.1.1"
+]
+
+[project.scripts]
+arazzo-generator = "arazzo_generator.__main__:run_main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-cov>=4.0.0",
+    "black>=23.7.0",
+    "isort>=5.12.0",
+    "ruff>=0.0.289",
+    "mypy>=1.5.1",
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm.scripts]
+arazzo = "python -m arazzo_generator.cli.run"
+validate = "python -m arazzo_generator.cli.run validate"
+generate = "python -m arazzo_generator.cli.run generate"
+batch = "python -m arazzo_generator.cli.run batch"
+api = "python -m arazzo_generator.api.run"
+test = "pytest"
+format = {cmd = "bash -c 'black arazzo_generator/ tests/ && isort arazzo_generator/ tests/'"}
+check-format = {cmd = "bash -c 'black --check arazzo_generator/ tests/ && isort --check-only arazzo_generator/ tests/ || exit 0'"}
+lint = {composite = ["black .", "isort .", "ruff check .", "mypy ."]}
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.11"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+strict_optional = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "B", "W", "I", "N", "UP", "YTT", "S"]
+ignore = []
+
+[project.urls]
+Homepage = "https://github.com/jentic/arazzo-engine"
+Documentation = "https://github.com/jentic/arazzo-engine#readme"
+Issues = "https://github.com/jentic/arazzo-engine/issues"

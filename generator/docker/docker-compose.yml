@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  arazzo-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./.env
+    volumes:
+      - ../logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    command: python -m arazzo_generator.api.run --host ${HOST:-0.0.0.0} --port ${PORT:-8000}
+
+  arazzo-cli:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    env_file:
+      - ./.env
+    volumes:
+      - ../logs:/app/logs
+      - ../output:/app/output
+    entrypoint: python -m arazzo_generator.cli.main
+    # This service is configured to be used with docker-compose run, e.g.:
+    # docker-compose run arazzo-cli generate <url> --output /app/output/result.yaml
