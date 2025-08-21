@@ -53,9 +53,16 @@ class OpenAPIParser:
         try:
             # Determine if the URL is a local file path or a remote URL
             is_url = bool(urlparse(self.url).scheme)
-            is_local_file = os.path.exists(self.url)
-
-            # First try to use prance to parse the spec
+            is_local_file = False
+            # Only validate local file paths if not a remote URL
+            if not is_url:
+                # Normalize the path and check containment in SAFE_ROOT
+                normalized_path = os.path.normpath(os.path.abspath(self.url))
+                if not normalized_path.startswith(SAFE_ROOT + os.sep):
+                    logger.error(f"Attempted access to file outside of safe root: {normalized_path}")
+                    raise ValueError("Access to files outside the allowed directory is not permitted.")
+                is_local_file = os.path.exists(normalized_path)
+                self.url = normalized_path
             try:
                 logger.debug("Attempting to parse spec with prance")
 
