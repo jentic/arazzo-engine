@@ -28,9 +28,9 @@ dependencies = [
 [project.scripts]
 arazzo-generator = "arazzo_generator.__main__:run_main"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "pytest>=7.0.0",
+    "pytest>=8.4.1",
     "pytest-cov>=4.0.0",
     "black>=23.7.0",
     "isort>=5.12.0",
