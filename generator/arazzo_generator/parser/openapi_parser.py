@@ -262,13 +262,13 @@ class OpenAPIParser:
         """
         logger.info("Attempting alternative parsing methods")
 
-        # Method 1: Try using a more lenient YAML parser (PyYAML's unsafe_load with warnings)
+        # Method 1: Try using a more lenient parsing method by cleaning the content
         try:
             # Decode with lenient encoding
             text_content = content.decode("utf-8", errors="replace")
             cleaned_content = self._clean_spec_content(text_content)
-            spec = yaml.load(cleaned_content, Loader=yaml.Loader)
-            logger.info("Successfully parsed spec with unsafe YAML loader")
+            spec = yaml.safe_load(cleaned_content)
+            logger.info("Successfully parsed spec with safe YAML loader")
             return spec
         except Exception as e:
             logger.warning(f"Alternative method 1 failed: {e}")
