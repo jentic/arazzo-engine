@@ -130,12 +130,12 @@ def extract_fixture_auth_requirements(
                     openapi_spec = yaml.safe_load(f)
 
                 spec_auth_reqs = extract_auth_from_openapi(openapi_spec)
-                
+
                 # Set the source_description_id for each requirement
                 source_id = os.path.basename(openapi_path)
                 for req in spec_auth_reqs:
                     req.source_description_id = source_id
-                    
+
                 auth_requirements.extend(spec_auth_reqs)
 
                 if spec_auth_reqs:
@@ -288,8 +288,6 @@ def create_test_class(fixture: dict[str, Any], mode: str = "mock") -> type:
         doc_prefix = "Mock"
 
     class FixtureTest(unittest.TestCase):
-        f"""{doc_prefix} test case for {fixture_name} Arazzo workflow fixture"""
-
         def setUp(self):
             """Set up the test case"""
             self.fixture = fixture
@@ -393,8 +391,8 @@ def create_test_class(fixture: dict[str, Any], mode: str = "mock") -> type:
 
                     # Set base URL for real client
                     if isinstance(http_client, RealHTTPExecutor):
-                        base_url = self.fixture["config"].get("base_urls", {}).get(
-                            source_description_name
+                        base_url = (
+                            self.fixture["config"].get("base_urls", {}).get(source_description_name)
                         )
                         if base_url:
                             http_client.base_urls[source_description_name] = base_url
@@ -488,7 +486,9 @@ def create_test_class(fixture: dict[str, Any], mode: str = "mock") -> type:
 
                             # If no schema is available or generation fails, use a simple success response
                             if not response_data:
-                                response_data = {"status": WorkflowExecutionStatus.WORKFLOW_COMPLETE}
+                                response_data = {
+                                    "status": WorkflowExecutionStatus.WORKFLOW_COMPLETE
+                                }
 
                             http_client.add_static_response(
                                 method=method,
@@ -682,8 +682,6 @@ def create_test_class(fixture: dict[str, Any], mode: str = "mock") -> type:
 
             # Initialize appropriate HTTP client based on mode
             if workflow_mode == "real":
-                # Get timeout setting from config
-                timeout = self.fixture["config"].get("real_mode", {}).get("timeout", 30)
                 base_urls = self.fixture["config"].get("base_urls", {})
 
                 # Get auth values from config
@@ -1221,6 +1219,8 @@ def create_test_class(fixture: dict[str, Any], mode: str = "mock") -> type:
                     logger.info(
                         f"API calls count check skipped for workflow {workflow_config.get('id', 'unknown')} (no expected_api_calls specified)"
                     )
+
+    FixtureTest.__doc__ = f"""{doc_prefix} test case for {fixture_name} Arazzo workflow fixture"""
 
     # Set class name and docstring
     FixtureTest.__name__ = class_name

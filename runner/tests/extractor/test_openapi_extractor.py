@@ -3,24 +3,24 @@
 Tests for the OpenAPI Extractor module.
 """
 
-import pytest
 import logging
 import sys
-import json
+
+import pytest
 
 from arazzo_runner.extractor.openapi_extractor import (
-    extract_operation_io,
     _limit_dict_depth,
-    _resolve_schema_refs
+    _resolve_schema_refs,
+    extract_operation_io,
 )
 
 # Configure specific logger for the extractor module for debug output
-extractor_logger = logging.getLogger('arazzo_runner.extractor.openapi_extractor')
+extractor_logger = logging.getLogger("arazzo_runner.extractor.openapi_extractor")
 extractor_logger.setLevel(logging.DEBUG)
 # Ensure handler exists to output to stderr
 if not extractor_logger.hasHandlers():
     handler = logging.StreamHandler(sys.stderr)
-    formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+    formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
     handler.setFormatter(formatter)
     extractor_logger.addHandler(handler)
 
@@ -40,25 +40,19 @@ TEST_SPEC = {
                         "in": "header",
                         "required": False,
                         "description": "Request identifier for tracing",
-                        "schema": {"type": "string", "format": "uuid"}
+                        "schema": {"type": "string", "format": "uuid"},
                     }
                 ],
-                "requestBody": {
-                    "$ref": "#/components/requestBodies/OrderRequest"
-                },
+                "requestBody": {"$ref": "#/components/requestBodies/OrderRequest"},
                 "responses": {
-                    "201": {
-                        "$ref": "#/components/responses/OrderCreated"
-                    },
-                    "400": {
-                        "description": "Invalid input"
-                    }
+                    "201": {"$ref": "#/components/responses/OrderCreated"},
+                    "400": {"description": "Invalid input"},
                 },
                 "security": [
-                    {"apiKeyAuth": []}, 
-                    {"oauth2_def": ["write:orders"]}, 
-                    {"basicAuth": [], "petstore_auth": ["read:pets", "write:pets"]} 
-                ]
+                    {"apiKeyAuth": []},
+                    {"oauth2_def": ["write:orders"]},
+                    {"basicAuth": [], "petstore_auth": ["read:pets", "write:pets"]},
+                ],
             }
         }
     },
@@ -69,50 +63,43 @@ TEST_SPEC = {
                 "properties": {
                     "id": {"type": "string", "format": "uuid"},
                     "items": {"type": "array", "items": {"$ref": "#/components/schemas/OrderItem"}},
-                    "status": {"type": "string", "enum": ["pending", "shipped", "delivered"]}
+                    "status": {"type": "string", "enum": ["pending", "shipped", "delivered"]},
                 },
-                "required": ["items"]
+                "required": ["items"],
             },
-             "OrderInput": {
-                 "type": "object",
-                 "properties": {
-                     "items": {"type": "array", "items": {"$ref": "#/components/schemas/OrderItem"}},
-                     "customer_notes": {"type": "string", "description": "Additional notes from the customer"}
-                 }
-             },
+            "OrderInput": {
+                "type": "object",
+                "properties": {
+                    "items": {"type": "array", "items": {"$ref": "#/components/schemas/OrderItem"}},
+                    "customer_notes": {
+                        "type": "string",
+                        "description": "Additional notes from the customer",
+                    },
+                },
+            },
             "OrderItem": {
                 "type": "object",
                 "properties": {
                     "id": {"type": "string", "format": "uuid"},
                     "product_id": {"type": "string"},
-                    "quantity": {"type": "integer"}
+                    "quantity": {"type": "integer"},
                 },
-                "required": ["product_id", "quantity"]
-            }
+                "required": ["product_id", "quantity"],
+            },
         },
         "requestBodies": {
             "OrderRequest": {
                 "description": "Order details",
                 "required": True,
                 "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/OrderInput"
-                        }
-                    }
-                }
+                    "application/json": {"schema": {"$ref": "#/components/schemas/OrderInput"}}
+                },
             }
         },
         "responses": {
             "OrderCreated": {
                 "description": "Order created successfully",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "$ref": "#/components/schemas/Order"
-                        }
-                    }
-                }
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Order"}}},
             }
         },
         "securitySchemes": {
@@ -123,20 +110,13 @@ TEST_SPEC = {
                         "tokenUrl": "http://test.com/oauth/token",
                         "scopes": {
                             "write:orders": "modify orders in your account",
-                            "read:orders": "read your orders"
-                        }
+                            "read:orders": "read your orders",
+                        },
                     }
-                }
+                },
             },
-            "apiKeyAuth": {
-                "type": "apiKey",
-                "in": "header",
-                "name": "X-API-KEY"
-            },
-            "basicAuth": {
-                "type": "http",
-                "scheme": "basic"
-            },
+            "apiKeyAuth": {"type": "apiKey", "in": "header", "name": "X-API-KEY"},
+            "basicAuth": {"type": "http", "scheme": "basic"},
             "petstore_auth": {
                 "type": "oauth2",
                 "flows": {
@@ -144,14 +124,15 @@ TEST_SPEC = {
                         "authorizationUrl": "http://example.org/api/oauth/dialog",
                         "scopes": {
                             "write:pets": "modify pets in your account",
-                            "read:pets": "read your pets"
-                        }
+                            "read:pets": "read your pets",
+                        },
                     }
-                }
-            }
-        }
-    }
+                },
+            },
+        },
+    },
 }
+
 
 def test_extract_order_post_details():
     """
@@ -165,16 +146,16 @@ def test_extract_order_post_details():
     assert extracted["inputs"].get("type") == "object"
     assert "properties" in extracted["inputs"]
     assert isinstance(extracted["inputs"]["properties"], dict)
-    
+
     input_properties = extracted["inputs"]["properties"]
 
     # Check non-body parameter (simplified schema within properties)
     assert "X-Request-ID" in input_properties
     # Check type, description, and schema. Required status is in the top-level list.
     expected_param_details = {
-        "type": "string", 
+        "type": "string",
         "description": "Request identifier for tracing",
-        "schema": {"type": "string", "format": "uuid"}
+        "schema": {"type": "string", "format": "uuid"},
     }
     assert input_properties["X-Request-ID"] == expected_param_details
     # Check that it's NOT required in the top-level list
@@ -190,16 +171,19 @@ def test_extract_order_post_details():
             "properties": {
                 "id": {"type": "string", "format": "uuid"},
                 "product_id": {"type": "string"},
-                "quantity": {"type": "integer"}
+                "quantity": {"type": "integer"},
             },
-            "required": ["product_id", "quantity"]
-        }
+            "required": ["product_id", "quantity"],
+        },
     }
     assert input_properties["items"] == expected_items_schema
 
     # Check the flattened 'customer_notes' property from the body
     assert "customer_notes" in input_properties
-    assert input_properties["customer_notes"] == {"type": "string", "description": "Additional notes from the customer"}
+    assert input_properties["customer_notes"] == {
+        "type": "string",
+        "description": "Additional notes from the customer",
+    }
 
     # Check required properties from the body are in the top-level required list
     # 'items' is NOT listed in the requestBody schema's top-level required list in TEST_SPEC
@@ -221,23 +205,23 @@ def test_extract_order_post_details():
                     "properties": {
                         "id": {"type": "string", "format": "uuid"},
                         "product_id": {"type": "string"},
-                        "quantity": {"type": "integer"}
+                        "quantity": {"type": "integer"},
                     },
-                    "required": ["product_id", "quantity"]
-                }
+                    "required": ["product_id", "quantity"],
+                },
             },
-            "status": {"type": "string", "enum": ["pending", "shipped", "delivered"]}
+            "status": {"type": "string", "enum": ["pending", "shipped", "delivered"]},
         },
-        "required": ["items"]  # Add missing required field
+        "required": ["items"],  # Add missing required field
     }
     assert extracted["outputs"] == expected_resolved_output_schema
- 
+
     # --- Assert Security Requirements ---
     assert "security_requirements" in extracted
     expected_security_req = [
         {"apiKeyAuth": []},
         {"oauth2_def": ["write:orders"]},
-        {"basicAuth": [], "petstore_auth": ["read:pets", "write:pets"]}
+        {"basicAuth": [], "petstore_auth": ["read:pets", "write:pets"]},
     ]
     assert extracted["security_requirements"] == expected_security_req
 
@@ -249,37 +233,42 @@ def test_extract_order_post_details():
     "data, max_depth, expected",
     [
         # Basic dict limiting
-        ({'a': {'b': {'c': 1}}}, 0, 'object'),
-        ({'a': {'b': {'c': 1, 'type': 'nested_object'}}}, 0, 'object'), # Corrected expectation for max_depth=0
-        ({'a': {'b': {'c': 1}}}, 1, {'a': 'object'}),
-        ({'a': {'b': {'c': 1}}}, 2, {'a': {'b': 'object'}}),
-        ({'a': {'b': {'c': 1}}}, 3, {'a': {'b': {'c': 1}}}),
-        ({'a': {'b': {'c': 1}}}, 4, {'a': {'b': {'c': 1}}}), # Depth greater than actual
+        ({"a": {"b": {"c": 1}}}, 0, "object"),
+        (
+            {"a": {"b": {"c": 1, "type": "nested_object"}}},
+            0,
+            "object",
+        ),  # Corrected expectation for max_depth=0
+        ({"a": {"b": {"c": 1}}}, 1, {"a": "object"}),
+        ({"a": {"b": {"c": 1}}}, 2, {"a": {"b": "object"}}),
+        ({"a": {"b": {"c": 1}}}, 3, {"a": {"b": {"c": 1}}}),
+        ({"a": {"b": {"c": 1}}}, 4, {"a": {"b": {"c": 1}}}),  # Depth greater than actual
         # Basic list limiting
-        ([[['a']]], 0, 'array'),
-        ([[['a']]], 1, ['array']),
-        ([[['a']]], 2, [['array']]),
-        ([[['a']]], 3, [[['a']]]),
-        ([[['a']]], 4, [[['a']]]),
+        ([[["a"]]], 0, "array"),
+        ([[["a"]]], 1, ["array"]),
+        ([[["a"]]], 2, [["array"]]),
+        ([[["a"]]], 3, [[["a"]]]),
+        ([[["a"]]], 4, [[["a"]]]),
         # Mixed dict/list limiting
-        ({'a': [1, {'b': [2, 3]}]}, 0, 'object'),
-        ({'a': [1, {'b': [2, 3]}]}, 1, {'a': 'array'}),
-        ({'a': [1, {'b': [2, 3]}]}, 2, {'a': [1, 'object']}),
-        ({'a': [1, {'b': [2, 3]}]}, 3, {'a': [1, {'b': 'array'}]}),
-        ({'a': [1, {'b': [2, 3]}]}, 4, {'a': [1, {'b': [2, 3]}]}),
+        ({"a": [1, {"b": [2, 3]}]}, 0, "object"),
+        ({"a": [1, {"b": [2, 3]}]}, 1, {"a": "array"}),
+        ({"a": [1, {"b": [2, 3]}]}, 2, {"a": [1, "object"]}),
+        ({"a": [1, {"b": [2, 3]}]}, 3, {"a": [1, {"b": "array"}]}),
+        ({"a": [1, {"b": [2, 3]}]}, 4, {"a": [1, {"b": [2, 3]}]}),
         # Other types
         ("string", 1, "string"),
         (123, 1, 123),
         (True, 1, True),
         (None, 1, None),
-        ({}, 1, {}), # Empty dict
-        ([], 1, []),   # Empty list
-    ]
+        ({}, 1, {}),  # Empty dict
+        ([], 1, []),  # Empty list
+    ],
 )
 def test_limit_dict_depth(data, max_depth, expected):
     """Tests the _limit_dict_depth function with various inputs and depths."""
     result = _limit_dict_depth(data, max_depth)
     assert result == expected
+
 
 def test_extracts_implicit_url_param():
     """
@@ -291,12 +280,9 @@ def test_extracts_implicit_url_param():
         "servers": [{"url": "http://test.com/api"}],
         "paths": {
             "/widgets/{widget_id}": {
-                "get": {
-                    "summary": "Get widget by ID",
-                    "responses": {"200": {"description": "ok"}}
-                }
+                "get": {"summary": "Get widget by ID", "responses": {"200": {"description": "ok"}}}
             }
-        }
+        },
     }
     result = extract_operation_io(spec, "/widgets/{widget_id}", "get")
     props = result["inputs"]["properties"]
@@ -305,6 +291,7 @@ def test_extracts_implicit_url_param():
     assert "widget_id" in result["inputs"].get("required", [])
     # Check the type (defaults to string if not specified)
     assert props["widget_id"] == {"type": "string", "schema": {"type": "string"}}
+
 
 def test_extracts_explicit_url_param():
     """
@@ -323,13 +310,13 @@ def test_extracts_explicit_url_param():
                             "name": "gadget_id",
                             "in": "path",
                             "required": True,
-                            "schema": {"type": "integer"}
+                            "schema": {"type": "integer"},
                         }
                     ],
-                    "responses": {"200": {"description": "ok"}}
+                    "responses": {"200": {"description": "ok"}},
                 }
             }
-        }
+        },
     }
     result = extract_operation_io(spec, "/gadgets/{gadget_id}", "get")
     props = result["inputs"]["properties"]
@@ -338,6 +325,7 @@ def test_extracts_explicit_url_param():
     assert "gadget_id" in result["inputs"].get("required", [])
     # Check the type matches the spec
     assert props["gadget_id"] == {"type": "integer", "schema": {"type": "integer"}}
+
 
 def test_extract_operation_io_depth_limits():
     """
@@ -351,7 +339,12 @@ def test_extract_operation_io_depth_limits():
             "/foo/{bar}": {
                 "post": {
                     "parameters": [
-                        {"name": "bar", "in": "path", "required": True, "schema": {"type": "string"}}
+                        {
+                            "name": "bar",
+                            "in": "path",
+                            "required": True,
+                            "schema": {"type": "string"},
+                        }
                     ],
                     "requestBody": {
                         "content": {
@@ -362,10 +355,13 @@ def test_extract_operation_io_depth_limits():
                                         "deep": {
                                             "type": "object",
                                             "properties": {
-                                                "deeper": {"type": "object", "properties": {"val": {"type": "string"}}}
-                                            }
+                                                "deeper": {
+                                                    "type": "object",
+                                                    "properties": {"val": {"type": "string"}},
+                                                }
+                                            },
                                         }
-                                    }
+                                    },
                                 }
                             }
                         }
@@ -380,22 +376,23 @@ def test_extract_operation_io_depth_limits():
                                         "properties": {
                                             "arr": {
                                                 "type": "array",
-                                                "items": {"type": "object", "properties": {"x": {"type": "integer"}}}
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {"x": {"type": "integer"}},
+                                                },
                                             }
-                                        }
+                                        },
                                     }
                                 }
-                            }
+                            },
                         }
-                    }
+                    },
                 }
             }
-        }
+        },
     }
     # Limit input to 2 levels, output to 1 level
-    result = extract_operation_io(
-        spec, "/foo/{bar}", "post", input_max_depth=2, output_max_depth=1
-    )
+    result = extract_operation_io(spec, "/foo/{bar}", "post", input_max_depth=2, output_max_depth=1)
 
     # --- Check Input Depth Limit (input_max_depth=2) ---
     assert "inputs" in result
@@ -422,6 +419,7 @@ def test_extract_operation_io_depth_limits():
     # At depth=1, _limit_dict_depth truncates the 'properties' dict to its type
     assert output_schema.get("properties") == "object"
 
+
 def test_no_params_or_body():
     """
     If an operation has no parameters or body, extract_operation_io should return an empty inputs dict.
@@ -432,12 +430,9 @@ def test_no_params_or_body():
         "servers": [{"url": "http://test.com/api"}],
         "paths": {
             "/widgets": {
-                "get": {
-                    "summary": "Get widgets",
-                    "responses": {"200": {"description": "ok"}}
-                }
+                "get": {"summary": "Get widgets", "responses": {"200": {"description": "ok"}}}
             }
-        }
+        },
     }
     result = extract_operation_io(spec, "/widgets", "get")
     assert "inputs" in result
@@ -453,23 +448,17 @@ def test_resolve_schema_refs_circular_dependency():
                     "type": "object",
                     "properties": {
                         "name": {"type": "string"},
-                        "child": {
-                            "$ref": "#/components/schemas/SelfReferential"
-                        }
-                    }
+                        "child": {"$ref": "#/components/schemas/SelfReferential"},
+                    },
                 },
                 "IndirectA": {
                     "type": "object",
-                    "properties": {
-                        "link_to_b": {"$ref": "#/components/schemas/IndirectB"}
-                    }
+                    "properties": {"link_to_b": {"$ref": "#/components/schemas/IndirectB"}},
                 },
                 "IndirectB": {
                     "type": "object",
-                    "properties": {
-                        "link_to_a": {"$ref": "#/components/schemas/IndirectA"}
-                    }
-                }
+                    "properties": {"link_to_a": {"$ref": "#/components/schemas/IndirectA"}},
+                },
             }
         }
     }
@@ -486,21 +475,25 @@ def test_resolve_schema_refs_circular_dependency():
     assert "properties" in resolved_direct
     child_prop = resolved_direct.get("properties", {}).get("child")
     assert isinstance(child_prop, dict), "Child property should be a dict"
-    assert child_prop.get("$ref") == "#/components/schemas/SelfReferential", \
-        "Direct circular $ref was not preserved as expected"
+    assert (
+        child_prop.get("$ref") == "#/components/schemas/SelfReferential"
+    ), "Direct circular $ref was not preserved as expected"
 
     resolved_indirect = _resolve_schema_refs(schema_to_resolve_indirect, circular_spec)
     # Expect the recursion to stop when IndirectB tries to resolve IndirectA again.
     # So, IndirectA -> IndirectB -> $ref to IndirectA
-    assert isinstance(resolved_indirect, dict), "Resolved indirect schema (IndirectA) should be a dict"
+    assert isinstance(
+        resolved_indirect, dict
+    ), "Resolved indirect schema (IndirectA) should be a dict"
     assert resolved_indirect.get("type") == "object"
     link_to_b_prop = resolved_indirect.get("properties", {}).get("link_to_b")
     assert isinstance(link_to_b_prop, dict), "link_to_b property (IndirectB) should be a dict"
     assert link_to_b_prop.get("type") == "object"
     link_to_a_prop = link_to_b_prop.get("properties", {}).get("link_to_a")
     assert isinstance(link_to_a_prop, dict), "link_to_a property should be a dict"
-    assert link_to_a_prop.get("$ref") == "#/components/schemas/IndirectA", \
-        "Indirect circular $ref was not preserved as expected"
+    assert (
+        link_to_a_prop.get("$ref") == "#/components/schemas/IndirectA"
+    ), "Indirect circular $ref was not preserved as expected"
 
 
 def test_resolve_schema_refs_complex_circular_dependency():
@@ -516,31 +509,27 @@ def test_resolve_schema_refs_complex_circular_dependency():
                         "name": {"type": "string"},
                         "children": {
                             "type": "array",
-                            "items": {"$ref": "#/components/schemas/SelfReferential"}
-                        }
+                            "items": {"$ref": "#/components/schemas/SelfReferential"},
+                        },
                     },
                     # include an allOf that references itself to ensure we break cycles within combinators
                     "allOf": [
                         {"$ref": "#/components/schemas/SelfReferential"},
-                        {"properties": {"tag": {"type": "string"}}}
-                    ]
+                        {"properties": {"tag": {"type": "string"}}},
+                    ],
                 },
                 # Indirect cycle with sibling overrides and an allOf on B
                 "IndirectA": {
                     "type": "object",
                     "properties": {
                         "link_to_b": {"$ref": "#/components/schemas/IndirectB"},
-                        "meta": {"type": "object"}
-                    }
+                        "meta": {"type": "object"},
+                    },
                 },
                 "IndirectB": {
                     "type": "object",
-                    "properties": {
-                        "link_to_a": {"$ref": "#/components/schemas/IndirectA"}
-                    },
-                    "allOf": [
-                        {"properties": {"extra": {"type": "string"}}}
-                    ]
+                    "properties": {"link_to_a": {"$ref": "#/components/schemas/IndirectA"}},
+                    "allOf": [{"properties": {"extra": {"type": "string"}}}],
                 },
                 # Diamond/cross cycles through oneOf
                 "DiamondA": {
@@ -549,23 +538,19 @@ def test_resolve_schema_refs_complex_circular_dependency():
                         "next": {
                             "oneOf": [
                                 {"$ref": "#/components/schemas/DiamondB"},
-                                {"$ref": "#/components/schemas/DiamondC"}
+                                {"$ref": "#/components/schemas/DiamondC"},
                             ]
                         }
-                    }
+                    },
                 },
                 "DiamondB": {
                     "type": "object",
-                    "properties": {
-                        "back": {"$ref": "#/components/schemas/DiamondA"}
-                    }
+                    "properties": {"back": {"$ref": "#/components/schemas/DiamondA"}},
                 },
                 "DiamondC": {
                     "type": "object",
-                    "properties": {
-                        "back": {"$ref": "#/components/schemas/DiamondA"}
-                    }
-                }
+                    "properties": {"back": {"$ref": "#/components/schemas/DiamondA"}},
+                },
             }
         }
     }
@@ -585,11 +570,16 @@ def test_resolve_schema_refs_complex_circular_dependency():
     assert children.get("items").get("$ref") == "#/components/schemas/SelfReferential"
     # allOf includes a $ref back to itself and the sibling piece is preserved
     assert isinstance(resolved_self.get("allOf"), list)
-    assert any(isinstance(p, dict) and p.get("$ref") == "#/components/schemas/SelfReferential" for p in resolved_self["allOf"]) \
-        or resolved_self.get("allOf") == {"$ref": "#/components/schemas/SelfReferential"}
+    assert any(
+        isinstance(p, dict) and p.get("$ref") == "#/components/schemas/SelfReferential"
+        for p in resolved_self["allOf"]
+    ) or resolved_self.get("allOf") == {"$ref": "#/components/schemas/SelfReferential"}
     # ensure sibling from allOf second element made it through
     # (it may appear inside allOf second dict)
-    assert any(isinstance(p, dict) and "properties" in p and "tag" in p["properties"] for p in resolved_self.get("allOf", []))
+    assert any(
+        isinstance(p, dict) and "properties" in p and "tag" in p["properties"]
+        for p in resolved_self.get("allOf", [])
+    )
 
     # Indirect cycle with allOf on B
     resolved_indirect = _resolve_schema_refs(schema_indirect, circular_spec)
@@ -604,19 +594,32 @@ def test_resolve_schema_refs_complex_circular_dependency():
     # allOf on B should be preserved and include the extra property declaratively
     allof = link_to_b.get("allOf")
     assert isinstance(allof, list)
-    assert any("properties" in part and "extra" in part["properties"] for part in allof if isinstance(part, dict))
+    assert any(
+        "properties" in part and "extra" in part["properties"]
+        for part in allof
+        if isinstance(part, dict)
+    )
 
     # Diamond cycle via oneOf
     resolved_diamond = _resolve_schema_refs(schema_diamond, circular_spec)
     assert isinstance(resolved_diamond, dict)
     oneof = resolved_diamond.get("properties", {}).get("next", {}).get("oneOf")
     assert isinstance(oneof, list)
+
     # At least one branch should resolve to an object that points back to DiamondA via $ref somewhere
     def branch_points_back(branch: dict) -> bool:
         if not isinstance(branch, dict):
             return False
         # resolved branch may be dict with properties.back as $ref
-        back = branch.get("properties", {}).get("back") if isinstance(branch.get("properties"), dict) else None
+        back = (
+            branch.get("properties", {}).get("back")
+            if isinstance(branch.get("properties"), dict)
+            else None
+        )
         return isinstance(back, dict) and back.get("$ref") == "#/components/schemas/DiamondA"
 
-    assert any(branch_points_back(b) or (isinstance(b, dict) and b.get("$ref") == "#/components/schemas/DiamondB") for b in oneof)
+    assert any(
+        branch_points_back(b)
+        or (isinstance(b, dict) and b.get("$ref") == "#/components/schemas/DiamondB")
+        for b in oneof
+    )

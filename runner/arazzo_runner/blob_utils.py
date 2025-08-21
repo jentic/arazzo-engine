@@ -6,7 +6,7 @@ This module provides helper functions for handling blob storage.
 """
 import logging
 import os
-from typing import Any
+
 import requests
 
 from .blob_store import BlobStore
@@ -111,4 +111,4 @@ def maybe_store_response_as_blob(blob_store: BlobStore, response: dict, step_id:
 
     except Exception as e:
         logger.error(f"Failed to store blob for step {step_id}: {e}")
-        return response 
+        return response

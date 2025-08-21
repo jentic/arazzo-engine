@@ -5,14 +5,19 @@ Tests for the HTTP Client in Arazzo Runner
 This file contains tests for the HTTPExecutor class in the Arazzo Runner library,
 with a focus on authentication handling.
 """
-import pytest
-from unittest.mock import Mock
 import logging
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+import requests
 
 from arazzo_runner.auth.credentials.models import Credential
-import requests
-from unittest.mock import patch, MagicMock
-from arazzo_runner.auth.models import SecurityOption, SecurityRequirement, RequestAuthValue, AuthLocation
+from arazzo_runner.auth.models import (
+    AuthLocation,
+    RequestAuthValue,
+    SecurityOption,
+    SecurityRequirement,
+)
 from arazzo_runner.http import HTTPExecutor
 
 logger = logging.getLogger(__name__)
@@ -33,9 +38,7 @@ def test_apply_auth_no_provider(basic_http_client: HTTPExecutor):
     cookies = {}
 
     # No auth provider set
-    basic_http_client._apply_auth_to_request(
-        "https://example.com", headers, query_params, cookies
-    )
+    basic_http_client._apply_auth_to_request("https://example.com", headers, query_params, cookies)
 
     # Should not modify any of the dictionaries
     assert headers == {}
@@ -51,10 +54,8 @@ def test_apply_auth_query_parameter(http_client: HTTPExecutor):
             Credential(
                 id="test-credential-id",
                 request_auth_value=RequestAuthValue(
-                    location=AuthLocation.QUERY,
-                    name="api-key",
-                    auth_value="test-api-key-12345"
-                )
+                    location=AuthLocation.QUERY, name="api-key", auth_value="test-api-key-12345"
+                ),
             )
         ]
     )
@@ -65,11 +66,7 @@ def test_apply_auth_query_parameter(http_client: HTTPExecutor):
 
     # Create security options
     security_options = [
-        SecurityOption(
-            requirements=[
-                SecurityRequirement(scheme_name="api-key", scopes=[])
-            ]
-        )
+        SecurityOption(requirements=[SecurityRequirement(scheme_name="api-key", scopes=[])])
     ]
 
     # Apply auth
@@ -92,10 +89,8 @@ def test_apply_auth_header(http_client: HTTPExecutor):
             Credential(
                 id="test-credential-auth-id",
                 request_auth_value=RequestAuthValue(
-                    location=AuthLocation.HEADER,
-                    name="X-Api-Key",
-                    auth_value="test-api-key-12345"
-                )
+                    location=AuthLocation.HEADER, name="X-Api-Key", auth_value="test-api-key-12345"
+                ),
             )
         ]
     )
@@ -105,11 +100,7 @@ def test_apply_auth_header(http_client: HTTPExecutor):
 
     # Create security options
     security_options = [
-        SecurityOption(
-            requirements=[
-                SecurityRequirement(scheme_name="X-Api-Key", scopes=[])
-            ]
-        )
+        SecurityOption(requirements=[SecurityRequirement(scheme_name="X-Api-Key", scopes=[])])
     ]
 
     # Apply auth
@@ -132,10 +123,8 @@ def test_apply_auth_cookie(http_client: HTTPExecutor):
             Credential(
                 id="test-credential-auth-id",
                 request_auth_value=RequestAuthValue(
-                    location=AuthLocation.COOKIE,
-                    name="session",
-                    auth_value="test-session-id-12345"
-                )
+                    location=AuthLocation.COOKIE, name="session", auth_value="test-session-id-12345"
+                ),
             )
         ]
     )
@@ -145,11 +134,7 @@ def test_apply_auth_cookie(http_client: HTTPExecutor):
 
     # Create security options
     security_options = [
-        SecurityOption(
-            requirements=[
-                SecurityRequirement(scheme_name="session", scopes=[])
-            ]
-        )
+        SecurityOption(requirements=[SecurityRequirement(scheme_name="session", scopes=[])])
     ]
 
     # Apply auth
@@ -173,27 +158,21 @@ def test_apply_auth_multiple_requirements(http_client: HTTPExecutor):
             Credential(
                 id="test-credential-auth-id",
                 request_auth_value=RequestAuthValue(
-                    location=AuthLocation.QUERY,
-                    name="api-key",
-                    auth_value="test-api-key-12345"
-                )
+                    location=AuthLocation.QUERY, name="api-key", auth_value="test-api-key-12345"
+                ),
             ),
             Credential(
                 id="test-credential-auth-id",
                 request_auth_value=RequestAuthValue(
-                    location=AuthLocation.HEADER,
-                    name="X-Client-Id",
-                    auth_value="client-12345"
-                )
+                    location=AuthLocation.HEADER, name="X-Client-Id", auth_value="client-12345"
+                ),
             ),
             Credential(
                 id="test-credential-auth-id",
                 request_auth_value=RequestAuthValue(
-                    location=AuthLocation.COOKIE,
-                    name="session",
-                    auth_value="test-session-id-12345"
-                )
-            )
+                    location=AuthLocation.COOKIE, name="session", auth_value="test-session-id-12345"
+                ),
+            ),
         ]
     )
     headers = {}
@@ -226,12 +205,7 @@ def test_apply_auth_missing_value(http_client: HTTPExecutor):
     """Test handling of missing auth values"""
     # Create mock auth provider with auth requirement but missing value
     http_client.auth_provider.get_credentials = Mock(
-        return_value=[
-            Credential(
-                id="test-credential-auth-id",
-                request_auth_value=None
-            )
-        ]
+        return_value=[Credential(id="test-credential-auth-id", request_auth_value=None)]
     )
 
     headers = {}
@@ -240,11 +214,7 @@ def test_apply_auth_missing_value(http_client: HTTPExecutor):
 
     # Create security options
     security_options = [
-        SecurityOption(
-            requirements=[
-                SecurityRequirement(scheme_name="api-key", scopes=[])
-            ]
-        )
+        SecurityOption(requirements=[SecurityRequirement(scheme_name="api-key", scopes=[])])
     ]
 
     # Apply auth
@@ -269,8 +239,8 @@ def test_apply_auth_unknown_location(http_client: HTTPExecutor):
                 request_auth_value=RequestAuthValue(
                     location="unknown",  # Invalid location - this doesnt pass pydantic validation
                     name="api-key",
-                    auth_value="test-api-key-12345"
-                )
+                    auth_value="test-api-key-12345",
+                ),
             )
         ]
     )
@@ -281,11 +251,7 @@ def test_apply_auth_unknown_location(http_client: HTTPExecutor):
 
     # Create security options
     security_options = [
-        SecurityOption(
-            requirements=[
-                SecurityRequirement(scheme_name="api-key", scopes=[])
-            ]
-        )
+        SecurityOption(requirements=[SecurityRequirement(scheme_name="api-key", scopes=[])])
     ]
 
     # Apply auth
@@ -302,23 +268,19 @@ def test_apply_auth_unknown_location(http_client: HTTPExecutor):
 def mock_get_credentials(request, options) -> list[Credential]:
     logger.debug(f"Mock get_credentials called with options: {options}")
     cred1 = Credential(
-                id="test-credential-auth-id",
-                request_auth_value=RequestAuthValue(
-                    location=AuthLocation.QUERY,
-                    name="api1-key",
-                    auth_value="api1-key-value"
-                )
-            )
-        
+        id="test-credential-auth-id",
+        request_auth_value=RequestAuthValue(
+            location=AuthLocation.QUERY, name="api1-key", auth_value="api1-key-value"
+        ),
+    )
+
     cred2 = Credential(
-                id="test-credential-auth-id",
-                request_auth_value=RequestAuthValue(
-                    location=AuthLocation.HEADER,
-                    name="api2-key",
-                    auth_value="api2-key-value"
-                )
-            )
-        
+        id="test-credential-auth-id",
+        request_auth_value=RequestAuthValue(
+            location=AuthLocation.HEADER, name="api2-key", auth_value="api2-key-value"
+        ),
+    )
+
     if options.source_name == "api1":
         return [cred1]
     elif options.source_name == "api2":
@@ -361,8 +323,8 @@ def test_execute_request_multipart(http_client: HTTPExecutor):
     """Test executing a multipart/form-data request."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.headers = {'Content-Type': 'application/json'}
-    mock_response.json.return_value = {'status': 'ok'}
+    mock_response.headers = {"Content-Type": "application/json"}
+    mock_response.json.return_value = {"status": "ok"}
 
     request_body = {
         "contentType": "multipart/form-data",
@@ -370,59 +332,56 @@ def test_execute_request_multipart(http_client: HTTPExecutor):
             "file": {
                 "content": b"file content",
                 "filename": "test.txt",
-                "contentType": "text/plain"
+                "contentType": "text/plain",
             },
-            "description": "A test file"
-        }
+            "description": "A test file",
+        },
     }
-        
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         http_client.execute_request(
             method="POST",
             url="http://test.com/upload",
             parameters={},
             request_body=request_body,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert kwargs['method'] == 'POST'
-        assert kwargs['url'] == 'http://test.com/upload'
-        assert 'files' in kwargs
-        assert kwargs['files']['file'] == ('test.txt', b'file content', 'text/plain')
-        assert 'data' in kwargs
-        assert kwargs['data']['description'] == 'A test file'
-        assert 'Content-Type' not in kwargs['headers']  # requests sets this for multipart
+        assert kwargs["method"] == "POST"
+        assert kwargs["url"] == "http://test.com/upload"
+        assert "files" in kwargs
+        assert kwargs["files"]["file"] == ("test.txt", b"file content", "text/plain")
+        assert "data" in kwargs
+        assert kwargs["data"]["description"] == "A test file"
+        assert "Content-Type" not in kwargs["headers"]  # requests sets this for multipart
 
 
 def test_execute_request_json_body(http_client: HTTPExecutor):
     """Test executing a request with a JSON body."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.headers = {'Content-Type': 'application/json'}
-    mock_response.json.return_value = {'status': 'ok'}
-    
-    request_body = {
-        "contentType": "application/json",
-        "payload": {"key": "value"}
-    }
+    mock_response.headers = {"Content-Type": "application/json"}
+    mock_response.json.return_value = {"status": "ok"}
 
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    request_body = {"contentType": "application/json", "payload": {"key": "value"}}
+
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         http_client.execute_request(
             method="POST",
             url="http://test.com/data",
             parameters={},
             request_body=request_body,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
-        
+
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert kwargs['json'] == {"key": "value"}
-        assert kwargs['headers']['Content-Type'] == 'application/json'
+        assert kwargs["json"] == {"key": "value"}
+        assert kwargs["headers"]["Content-Type"] == "application/json"
 
 
 def test_execute_request_form_body(http_client: HTTPExecutor):
@@ -430,28 +389,25 @@ def test_execute_request_form_body(http_client: HTTPExecutor):
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.headers = {}
-    mock_response.json.side_effect = ValueError # no json
+    mock_response.json.side_effect = ValueError  # no json
     mock_response.text = "Success"
-    
-    request_body = {
-        "contentType": "application/x-www-form-urlencoded",
-        "payload": {"key": "value"}
-    }
 
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    request_body = {"contentType": "application/x-www-form-urlencoded", "payload": {"key": "value"}}
+
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         http_client.execute_request(
             method="POST",
             url="http://test.com/submit",
             parameters={},
             request_body=request_body,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert kwargs['data'] == {"key": "value"}
-        assert kwargs['headers']['Content-Type'] == 'application/x-www-form-urlencoded'
+        assert kwargs["data"] == {"key": "value"}
+        assert kwargs["headers"]["Content-Type"] == "application/x-www-form-urlencoded"
 
 
 def test_execute_request_raw_body(http_client: HTTPExecutor):
@@ -461,68 +417,65 @@ def test_execute_request_raw_body(http_client: HTTPExecutor):
     mock_response.headers = {}
     mock_response.json.side_effect = ValueError
     mock_response.text = "OK"
-    
-    request_body = {
-        "contentType": "text/plain",
-        "payload": "this is raw text"
-    }
 
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    request_body = {"contentType": "text/plain", "payload": "this is raw text"}
+
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         http_client.execute_request(
             method="POST",
             url="http://test.com/raw",
             parameters={},
             request_body=request_body,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert kwargs['data'] == "this is raw text"
-        assert kwargs['headers']['Content-Type'] == 'text/plain'
+        assert kwargs["data"] == "this is raw text"
+        assert kwargs["headers"]["Content-Type"] == "text/plain"
 
 
 def test_execute_request_binary_response(http_client: HTTPExecutor):
     """Test handling of a binary response."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.headers = {'Content-Type': 'image/png'}
-    mock_response.content = b'imagedata'
+    mock_response.headers = {"Content-Type": "image/png"}
+    mock_response.content = b"imagedata"
     mock_response.json.side_effect = ValueError
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    with patch("requests.Session.request", return_value=mock_response):
         response = http_client.execute_request(
             method="GET",
             url="http://test.com/image.png",
             parameters={},
             request_body=None,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         # Binary content should be returned as raw bytes; blob storage is handled by the workflow layer
-        assert isinstance(response['body'], (bytes, bytearray))
-        assert response['body'] == b'imagedata'
+        assert isinstance(response["body"], (bytes, bytearray))
+        assert response["body"] == b"imagedata"
 
 
 def test_execute_request_text_response(http_client: HTTPExecutor):
     """Test handling of a text response when JSON fails."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.headers = {'Content-Type': 'text/html'}
-    mock_response.text = '<html></html>'
+    mock_response.headers = {"Content-Type": "text/html"}
+    mock_response.text = "<html></html>"
     mock_response.json.side_effect = ValueError
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    with patch("requests.Session.request", return_value=mock_response):
         response = http_client.execute_request(
             method="GET",
             url="http://test.com/page.html",
             parameters={},
             request_body=None,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
-        assert response['body'] == '<html></html>'
+        assert response["body"] == "<html></html>"
 
 
 def test_execute_request_content_type_with_none_payload(http_client: HTTPExecutor):
@@ -530,102 +483,108 @@ def test_execute_request_content_type_with_none_payload(http_client: HTTPExecuto
     mock_response = MagicMock()
     mock_response.status_code = 204
     mock_response.headers = {}
-    mock_response.text = ''
+    mock_response.text = ""
     mock_response.json.side_effect = ValueError
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         http_client.execute_request(
             method="POST",
             url="http://test.com/action",
             parameters={},
             request_body={"contentType": "application/json", "payload": None},
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert kwargs['headers']['Content-Type'] == 'application/json'
-        assert kwargs['data'] is None
-        assert kwargs['json'] is None
+        assert kwargs["headers"]["Content-Type"] == "application/json"
+        assert kwargs["data"] is None
+        assert kwargs["json"] is None
+
 
 def test_execute_request_no_content_type_infers_json(http_client: HTTPExecutor):
     """Test that a dict payload with no content type is sent as JSON."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.headers = {"Content-Type": "application/json"}
     mock_response.content = b'{"status": "ok"}'
-    mock_response.json.return_value = {'status': 'ok'}
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    mock_response.json.return_value = {"status": "ok"}
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         http_client.execute_request(
             method="POST",
             url="http://test.com/infer",
             parameters={},
             request_body={"contentType": None, "payload": {"key": "value"}},
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert kwargs['json'] == {"key": "value"}
-        assert kwargs['headers']['Content-Type'] == 'application/json'
+        assert kwargs["json"] == {"key": "value"}
+        assert kwargs["headers"]["Content-Type"] == "application/json"
+
 
 def test_execute_request_no_content_type_sends_raw_bytes(http_client: HTTPExecutor):
     """Test that a bytes payload with no content type is sent as raw data."""
     mock_response = MagicMock()
     mock_response.status_code = 204
     mock_response.headers = {}
-    mock_response.content = b''
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    mock_response.content = b""
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         http_client.execute_request(
             method="POST",
             url="http://test.com/raw-bytes",
             parameters={},
             request_body={"contentType": None, "payload": b"raw data"},
             security_options=None,
-            source_name=None
+            source_name=None,
         )
-        
+
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert kwargs['data'] == b"raw data"
-        assert 'Content-Type' not in kwargs['headers']
+        assert kwargs["data"] == b"raw data"
+        assert "Content-Type" not in kwargs["headers"]
+
 
 def test_execute_request_multipart_with_raw_bytes_fallback(http_client: HTTPExecutor):
     """Test multipart upload where one field is raw bytes."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.headers = {"Content-Type": "application/json"}
     mock_response.content = b'{"status": "ok"}'
-    mock_response.json.return_value = {'status': 'ok'}
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    mock_response.json.return_value = {"status": "ok"}
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         request_body = {
             "contentType": "multipart/form-data",
-            "payload": {
-                "raw_file": b"raw file content",
-                "description": "A test file"
-            }
+            "payload": {"raw_file": b"raw file content", "description": "A test file"},
         }
-        
+
         http_client.execute_request(
             method="POST",
             url="http://test.com/upload",
             parameters={},
             request_body=request_body,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert 'files' in kwargs
-        assert kwargs['files']['raw_file'] == ('attachment', b"raw file content", 'application/octet-stream')
-        assert kwargs['data']['description'] == 'A test file'
+        assert "files" in kwargs
+        assert kwargs["files"]["raw_file"] == (
+            "attachment",
+            b"raw file content",
+            "application/octet-stream",
+        )
+        assert kwargs["data"]["description"] == "A test file"
 
 
 def test_execute_request_network_error(http_client: HTTPExecutor):
     """Test that a network error (e.g., Timeout) is raised."""
-    with patch('requests.Session.request', side_effect=requests.exceptions.Timeout("Connection timed out")):
+    with patch(
+        "requests.Session.request", side_effect=requests.exceptions.Timeout("Connection timed out")
+    ):
         with pytest.raises(requests.exceptions.Timeout):
             http_client.execute_request(
                 method="GET",
@@ -633,7 +592,7 @@ def test_execute_request_network_error(http_client: HTTPExecutor):
                 parameters={},
                 request_body=None,
                 security_options=None,
-                source_name=None
+                source_name=None,
             )
 
 
@@ -648,7 +607,7 @@ def test_get_content_type_category(http_client: HTTPExecutor):
         "text/plain": "raw",
         "image/png": "raw",
         None: "unknown",
-        "": "unknown", # Empty string is treated as unknown by implementation
+        "": "unknown",  # Empty string is treated as unknown by implementation
     }
     for content_type, expected_category in test_cases.items():
         category = http_client._get_content_type_category(content_type)
@@ -659,20 +618,20 @@ def test_execute_request_bad_json_response(http_client: HTTPExecutor):
     """Test that a text fallback occurs for an invalid JSON response."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.headers = {'Content-Type': 'application/json'} # Mismatched header
-    mock_response.text = 'this is not json'
-    mock_response.json.side_effect = ValueError("Invalid JSON") # As requests.json() would
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    mock_response.headers = {"Content-Type": "application/json"}  # Mismatched header
+    mock_response.text = "this is not json"
+    mock_response.json.side_effect = ValueError("Invalid JSON")  # As requests.json() would
+    with patch("requests.Session.request", return_value=mock_response):
         response = http_client.execute_request(
             method="GET",
             url="http://test.com/bad-json",
             parameters={},
             request_body=None,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
-        assert response['body'] == 'this is not json'
+        assert response["body"] == "this is not json"
 
 
 def test_apply_auth_bearer(http_client: HTTPExecutor):
@@ -684,8 +643,8 @@ def test_apply_auth_bearer(http_client: HTTPExecutor):
                 request_auth_value=RequestAuthValue(
                     location=AuthLocation.HEADER,
                     name="Authorization",
-                    auth_value="Bearer my-secret-token"
-                )
+                    auth_value="Bearer my-secret-token",
+                ),
             )
         ]
     )
@@ -712,10 +671,8 @@ def test_apply_auth_multiple_options_or_logic(http_client: HTTPExecutor):
             Credential(
                 id="x-token",
                 request_auth_value=RequestAuthValue(
-                    location=AuthLocation.HEADER,
-                    name="X-Token",
-                    auth_value="my-token"
-                )
+                    location=AuthLocation.HEADER, name="X-Token", auth_value="my-token"
+                ),
             )
         ]
     )
@@ -742,8 +699,8 @@ def test_execute_request_raw_with_unserializable_payload(http_client: HTTPExecut
     mock_response = MagicMock()
     mock_response.status_code = 204
     mock_response.headers = {}
-    mock_response.content = b''
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    mock_response.content = b""
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         payload = {"this": "is a dict"}
         http_client.execute_request(
             method="POST",
@@ -751,22 +708,23 @@ def test_execute_request_raw_with_unserializable_payload(http_client: HTTPExecut
             parameters={},
             request_body={"contentType": "text/plain", "payload": payload},
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        assert kwargs['data'] == str(payload)
-        assert kwargs['headers']['Content-Type'] == 'text/plain'
+        assert kwargs["data"] == str(payload)
+        assert kwargs["headers"]["Content-Type"] == "text/plain"
+
 
 def test_execute_request_multipart_missing_content_key(http_client: HTTPExecutor):
     """Test multipart processing with a file dict missing 'content': should treat it as regular field."""
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.headers = {"Content-Type": "application/json"}
     mock_response.content = b'{"status": "ok"}'
     mock_response.json.return_value = {"status": "ok"}
-    with patch('requests.Session.request', return_value=mock_response) as mock_request:
+    with patch("requests.Session.request", return_value=mock_response) as mock_request:
         request_body = {
             "contentType": "multipart/form-data",
             "payload": {
@@ -774,8 +732,8 @@ def test_execute_request_multipart_missing_content_key(http_client: HTTPExecutor
                     # Missing 'content' key, should be treated as form field
                     "filename": "test.txt"
                 },
-                "description": "testing"
-            }
+                "description": "testing",
+            },
         }
 
         http_client.execute_request(
@@ -784,49 +742,49 @@ def test_execute_request_multipart_missing_content_key(http_client: HTTPExecutor
             parameters={},
             request_body=request_body,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
         # No file entries should be present; 'files' may exist but be empty
-        assert 'files' in kwargs
-        assert kwargs['files'] == {}
+        assert "files" in kwargs
+        assert kwargs["files"] == {}
         # Data should include the entire dict as a field value
-        assert 'data' in kwargs
-        assert kwargs['data']['malformed_file'] == {"filename": "test.txt"}
-        assert kwargs['data']['description'] == "testing"
+        assert "data" in kwargs
+        assert kwargs["data"]["malformed_file"] == {"filename": "test.txt"}
+        assert kwargs["data"]["description"] == "testing"
 
 
 def test_execute_request_large_binary_response(http_client: HTTPExecutor):
     """Test handling of a larger binary response to ensure it still gets stored as blob."""
     # Get the blob store from the fixture for verification
     # blob_store = http_client.blob_store # This line is removed
-    
+
     # Create a larger binary payload (e.g., a fake PNG header + data)
-    large_binary_data = b'\x89PNG\r\n\x1a\n' + b'x' * 1000  # 1008 bytes
-    
+    large_binary_data = b"\x89PNG\r\n\x1a\n" + b"x" * 1000  # 1008 bytes
+
     mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.headers = {'Content-Type': 'image/png'}
+    mock_response.headers = {"Content-Type": "image/png"}
     mock_response.content = large_binary_data
     mock_response.json.side_effect = ValueError
-    
-    with patch('requests.Session.request', return_value=mock_response):
+
+    with patch("requests.Session.request", return_value=mock_response):
         response = http_client.execute_request(
             method="GET",
             url="http://test.com/large-image.png",
             parameters={},
             request_body=None,
             security_options=None,
-            source_name=None
+            source_name=None,
         )
 
         # Large binary content is returned as raw bytes; blob storage is handled by the workflow layer
-        assert isinstance(response['body'], (bytes, bytearray))
-        assert len(response['body']) == 1008
-        assert response['body'] == large_binary_data
-        
+        assert isinstance(response["body"], (bytes, bytearray))
+        assert len(response["body"]) == 1008
+        assert response["body"] == large_binary_data
+
         # Verify the actual blob content matches what we expect
         # blob_id = response['body']['blob_ref'] # This line is removed
         # stored_bytes = blob_store.load(blob_id) # This line is removed

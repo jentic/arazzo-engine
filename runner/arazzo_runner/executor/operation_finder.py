@@ -10,6 +10,7 @@ import re
 from typing import Any
 
 import jsonpointer
+
 from arazzo_runner.auth.models import SecurityOption, SecurityRequirement
 
 # Configure logging
@@ -51,13 +52,19 @@ class OperationFinder:
                         try:
                             servers = source_desc.get("servers")
                             if not servers or not isinstance(servers, list):
-                                raise ValueError("Missing or invalid 'servers' list in OpenAPI spec.")
+                                raise ValueError(
+                                    "Missing or invalid 'servers' list in OpenAPI spec."
+                                )
                             base_url = servers[0].get("url")
                             if not base_url or not isinstance(base_url, str):
-                                raise ValueError("Missing or invalid 'url' in the first server object.")
+                                raise ValueError(
+                                    "Missing or invalid 'url' in the first server object."
+                                )
                         except (IndexError, ValueError) as e:
                             # Catch IndexError if servers list is empty or ValueError from explicit raises
-                            raise ValueError(f"Could not determine base URL from OpenAPI spec servers: {e}") from e
+                            raise ValueError(
+                                f"Could not determine base URL from OpenAPI spec servers: {e}"
+                            ) from e
 
                         return {
                             "source": source_name,
@@ -80,8 +87,10 @@ class OperationFinder:
         Returns:
             Dictionary with operation details or None if not found.
         """
-        target_method = http_method.lower() # Ensure case-insensitive comparison
-        logger.debug(f"Finding operation by HTTP path and method: Path='{http_path}', Method='{target_method}'")
+        target_method = http_method.lower()  # Ensure case-insensitive comparison
+        logger.debug(
+            f"Finding operation by HTTP path and method: Path='{http_path}', Method='{target_method}'"
+        )
 
         for source_name, source_desc in self.source_descriptions.items():
             paths = source_desc.get("paths", {})
@@ -99,62 +108,79 @@ class OperationFinder:
                             raise ValueError("Missing or invalid 'url' in the first server object.")
                     except (IndexError, ValueError) as e:
                         # Catch IndexError if servers list is empty or ValueError from explicit raises
-                        raise ValueError(f"Could not determine base URL from OpenAPI spec servers: {e}") from e
+                        raise ValueError(
+                            f"Could not determine base URL from OpenAPI spec servers: {e}"
+                        ) from e
 
-                    logger.debug(f"Found operation in '{source_name}' for {target_method.upper()} {http_path}")
+                    logger.debug(
+                        f"Found operation in '{source_name}' for {target_method.upper()} {http_path}"
+                    )
                     return {
                         "source": source_name,
                         "path": http_path,
                         "method": target_method,
-                        "url": base_url + http_path, # Base URL + path
+                        "url": base_url + http_path,  # Base URL + path
                         "operation": operation,
-                        "operationId": operation.get("operationId") # Include operationId if available
+                        "operationId": operation.get(
+                            "operationId"
+                        ),  # Include operationId if available
                     }
                 else:
-                    logger.debug(f"Method '{target_method}' not found for path '{http_path}' in source '{source_name}'")
+                    logger.debug(
+                        f"Method '{target_method}' not found for path '{http_path}' in source '{source_name}'"
+                    )
             else:
-                 # Check for paths with variables
-                 for path_key, path_item in paths.items():
-                     if '{' in path_key and self._paths_match(path_key, http_path):
-                          if target_method in path_item:
-                                operation = path_item[target_method]
-                                try:
-                                    servers = source_desc.get("servers")
-                                    if not servers or not isinstance(servers, list):
-                                        raise ValueError("Missing or invalid 'servers' list in OpenAPI spec.")
-                                    base_url = servers[0].get("url")
-                                    if not base_url or not isinstance(base_url, str):
-                                        raise ValueError("Missing or invalid 'url' in the first server object.")
-                                except (IndexError, ValueError) as e:
-                                    # Catch IndexError if servers list is empty or ValueError from explicit raises
-                                    raise ValueError(f"Could not determine base URL from OpenAPI spec servers: {e}") from e
+                # Check for paths with variables
+                for path_key, path_item in paths.items():
+                    if "{" in path_key and self._paths_match(path_key, http_path):
+                        if target_method in path_item:
+                            operation = path_item[target_method]
+                            try:
+                                servers = source_desc.get("servers")
+                                if not servers or not isinstance(servers, list):
+                                    raise ValueError(
+                                        "Missing or invalid 'servers' list in OpenAPI spec."
+                                    )
+                                base_url = servers[0].get("url")
+                                if not base_url or not isinstance(base_url, str):
+                                    raise ValueError(
+                                        "Missing or invalid 'url' in the first server object."
+                                    )
+                            except (IndexError, ValueError) as e:
+                                # Catch IndexError if servers list is empty or ValueError from explicit raises
+                                raise ValueError(
+                                    f"Could not determine base URL from OpenAPI spec servers: {e}"
+                                ) from e
 
-                                logger.debug(f"Found operation (template match) in '{source_name}' for {target_method.upper()} {path_key} matching {http_path}")
-                                return {
-                                    "source": source_name,
-                                    "path": path_key, # Return the template path
-                                    "method": target_method,
-                                    "url": base_url + path_key, # Use template path for URL construction
-                                    "operation": operation,
-                                    "operationId": operation.get("operationId")
-                                }
+                            logger.debug(
+                                f"Found operation (template match) in '{source_name}' for {target_method.upper()} {path_key} matching {http_path}"
+                            )
+                            return {
+                                "source": source_name,
+                                "path": path_key,  # Return the template path
+                                "method": target_method,
+                                "url": base_url
+                                + path_key,  # Use template path for URL construction
+                                "operation": operation,
+                                "operationId": operation.get("operationId"),
+                            }
 
         logger.warning(f"Operation not found for {target_method.upper()} {http_path}")
         return None
 
     def _paths_match(self, template_path: str, concrete_path: str) -> bool:
         """Check if a concrete path matches a template path (e.g., /users/{id})."""
-        template_segments = template_path.strip('/').split('/')
-        concrete_segments = concrete_path.strip('/').split('/')
+        template_segments = template_path.strip("/").split("/")
+        concrete_segments = concrete_path.strip("/").split("/")
 
         if len(template_segments) != len(concrete_segments):
             return False
 
-        for template_seg, concrete_seg in zip(template_segments, concrete_segments):
-            if template_seg.startswith('{') and template_seg.endswith('}'):
+        for template_seg, concrete_seg in zip(template_segments, concrete_segments, strict=False):
+            if template_seg.startswith("{") and template_seg.endswith("}"):
                 continue  # Variable segment matches anything
             if template_seg != concrete_seg:
-                return False # Segments must match exactly
+                return False  # Segments must match exactly
 
         return True
 
@@ -302,7 +328,9 @@ class OperationFinder:
                             raise ValueError("Missing or invalid 'url' in the first server object.")
                     except (IndexError, ValueError) as e:
                         # Catch IndexError if servers list is empty or ValueError from explicit raises
-                        raise ValueError(f"Could not determine base URL from OpenAPI spec servers: {e}") from e
+                        raise ValueError(
+                            f"Could not determine base URL from OpenAPI spec servers: {e}"
+                        ) from e
 
                     # Return the operation details
                     return {
@@ -377,7 +405,9 @@ class OperationFinder:
                         raise ValueError("Missing or invalid 'url' in the first server object.")
                 except (IndexError, ValueError) as e:
                     # Catch IndexError if servers list is empty or ValueError from explicit raises
-                    raise ValueError(f"Could not determine base URL from OpenAPI spec servers: {e}") from e
+                    raise ValueError(
+                        f"Could not determine base URL from OpenAPI spec servers: {e}"
+                    ) from e
 
                 # Verify this is actually a valid operation
                 paths_obj = source_desc.get("paths", {})
@@ -473,13 +503,19 @@ class OperationFinder:
                             try:
                                 servers = source_desc.get("servers")
                                 if not servers or not isinstance(servers, list):
-                                    raise ValueError("Missing or invalid 'servers' list in OpenAPI spec.")
+                                    raise ValueError(
+                                        "Missing or invalid 'servers' list in OpenAPI spec."
+                                    )
                                 base_url = servers[0].get("url")
                                 if not base_url or not isinstance(base_url, str):
-                                    raise ValueError("Missing or invalid 'url' in the first server object.")
+                                    raise ValueError(
+                                        "Missing or invalid 'url' in the first server object."
+                                    )
                             except (IndexError, ValueError) as e:
                                 # Catch IndexError if servers list is empty or ValueError from explicit raises
-                                raise ValueError(f"Could not determine base URL from OpenAPI spec servers: {e}") from e
+                                raise ValueError(
+                                    f"Could not determine base URL from OpenAPI spec servers: {e}"
+                                ) from e
 
                             return {
                                 "source": source_name,
@@ -506,8 +542,8 @@ class OperationFinder:
 
                             if len(pointer_segments) == len(spec_segments):
                                 match = True
-                                for i, (p_seg, s_seg) in enumerate(
-                                    zip(pointer_segments, spec_segments, strict=False)
+                                for p_seg, s_seg in zip(
+                                    pointer_segments, spec_segments, strict=False
                                 ):
                                     # Skip empty segments
                                     if not p_seg and not s_seg:
@@ -536,13 +572,19 @@ class OperationFinder:
                                     try:
                                         servers = source_desc.get("servers")
                                         if not servers or not isinstance(servers, list):
-                                            raise ValueError("Missing or invalid 'servers' list in OpenAPI spec.")
+                                            raise ValueError(
+                                                "Missing or invalid 'servers' list in OpenAPI spec."
+                                            )
                                         base_url = servers[0].get("url")
                                         if not base_url or not isinstance(base_url, str):
-                                            raise ValueError("Missing or invalid 'url' in the first server object.")
+                                            raise ValueError(
+                                                "Missing or invalid 'url' in the first server object."
+                                            )
                                     except (IndexError, ValueError) as e:
                                         # Catch IndexError if servers list is empty or ValueError from explicit raises
-                                        raise ValueError(f"Could not determine base URL from OpenAPI spec servers: {e}") from e
+                                        raise ValueError(
+                                            f"Could not determine base URL from OpenAPI spec servers: {e}"
+                                        ) from e
 
                                     return {
                                         "source": source_name,
@@ -586,7 +628,9 @@ class OperationFinder:
                             raise ValueError("Missing or invalid 'url' in the first server object.")
                     except (IndexError, ValueError) as e:
                         # Catch IndexError if servers list is empty or ValueError from explicit raises
-                        raise ValueError(f"Could not determine base URL from OpenAPI spec servers: {e}") from e
+                        raise ValueError(
+                            f"Could not determine base URL from OpenAPI spec servers: {e}"
+                        ) from e
 
                     return {
                         "source": source_name,
@@ -615,7 +659,9 @@ class OperationFinder:
                             raise ValueError("Missing or invalid 'url' in the first server object.")
                     except (IndexError, ValueError) as e:
                         # Catch IndexError if servers list is empty or ValueError from explicit raises
-                        raise ValueError(f"Could not determine base URL from OpenAPI spec servers: {e}") from e
+                        raise ValueError(
+                            f"Could not determine base URL from OpenAPI spec servers: {e}"
+                        ) from e
 
                     return {
                         "source": source_name,
@@ -644,7 +690,9 @@ class OperationFinder:
 
         # 1. Check for operation-level security requirements
         if "security" in operation:
-            logger.debug(f"Found operation-level security requirements for {operation.get('operationId')}")
+            logger.debug(
+                f"Found operation-level security requirements for {operation.get('operationId')}"
+            )
             raw_options = operation.get("security", [])
             return self._convert_to_security_options(raw_options)
 
@@ -653,7 +701,9 @@ class OperationFinder:
             paths_obj = self.source_descriptions[source_name].get("paths", {})
             path_obj = paths_obj.get(path, {})
             if isinstance(path_obj, dict) and "security" in path_obj:
-                logger.debug(f"Found path-level security requirements for path {path} in API {source_name}")
+                logger.debug(
+                    f"Found path-level security requirements for path {path} in API {source_name}"
+                )
                 raw_options = path_obj.get("security", [])
                 return self._convert_to_security_options(raw_options)
 
@@ -681,10 +731,7 @@ class OperationFinder:
         for raw_option in raw_options:
             option = SecurityOption()
             for scheme_name, scopes in raw_option.items():
-                requirement = SecurityRequirement(
-                    scheme_name=scheme_name,
-                    scopes=scopes
-                )
+                requirement = SecurityRequirement(scheme_name=scheme_name, scopes=scopes)
                 option.requirements.append(requirement)
             security_options.append(option)
         return security_options

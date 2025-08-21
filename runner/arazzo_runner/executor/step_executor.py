@@ -7,17 +7,19 @@ This module provides the main StepExecutor class that orchestrates the execution
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
+
 from arazzo_runner.models import ExecutionState, RuntimeParams
+
+from ..blob_utils import maybe_store_response_as_blob
 from ..evaluator import ExpressionEvaluator
 from ..http import HTTPExecutor
 from .action_handler import ActionHandler
 from .operation_finder import OperationFinder
 from .output_extractor import OutputExtractor
 from .parameter_processor import ParameterProcessor
-from .success_criteria import SuccessCriteriaChecker
 from .server_processor import ServerProcessor
-from ..blob_utils import maybe_store_response_as_blob
+from .success_criteria import SuccessCriteriaChecker
 
 # Configure logging
 logger = logging.getLogger("arazzo-runner.executor")
@@ -105,30 +107,36 @@ class StepExecutor:
         source_name = operation_info.get("source", "default")
 
         # Resolve final URL
-        base_server_url = operation_info.get("url") # This is the relative path template
+        base_server_url = operation_info.get("url")  # This is the relative path template
         final_url_template = self.server_processor.resolve_server_params(
             source_name=source_name,
-            operation_url_template=base_server_url, # Pass it as operation_url_template
-            server_runtime_params=state.runtime_params.servers if state.runtime_params else None
+            operation_url_template=base_server_url,  # Pass it as operation_url_template
+            server_runtime_params=state.runtime_params.servers if state.runtime_params else None,
         )
 
         if not final_url_template:
             error_msg = f"Could not determine final URL for operationId '{operation_id}'"
             logger.error(error_msg)
-            return {"success": False, "response": {"error": error_msg, "status_code": 0}, "outputs": {}}
+            return {
+                "success": False,
+                "response": {"error": error_msg, "status_code": 0},
+                "outputs": {},
+            }
 
         # Execute the HTTP request
         response = self.http_client.execute_request(
             method=operation_info.get("method"),
             url=final_url_template,
-            parameters=parameters, 
+            parameters=parameters,
             request_body=request_body,
             security_options=security_options,
             source_name=source_name,
         )
 
         # Handle blob storage at workflow layer
-        response = maybe_store_response_as_blob(self.blob_store, response, step.get("stepId", "unknown"))
+        response = maybe_store_response_as_blob(
+            self.blob_store, response, step.get("stepId", "unknown")
+        )
 
         # Check success criteria
         success = self.success_checker.check_success_criteria(step, response, state)
@@ -140,7 +148,7 @@ class StepExecutor:
 
     def _execute_operation_by_path(self, step: dict, state: ExecutionState) -> dict:
         """Execute an operation by its operationPath"""
-        operation_path = step.get("operationPath") # This is the method:path string e.g. GET:/pets
+        operation_path = step.get("operationPath")  # This is the method:path string e.g. GET:/pets
         step_id = step.get("stepId", "unknown")
 
         logger.debug(f"Processing operationPath value: {operation_path} for step {step_id}")
@@ -159,7 +167,7 @@ class StepExecutor:
             logger.error(error_msg)
             raise ValueError(error_msg)
 
-        source_url, json_pointer = match.groups() # Use source_name_from_path for clarity
+        source_url, json_pointer = match.groups()  # Use source_name_from_path for clarity
         logger.debug(f"Parsed operationPath - source: {source_url}, pointer: {json_pointer}")
 
         # Print the raw JSON pointer for debugging
@@ -184,12 +192,12 @@ class StepExecutor:
                     for method_key, op_details in methods.items():
                         if method_key.lower() in ["get", "post", "put", "delete", "patch"]:
                             op_id_log = op_details.get("operationId", "[No operationId]")
-                            logger.debug(f"  - {method_key.upper()} {path_key} (operationId: {op_id_log})")
+                            logger.debug(
+                                f"  - {method_key.upper()} {path_key} (operationId: {op_id_log})"
+                            )
             raise ValueError(f"Operation not found at path {operation_path}")
-        
-        logger.debug(
-            f"Found operation: {operation_info.get('method')} {operation_info.get('url')}"
-        )
+
+        logger.debug(f"Found operation: {operation_info.get('method')} {operation_info.get('url')}")
 
         # Prepare parameters
         parameters = self.parameter_processor.prepare_parameters(step, state)
@@ -200,39 +208,45 @@ class StepExecutor:
             request_body = self.parameter_processor.prepare_request_body(
                 step.get("requestBody"), state
             )
-        
+
         # Extract security requirements
         security_options = self.operation_finder.extract_security_requirements(operation_info)
 
         # Resolve final URL
-        relative_operation_path_template = operation_info.get("url") 
+        relative_operation_path_template = operation_info.get("url")
         final_url_template = self.server_processor.resolve_server_params(
             source_name=source_name,
-            operation_url_template=relative_operation_path_template, # Pass it as operation_url_template
-            server_runtime_params=state.runtime_params.servers if state.runtime_params else None
+            operation_url_template=relative_operation_path_template,  # Pass it as operation_url_template
+            server_runtime_params=state.runtime_params.servers if state.runtime_params else None,
         )
 
         if not final_url_template:
             error_msg = f"Could not determine final URL for operationPath '{operation_path}'"
             logger.error(error_msg)
-            return {"success": False, "response": {"error": error_msg, "status_code": 0}, "outputs": {}}
+            return {
+                "success": False,
+                "response": {"error": error_msg, "status_code": 0},
+                "outputs": {},
+            }
 
         # Execute the HTTP request
         response = self.http_client.execute_request(
             method=operation_info.get("method"),
             url=final_url_template,
-            parameters=parameters, 
+            parameters=parameters,
             request_body=request_body,
             security_options=security_options,
             source_name=source_name,
         )
 
         # Handle blob storage at workflow layer
-        response = maybe_store_response_as_blob(self.blob_store, response, step.get("stepId", "unknown"))
+        response = maybe_store_response_as_blob(
+            self.blob_store, response, step.get("stepId", "unknown")
+        )
 
         # Check success criteria
         success = self.success_checker.check_success_criteria(step, response, state)
-        
+
         # Extract outputs
         outputs = self.output_extractor.extract_outputs(step, response, state)
 
@@ -260,9 +274,9 @@ class StepExecutor:
     def execute_operation(
         self,
         inputs: dict[str, Any],
-        operation_id: Optional[str] = None,
-        operation_path: Optional[str] = None,
-        runtime_params: Optional[RuntimeParams] = None,
+        operation_id: str | None = None,
+        operation_path: str | None = None,
+        runtime_params: RuntimeParams | None = None,
     ) -> dict:
         """
         Execute a single API operation directly, outside of a workflow context.
@@ -304,10 +318,16 @@ class StepExecutor:
                     method = method.strip().upper()
                     if not path or not method:
                         raise ValueError("Path and method cannot be empty after splitting.")
-                    operation_details = self.operation_finder.find_by_http_path_and_method(http_path=path, http_method=method)
+                    operation_details = self.operation_finder.find_by_http_path_and_method(
+                        http_path=path, http_method=method
+                    )
                 except ValueError as e:
-                    logger.error(f"Invalid operation_path format: '{operation_path}'. Expected 'METHOD /path'. Error: {e}")
-                    raise ValueError(f"Invalid operation_path format: '{operation_path}'. Expected 'METHOD /path'.") from e
+                    logger.error(
+                        f"Invalid operation_path format: '{operation_path}'. Expected 'METHOD /path'. Error: {e}"
+                    )
+                    raise ValueError(
+                        f"Invalid operation_path format: '{operation_path}'. Expected 'METHOD /path'."
+                    ) from e
 
         except Exception as e:
             logger.error(f"Operation not found ({log_identifier}): {e}")
@@ -320,13 +340,14 @@ class StepExecutor:
             # Use a specific exception or re-raise appropriately
             raise ValueError(f"Operation not found: {log_identifier}")
 
-        log_identifier = operation_details.get("operationId", f"{operation_details.get('method')} {operation_details.get('path')}")
+        log_identifier = operation_details.get(
+            "operationId", f"{operation_details.get('method')} {operation_details.get('path')}"
+        )
 
         # Prepare Parameters and Request Body
         try:
             prepared_params = self.parameter_processor.prepare_operation_parameters(
-                operation_details=operation_details,
-                inputs=inputs
+                operation_details=operation_details, inputs=inputs
             )
             logger.debug(f"Prepared parameters for direct execution: {prepared_params}")
         except ValueError as e:
@@ -339,24 +360,28 @@ class StepExecutor:
         logger.debug(f"Resolved security options for {log_identifier}: {security_options}")
 
         # Resolve final URL
-        source_name = operation_details.get("source", "default") # Get source_name
-        base_server_url = operation_details.get("url") # This is the relative path template
+        source_name = operation_details.get("source", "default")  # Get source_name
+        base_server_url = operation_details.get("url")  # This is the relative path template
 
         final_url_template = self.server_processor.resolve_server_params(
             source_name=source_name,
-            operation_url_template=base_server_url, # Pass it as operation_url_template
-            server_runtime_params=runtime_params.servers if runtime_params else None
+            operation_url_template=base_server_url,  # Pass it as operation_url_template
+            server_runtime_params=runtime_params.servers if runtime_params else None,
         )
 
         if not final_url_template:
             error_msg = f"Could not determine final URL for operation {log_identifier}. Operation path was '{base_server_url}' and source was '{source_name}'."
             logger.error(error_msg)
-            return {"success": False, "response": {"error": error_msg, "status_code": 0}, "outputs": {}}
+            return {
+                "success": False,
+                "response": {"error": error_msg, "status_code": 0},
+                "outputs": {},
+            }
 
         # Execute Request
         method = operation_details.get("method")
-        url = final_url_template # Base URL, path params handled by http_client
-        request_body_payload = prepared_params.get('body') # Extract body from prepared params
+        url = final_url_template  # Base URL, path params handled by http_client
+        request_body_payload = prepared_params.get("body")  # Extract body from prepared params
         logger.debug(f"Request body payload: {request_body_payload}")
 
         if not method or not url:
@@ -368,16 +393,20 @@ class StepExecutor:
             response_data = self.http_client.execute_request(
                 method=method,
                 url=url,
-                parameters=prepared_params, # Pass the whole structure
+                parameters=prepared_params,  # Pass the whole structure
                 request_body=request_body_payload,
-                security_options=security_options
+                security_options=security_options,
             )
-            
+
             # Handle blob storage for direct operations (always treated as final output)
             if self.blob_store:
-                response_data = maybe_store_response_as_blob(self.blob_store, response_data, f"direct-{log_identifier}")
-            
-            logger.debug(f"Direct operation execution completed ({log_identifier}) - Status: {response_data.get('status_code')}")
+                response_data = maybe_store_response_as_blob(
+                    self.blob_store, response_data, f"direct-{log_identifier}"
+                )
+
+            logger.debug(
+                f"Direct operation execution completed ({log_identifier}) - Status: {response_data.get('status_code')}"
+            )
             return response_data
         except Exception as e:
             # Catch potential exceptions during HTTP execution (e.g., network errors, auth failures handled by HTTPExecutor)

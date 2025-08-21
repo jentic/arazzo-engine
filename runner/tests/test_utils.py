@@ -1,9 +1,8 @@
 """Tests for the utils module."""
 
 import unittest
-from unittest.mock import patch
 
-from arazzo_runner.utils import extract_api_title_prefix, sanitize_for_env_var
+from arazzo_runner.utils import extract_api_title_prefix
 
 
 class TestExtractApiTitlePrefix(unittest.TestCase):
@@ -20,7 +19,7 @@ class TestExtractApiTitlePrefix(unittest.TestCase):
         self.assertEqual(extract_api_title_prefix("The Petstore"), "PETSTORE")
         self.assertEqual(extract_api_title_prefix("A Petstore"), "PETSTORE")
         self.assertEqual(extract_api_title_prefix("An Example API"), "EXAMPLE")
-        
+
         # Test multiple skip words
         self.assertEqual(extract_api_title_prefix("The OpenAPI Petstore"), "PETSTORE")
         self.assertEqual(extract_api_title_prefix("An API for The Petstore"), "FOR")

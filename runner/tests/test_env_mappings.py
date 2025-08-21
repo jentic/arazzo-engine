@@ -6,7 +6,6 @@ Tests for environment variable mappings in Arazzo Runner
 import unittest
 from unittest.mock import MagicMock, patch
 
-from arazzo_runner.models import ServerConfiguration, ServerVariable
 from arazzo_runner.runner import ArazzoRunner
 
 
@@ -18,10 +17,7 @@ class TestEnvMappings(unittest.TestCase):
         # Create mock OpenAPI specs with server variables
         mock_openapi_specs = {
             "test_api": {
-                "info": {
-                    "title": "Test API",
-                    "version": "1.0.0"
-                },
+                "info": {"title": "Test API", "version": "1.0.0"},
                 "servers": [
                     {
                         "url": "https://{environment}.api.example.com/v{version}",
@@ -30,32 +26,30 @@ class TestEnvMappings(unittest.TestCase):
                             "environment": {
                                 "default": "dev",
                                 "enum": ["dev", "staging", "prod"],
-                                "description": "API environment"
+                                "description": "API environment",
                             },
                             "version": {
                                 "default": "1",
                                 "enum": ["1", "2"],
-                                "description": "API version"
-                            }
-                        }
+                                "description": "API version",
+                            },
+                        },
                     }
-                ]
+                ],
             }
         }
 
         # Create mock auth provider with predefined env mappings
         mock_auth_provider = MagicMock()
-        mock_auth_provider.env_mappings = {
-            "ApiKey": {
-                "apiKey": "TEST_API_KEY"
-            }
-        }
+        mock_auth_provider.env_mappings = {"ApiKey": {"apiKey": "TEST_API_KEY"}}
 
         # Patch AuthProcessor.process_api_auth to return deterministic auth mappings
-        from unittest.mock import patch
+
         with patch("arazzo_runner.runner.AuthProcessor.process_api_auth") as mock_auth:
             mock_auth.return_value = {"env_mappings": mock_auth_provider.env_mappings}
-            env_mappings = ArazzoRunner.generate_env_mappings(arazzo_docs=[], source_descriptions=mock_openapi_specs)
+            env_mappings = ArazzoRunner.generate_env_mappings(
+                arazzo_docs=[], source_descriptions=mock_openapi_specs
+            )
 
             # Verify auth mappings are included
             self.assertIn("auth", env_mappings)
@@ -64,47 +58,36 @@ class TestEnvMappings(unittest.TestCase):
         # Verify server mappings are included
         self.assertIn("servers", env_mappings)
         self.assertIn("test_api", env_mappings["servers"])
-        
+
         # Verify the server URL mapping
         server_url = "https://{environment}.api.example.com/v{version}"
         self.assertIn(server_url, env_mappings["servers"]["test_api"])
-        
+
         # Verify the variable mappings
         server_vars = env_mappings["servers"]["test_api"][server_url]
         self.assertIn("environment", server_vars)
         self.assertIn("version", server_vars)
-        
+
         # Verify the environment variable names
         self.assertEqual(server_vars["environment"], "TEST_RUNNER_SERVER_ENVIRONMENT")
         self.assertEqual(server_vars["version"], "TEST_RUNNER_SERVER_VERSION")
-
 
     def test_get_env_mappings_omits_servers_key_when_no_variables(self):
         """Test that get_env_mappings doesn't include servers key when no server variables exist"""
         # Create mock OpenAPI specs with no server variables
         mock_openapi_specs = {
             "test_api": {
-                "info": {
-                    "title": "Test API",
-                    "version": "1.0.0"
-                },
+                "info": {"title": "Test API", "version": "1.0.0"},
                 # No servers defined
             }
         }
 
         # Create mock auth provider with predefined env mappings
         mock_auth_provider = MagicMock()
-        mock_auth_provider.env_mappings = {
-            "ApiKey": {
-                "apiKey": "TEST_API_KEY"
-            }
-        }
+        mock_auth_provider.env_mappings = {"ApiKey": {"apiKey": "TEST_API_KEY"}}
 
         # Create ArazzoRunner with mocked dependencies
-        runner = ArazzoRunner(
-            arazzo_doc={},
-            source_descriptions=mock_openapi_specs
-        )
+        runner = ArazzoRunner(arazzo_doc={}, source_descriptions=mock_openapi_specs)
 
         # Get environment mappings
         env_mappings = runner.generate_env_mappings()
@@ -114,16 +97,13 @@ class TestEnvMappings(unittest.TestCase):
 
         # Verify servers key is NOT included
         self.assertNotIn("servers", env_mappings)
-        
+
     def test_get_env_mappings_includes_multiple_api_specs(self):
         """Test that get_env_mappings includes server variables from multiple API specs"""
         # Create mock OpenAPI specs with different server variables
         mock_openapi_specs = {
             "payment_api": {
-                "info": {
-                    "title": "Payment API",
-                    "version": "1.0.0"
-                },
+                "info": {"title": "Payment API", "version": "1.0.0"},
                 "servers": [
                     {
                         "url": "https://{environment}.payments.example.com/v{version}",
@@ -132,22 +112,19 @@ class TestEnvMappings(unittest.TestCase):
                             "environment": {
                                 "default": "dev",
                                 "enum": ["dev", "staging", "prod"],
-                                "description": "Payment API environment"
+                                "description": "Payment API environment",
                             },
                             "version": {
                                 "default": "1",
                                 "enum": ["1", "2"],
-                                "description": "Payment API version"
-                            }
-                        }
+                                "description": "Payment API version",
+                            },
+                        },
                     }
-                ]
+                ],
             },
             "user_api": {
-                "info": {
-                    "title": "User API",
-                    "version": "1.0.0"
-                },
+                "info": {"title": "User API", "version": "1.0.0"},
                 "servers": [
                     {
                         "url": "https://{region}.users.example.com",
@@ -156,49 +133,44 @@ class TestEnvMappings(unittest.TestCase):
                             "region": {
                                 "default": "us-east",
                                 "enum": ["us-east", "us-west", "eu-central"],
-                                "description": "User API region"
+                                "description": "User API region",
                             }
-                        }
+                        },
                     }
-                ]
-            }
+                ],
+            },
         }
 
         # Create mock auth provider with predefined env mappings
         mock_auth_provider = MagicMock()
         mock_auth_provider.env_mappings = {
-            "PaymentAuth": {
-                "apiKey": "PAYMENT_API_KEY"
-            },
-            "UserAuth": {
-                "apiKey": "USER_API_KEY"
-            }
+            "PaymentAuth": {"apiKey": "PAYMENT_API_KEY"},
+            "UserAuth": {"apiKey": "USER_API_KEY"},
         }
 
         # Create mock Arazzo workflow document that references both APIs
         mock_arazzo_doc = {
             "sourceDescriptions": [
                 {"name": "payment_api", "url": "payment_api.yaml", "type": "openapi"},
-                {"name": "user_api", "url": "user_api.yaml", "type": "openapi"}
+                {"name": "user_api", "url": "user_api.yaml", "type": "openapi"},
             ],
             "workflows": [
                 {
                     "workflowId": "test_workflow",
                     "steps": [
                         {"stepId": "step1", "operationId": "makePayment", "source": "payment_api"},
-                        {"stepId": "step2", "operationId": "getUser", "source": "user_api"}
-                    ]
+                        {"stepId": "step2", "operationId": "getUser", "source": "user_api"},
+                    ],
                 }
-            ]
+            ],
         }
 
         # Patch AuthProcessor.process_api_auth to return deterministic auth mappings
-        from unittest.mock import patch
+
         with patch("arazzo_runner.runner.AuthProcessor.process_api_auth") as mock_auth:
             mock_auth.return_value = {"env_mappings": mock_auth_provider.env_mappings}
             env_mappings = ArazzoRunner.generate_env_mappings(
-                arazzo_docs=[mock_arazzo_doc],
-                source_descriptions=mock_openapi_specs
+                arazzo_docs=[mock_arazzo_doc], source_descriptions=mock_openapi_specs
             )
 
             # Verify auth mappings are included
@@ -207,11 +179,11 @@ class TestEnvMappings(unittest.TestCase):
 
             # Verify server mappings are included
             self.assertIn("servers", env_mappings)
-            
+
             # Verify both API specs are included in server mappings
             self.assertIn("payment_api", env_mappings["servers"])
             self.assertIn("user_api", env_mappings["servers"])
-            
+
             # Verify payment_api server variables
             payment_server_url = "https://{environment}.payments.example.com/v{version}"
             self.assertIn(payment_server_url, env_mappings["servers"]["payment_api"])
@@ -220,7 +192,7 @@ class TestEnvMappings(unittest.TestCase):
             self.assertIn("version", payment_vars)
             self.assertEqual(payment_vars["environment"], "PAYMENT_RUNNER_SERVER_ENVIRONMENT")
             self.assertEqual(payment_vars["version"], "PAYMENT_RUNNER_SERVER_VERSION")
-            
+
             # Verify user_api server variables
             user_server_url = "https://{region}.users.example.com"
             self.assertIn(user_server_url, env_mappings["servers"]["user_api"])

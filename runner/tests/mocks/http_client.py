@@ -39,17 +39,19 @@ class MockResponse:
         # If this response contains JSON data but the caller did not
         # declare a Content-Type, add one so that production code can
         # recognise the payload and call response.json().
-        if self.json_data is not None and not any(k.lower() == "content-type" for k in self.headers):
+        if self.json_data is not None and not any(
+            k.lower() == "content-type" for k in self.headers
+        ):
             self.headers["Content-Type"] = "application/json"
 
         # Generate content attribute like real requests.Response
         if self.content is None:  # Only generate if not explicitly provided
             if self.json_data is not None:
                 # JSON content gets encoded as UTF-8 bytes
-                self.content = json.dumps(self.json_data).encode('utf-8')
+                self.content = json.dumps(self.json_data).encode("utf-8")
             elif self.text:
                 # Text content gets encoded as UTF-8 bytes
-                self.content = self.text.encode('utf-8')
+                self.content = self.text.encode("utf-8")
             else:
                 # Default to empty bytes
                 self.content = b""

@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 import yaml
 
-from arazzo_runner import ArazzoRunner, StepStatus, WorkflowExecutionStatus, WorkflowExecutionResult
+from arazzo_runner import ArazzoRunner, StepStatus, WorkflowExecutionResult, WorkflowExecutionStatus
 
 from .mocks import MockHTTPExecutor, OpenAPIMocker
 from .mocks.real_http_client import RealHTTPExecutor
@@ -305,14 +305,24 @@ class ArazzoTestCase(unittest.TestCase):
                         workflow_outputs[f"{step_id}.{key}"] = value
 
         # Create and return a WorkflowExecutionResult object
-        status = WorkflowExecutionStatus.WORKFLOW_COMPLETE if not any_step_failed else WorkflowExecutionStatus.ERROR
+        status = (
+            WorkflowExecutionStatus.WORKFLOW_COMPLETE
+            if not any_step_failed
+            else WorkflowExecutionStatus.ERROR
+        )
         return WorkflowExecutionResult(
             status=status,
             workflow_id=workflow_id,
             outputs=workflow_outputs,  # Use our manually constructed workflow outputs
-            step_outputs=state.step_outputs if state.step_outputs else None,  # Include step outputs if available
+            step_outputs=(
+                state.step_outputs if state.step_outputs else None
+            ),  # Include step outputs if available
             inputs=inputs if inputs else None,  # Include original inputs if available
-            error=None if status == WorkflowExecutionStatus.WORKFLOW_COMPLETE else "Workflow execution failed"
+            error=(
+                None
+                if status == WorkflowExecutionStatus.WORKFLOW_COMPLETE
+                else "Workflow execution failed"
+            ),
         )
 
     def _load_arazzo_spec(self, spec_path: str) -> dict[str, Any]:
