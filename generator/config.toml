@@ -15,7 +15,7 @@ level = "INFO"
 
 # File logging configuration
 [logging.file]
-log_dir = "generator/logs"
+log_dir = "logs"
 filename = "jentic.log"
 
 # Application settings
@@ -25,11 +25,11 @@ debug = false
 
 # Logging paths 
 [logging.paths]
-logs_dir = "generator/logs"
-batch_logs_dir = "generator/batch_logs"
+logs_dir = "logs"
+batch_logs_dir = "batch_logs"
 
 # Batch processing folders
 [batch.paths]
 # These are default paths to test folders within this arazzo generator repo. These can be set to other paths if desired.
-openapi_dir = "generator/examples/openapi_specs"
-workflow_dir = "generator/examples/workflows"
+openapi_dir = "examples/openapi_specs"
+workflow_dir = "examples/workflows"
