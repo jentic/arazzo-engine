@@ -51,7 +51,7 @@ jobs:
         echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
 
     - name: Build and push Docker image
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v6
       with:
         context: ./generator
         file: ./generator/docker/Dockerfile
