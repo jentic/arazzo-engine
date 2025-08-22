@@ -30,7 +30,20 @@ def add_external_root():
 def is_within_safe_roots(path: str | pathlib.Path) -> bool:
     """Check if a given path is within one of the configured safe roots."""
     try:
-        resolved_path = pathlib.Path(path).resolve(strict=True)
+        # If path is string, normalize it before Path construction
+        if isinstance(path, str):
+            # Use normpath to collapse '..' and '.', but leave absolute/relative as is
+            normed = os.path.normpath(path)
+            path_obj = pathlib.Path(normed)
+        elif isinstance(path, pathlib.Path):
+            path_obj = path
+        else:
+            # If neither, reject
+            return False
+        # Explicitly reject absolute paths that are directly the filesystem root
+        if _is_filesystem_root(path_obj):
+            return False
+        resolved_path = path_obj.resolve(strict=True)
         for root in SAFE_ROOTS:
             root_resolved = root.resolve(strict=True)
             # Compare with explicit boundary check (Path.relative_to throws if not inside)
