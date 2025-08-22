@@ -31,6 +31,14 @@ def is_within_safe_roots(path: str | pathlib.Path) -> bool:
     """Check if a given path is within one of the configured safe roots."""
     try:
         resolved_path = pathlib.Path(path).resolve(strict=True)
-        return any(resolved_path.is_relative_to(root) for root in SAFE_ROOTS)
+        for root in SAFE_ROOTS:
+            root_resolved = root.resolve(strict=True)
+            # Compare with explicit boundary check (Path.relative_to throws if not inside)
+            try:
+                resolved_path.relative_to(root_resolved)
+                return True
+            except ValueError:
+                continue
+        return False
     except (ValueError, FileNotFoundError):
         return False
