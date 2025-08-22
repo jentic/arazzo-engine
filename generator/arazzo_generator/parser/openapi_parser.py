@@ -74,8 +74,10 @@ class OpenAPIParser:
             else:
                 # For local files (bare path or file://), validate the path first.
                 local_path = pathlib.Path(parsed_url.path) if parsed_url.scheme == "file" else pathlib.Path(self.url)
-                resolved_path = local_path.resolve()
+                # Normalize and resolve the file path to eliminate traversal and symlink issues
+                resolved_path = local_path.resolve(strict=False)
 
+                # Security: Check that normalized path is within the safe root.
                 if not is_within_safe_roots(resolved_path):
                     logger.error(f"Attempted access to file outside of safe root: {resolved_path}")
                     raise ValueError("Access to files outside the allowed directory is not permitted.")
@@ -86,7 +88,7 @@ class OpenAPIParser:
                     prance_parser = prance.BaseParser(prance_url, strict=False)
                 except Exception as e:
                     logger.warning(f"Prance BaseParser failed for local file: {e}")
-                    # Fallback to reading content manually
+                    # Fallback to reading content manually, using validated and normalized path
                     with open(resolved_path, "rb") as f:
                         content = f.read()
 
