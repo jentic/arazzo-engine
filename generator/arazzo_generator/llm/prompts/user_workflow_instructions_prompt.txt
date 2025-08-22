@@ -1,0 +1,10 @@
+User-Requested Workflows:
+{formatted_descriptions}
+
+Instructions for User-Requested Workflows:
+* Attempt to generate a workflow definition ONLY for EACH of the descriptions listed above.
+* You MUST use ONLY the operations provided in the 'Endpoints' section.
+* If a specific User-Requested Workflow CAN be fully composed using ONLY the provided endpoints, include its definition in the final JSON array output.
+* If a specific User-Requested Workflow CANNOT be fully composed using ONLY the provided endpoints, COMPLETELY OMIT it from the final JSON array output. Do NOT include any note or error message for it in the output.
+* Your final JSON output must *only* contain workflows directly derived from the 'User-Requested Workflows' list above. Do not include any other workflows, even if they seem possible based on the API specification.
+* Your final JSON output should ONLY contain successfully generated workflow definitions for the composable requests listed above.
