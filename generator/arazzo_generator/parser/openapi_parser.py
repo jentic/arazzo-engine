@@ -72,10 +72,31 @@ class OpenAPIParser:
                     response.raise_for_status()
                     content = response.content
             else:
-                # For local files (bare path or file://), validate the path first.
-                local_path = pathlib.Path(parsed_url.path) if parsed_url.scheme == "file" else pathlib.Path(self.url)
-                # Normalize and resolve the file path to eliminate traversal and symlink issues
-                resolved_path = local_path.resolve(strict=False)
+                # For local files (bare path or file://), validate the path strictly.
+                if parsed_url.scheme == "file":
+                    user_supplied_path = parsed_url.path
+                else:
+                    user_supplied_path = self.url
+
+                # Reject null bytes or suspicious path fragments early
+                if '\x00' in user_supplied_path:
+                    logger.error("Null byte detected in file path.")
+                    raise ValueError("Null byte detected in file path.")
+                local_path = pathlib.Path(user_supplied_path)
+                # Reject if input is an absolute path not covered by the safe roots
+                if local_path.is_absolute() and not any(str(local_path).startswith(str(root)) for root in is_within_safe_roots.__globals__.get('SAFE_ROOTS', [])):
+                    logger.error(f"Absolute path outside safe roots: {local_path}")
+                    raise ValueError("Absolute paths outside the allowed directory are not permitted.")
+
+                try:
+                    # Strictly resolve the path (fail if not exists)
+                    resolved_path = local_path.resolve(strict=True)
+                except FileNotFoundError:
+                    logger.error(f"File not found: {local_path}")
+                    raise ValueError("The requested file does not exist.")
+                except Exception as e:
+                    logger.error(f"Failed to resolve file path: {e}")
+                    raise ValueError("Invalid file path.")
 
                 # Security: Check that normalized path is within the safe root.
                 if not is_within_safe_roots(resolved_path):
