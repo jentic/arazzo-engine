@@ -74,12 +74,12 @@ class OpenAPIParser:
             else:
                 # For local files (bare path or file://), validate the path first.
                 local_path = pathlib.Path(parsed_url.path) if parsed_url.scheme == "file" else pathlib.Path(self.url)
+                resolved_path = local_path.resolve()
 
-                if not is_within_safe_roots(local_path):
-                    logger.error(f"Attempted access to file outside of safe root: {local_path}")
+                if not is_within_safe_roots(resolved_path):
+                    logger.error(f"Attempted access to file outside of safe root: {resolved_path}")
                     raise ValueError("Access to files outside the allowed directory is not permitted.")
 
-                resolved_path = local_path.resolve()
                 prance_url = resolved_path.as_uri()
 
                 try:
