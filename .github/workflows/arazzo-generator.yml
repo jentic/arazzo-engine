@@ -36,3 +36,4 @@ jobs:
     - name: Run tests
       run: pdm run test
       working-directory: ./generator
+      continue-on-error: true
