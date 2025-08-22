@@ -2,11 +2,12 @@
 
 import unittest
 from unittest.mock import patch, MagicMock
+import json
 
 from arazzo_generator.parser.openapi_parser import OpenAPIParser
 
 
-@patch('prance.util.url.requests.get')
+@patch('requests.get')
 class TestOpenAPIParser(unittest.TestCase):
     """Tests for the OpenAPIParser class."""
 
@@ -16,8 +17,7 @@ class TestOpenAPIParser(unittest.TestCase):
         pass
 
     def test_fetch_spec_json(self, mock_requests_get):
-        """Test fetching a JSON OpenAPI spec."""
-        # Prepare test data
+        """Test fetching a JSON OpenAPI spec from a URL."""
         test_spec = {
             "openapi": "3.0.0",
             "info": {"title": "Test API", "version": "1.0.0"},
@@ -31,13 +31,12 @@ class TestOpenAPIParser(unittest.TestCase):
             },
         }
 
-        # Configure the mock to return our test data
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = test_spec
+        mock_response.content = json.dumps(test_spec).encode('utf-8')
+        mock_response.text = json.dumps(test_spec)
         mock_requests_get.return_value = mock_response
 
-        # Create parser and fetch spec
         parser = OpenAPIParser("https://example.com/openapi.json")
         spec = parser.fetch_spec()
 
@@ -51,28 +50,26 @@ class TestOpenAPIParser(unittest.TestCase):
         self.assertIn("/test", parser.paths)
 
     def test_fetch_spec_yaml(self, mock_requests_get):
-        """Test fetching a YAML OpenAPI spec."""
-        # Prepare test data
-        test_spec = {
-            "openapi": "3.0.0",
-            "info": {"title": "Test API", "version": "1.0.0"},
-            "paths": {
-                "/test": {
-                    "get": {
-                        "operationId": "getTest",
-                        "responses": {"200": {"description": "OK"}},
-                    }
-                }
-            },
-        }
-
-        # Configure the mock to return our test data
+        """Test fetching a YAML OpenAPI spec from a URL."""
+        test_spec_yaml = """
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+        paths:
+          /test:
+            get:
+              operationId: getTest
+              responses:
+                200:
+                  description: OK
+        """
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = test_spec
+        mock_response.content = test_spec_yaml.encode('utf-8')
+        mock_response.text = test_spec_yaml
         mock_requests_get.return_value = mock_response
 
-        # Create parser and fetch spec
         parser = OpenAPIParser("https://example.com/openapi.yaml")
         spec = parser.fetch_spec()
 
@@ -81,7 +78,8 @@ class TestOpenAPIParser(unittest.TestCase):
         self.assertEqual(spec["info"]["title"], "Test API")
         self.assertEqual(spec["paths"]["/test"]["get"]["operationId"], "getTest")
 
-    def test_get_endpoints(self, mock_requests_get):
+    @patch('prance.ResolvingParser')
+    def test_get_endpoints(self, mock_prance_parser, mock_requests_get):
         """Test getting endpoints from the OpenAPI spec."""
         # Prepare test data with endpoints
         test_spec = {
@@ -115,15 +113,20 @@ class TestOpenAPIParser(unittest.TestCase):
             },
         }
 
-        # Configure the mock to return our test data
+        # Configure the prance mock to simulate successful parsing
+        mock_parser_instance = MagicMock()
+        mock_parser_instance.specification = test_spec
+        mock_prance_parser.return_value = mock_parser_instance
+
+        # This mock is no longer strictly needed for this path, but we keep it for consistency
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = test_spec
+        mock_response.content = json.dumps(test_spec).encode('utf-8')
+        mock_response.text = json.dumps(test_spec)
         mock_requests_get.return_value = mock_response
 
         # Create a new parser instance for this test
         parser = OpenAPIParser("https://example.com/openapi.json")
-        # fetch_spec() is called within get_endpoints() if spec is not present
 
         # Get endpoints
         endpoints = parser.get_endpoints()
@@ -137,7 +140,8 @@ class TestOpenAPIParser(unittest.TestCase):
         self.assertEqual(len(endpoints["/users"]["get"]["parameters"]), 1)
         self.assertEqual(endpoints["/users"]["get"]["parameters"][0]["name"], "limit")
 
-    def test_get_schemas(self, mock_requests_get):
+    @patch('prance.ResolvingParser')
+    def test_get_schemas(self, mock_prance_parser, mock_requests_get):
         """Test getting schemas from the OpenAPI spec."""
         # Prepare test data with schemas
         test_spec = {
@@ -157,15 +161,20 @@ class TestOpenAPIParser(unittest.TestCase):
             },
         }
 
-        # Configure the mock to return our test data
+        # Configure the prance mock
+        mock_parser_instance = MagicMock()
+        mock_parser_instance.specification = test_spec
+        mock_prance_parser.return_value = mock_parser_instance
+
+        # Configure the requests mock for fallback consistency
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = test_spec
+        mock_response.content = json.dumps(test_spec).encode('utf-8')
+        mock_response.text = json.dumps(test_spec)
         mock_requests_get.return_value = mock_response
 
         # Create a new parser instance for this test
         parser = OpenAPIParser("https://example.com/openapi.json")
-        # fetch_spec() is called within get_schemas() if spec is not present
 
         # Get schemas
         schemas = parser.get_schemas()
@@ -176,7 +185,8 @@ class TestOpenAPIParser(unittest.TestCase):
         self.assertIn("id", schemas["User"]["properties"])
         self.assertIn("name", schemas["User"]["properties"])
 
-    def test_get_security_schemes(self, mock_requests_get):
+    @patch('prance.ResolvingParser')
+    def test_get_security_schemes(self, mock_prance_parser, mock_requests_get):
         """Test getting security schemes from the OpenAPI spec."""
         # Prepare test data with security schemes
         test_spec = {
@@ -194,15 +204,20 @@ class TestOpenAPIParser(unittest.TestCase):
             },
         }
 
-        # Configure the mock to return our test data
+        # Configure the prance mock
+        mock_parser_instance = MagicMock()
+        mock_parser_instance.specification = test_spec
+        mock_prance_parser.return_value = mock_parser_instance
+
+        # Configure the requests mock for fallback consistency
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = test_spec
+        mock_response.content = json.dumps(test_spec).encode('utf-8')
+        mock_response.text = json.dumps(test_spec)
         mock_requests_get.return_value = mock_response
 
         # Create a new parser instance for this test
         parser = OpenAPIParser("https://example.com/openapi.json")
-        # fetch_spec() is called within get_security_schemes() if spec is not present
 
         # Get security schemes
         security_schemes = parser.get_security_schemes()
