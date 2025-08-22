@@ -1,7 +1,7 @@
 """OpenAPI specification parser module."""
 
-import json
 import os
+import pathlib
 import re
 from typing import Any, Dict
 from urllib.parse import urlparse
@@ -11,9 +11,13 @@ import requests
 import yaml
 from openapi_spec_validator import validate
 
+from arazzo_generator.security.safe_paths import is_within_safe_roots, add_external_root
 from arazzo_generator.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Initialize safe roots at module load time.
+add_external_root()
 
 
 class OpenAPIParser:
@@ -44,64 +48,77 @@ class OpenAPIParser:
             The OpenAPI specification as a dictionary.
 
         Raises:
-            ValueError: If the response is not valid JSON or YAML.
-            requests.RequestException: If the request to the URL fails.
-            FileNotFoundError: If the local file is not found.
+            requests.exceptions.RequestException: If the remote URL is not accessible.
+            ValueError: If the file path is invalid or outside the safe directory.
         """
         logger.info(f"Fetching OpenAPI spec from {self.url}")
 
         try:
-            # Determine if the URL is a local file path or a remote URL
-            is_url = bool(urlparse(self.url).scheme)
-            is_local_file = False
-            # Only validate local file paths if not a remote URL
-            if not is_url:
-                # Normalize the path and check containment in SAFE_ROOT
-                normalized_path = os.path.normpath(os.path.abspath(self.url))
-                if not normalized_path.startswith(SAFE_ROOT + os.sep):
-                    logger.error(f"Attempted access to file outside of safe root: {normalized_path}")
+            parsed_url = urlparse(self.url)
+            is_remote = parsed_url.scheme in ["http", "https"]
+
+            prance_parser = None
+            content = None
+
+            if is_remote:
+                # For remote URLs, use ResolvingParser to handle external $refs.
+                try:
+                    prance_parser = prance.ResolvingParser(self.url, strict=False)
+                except Exception as e:
+                    logger.warning(f"Prance ResolvingParser failed for remote URL: {e}")
+                    # Fallback to fetching content manually
+                    response = requests.get(self.url, timeout=30)
+                    response.raise_for_status()
+                    content = response.content
+            else:
+                # For local files (bare path or file://), validate the path first.
+                local_path = pathlib.Path(parsed_url.path) if parsed_url.scheme == "file" else pathlib.Path(self.url)
+
+                if not is_within_safe_roots(local_path):
+                    logger.error(f"Attempted access to file outside of safe root: {local_path}")
                     raise ValueError("Access to files outside the allowed directory is not permitted.")
-                is_local_file = os.path.exists(normalized_path)
-                self.url = normalized_path
-            try:
-                logger.debug("Attempting to parse spec with prance")
 
-                if is_local_file:
-                    logger.debug(f"Using local file parser for {self.url}")
-                    # Use file URL format for local files
-                    file_url = (
-                        f"file:///{os.path.abspath(self.url)}"
-                        if not self.url.startswith("file://")
-                        else self.url
-                    )
-                    parser = prance.BaseParser(file_url, strict=False)
-                else:
-                    # It's a remote URL
-                    logger.debug(f"Using URL parser for {self.url}")
-                    parser = prance.BaseParser(self.url, strict=False)
+                resolved_path = local_path.resolve()
+                prance_url = resolved_path.as_uri()
 
-                self.spec = parser.specification
-                self.parser = parser
+                try:
+                    prance_parser = prance.BaseParser(prance_url, strict=False)
+                except Exception as e:
+                    logger.warning(f"Prance BaseParser failed for local file: {e}")
+                    # Fallback to reading content manually
+                    with open(resolved_path, "rb") as f:
+                        content = f.read()
+
+            # If prance succeeded, use its output. Otherwise, parse the manually fetched content.
+            if prance_parser:
+                self.spec = prance_parser.specification
+                self.parser = prance_parser
                 logger.info("Successfully parsed spec with prance")
-            except Exception as e:
-                logger.warning(f"Prance parsing failed: {e}")
-                # Fall back to manual fetching and parsing with robust error handling
-                self.spec = self._fetch_and_parse_with_fallbacks()
+            elif content:
+                self.spec = self._fetch_and_parse_with_fallbacks(content)
+            else:
+                raise ValueError("Could not retrieve spec content.")
 
             if not self.spec:
                 raise ValueError("Empty OpenAPI spec")
 
-            # Extract metadata regardless of how we parsed it
-            # This is where the paths and components are extracted and added to self
+            # Perform validation and metadata extraction
+            self._validate_spec()
             self._extract_metadata()
             return self.spec
 
         except requests.RequestException as e:
             logger.error(f"Failed to fetch OpenAPI spec: {e}")
             raise
+        except Exception as e:
+            logger.error(f"All parsing methods failed: {e}")
+            raise ValueError(f"Failed to parse OpenAPI specification: {e}")
 
-    def _fetch_and_parse_with_fallbacks(self) -> Dict[str, Any]:
+    def _fetch_and_parse_with_fallbacks(self, content: bytes) -> Dict[str, Any]:
         """Fetch and parse the OpenAPI spec with fallback mechanisms.
+
+        Args:
+            content: The raw binary content of the OpenAPI spec.
 
         Returns:
             The parsed OpenAPI specification as a dictionary.
@@ -333,6 +350,17 @@ class OpenAPIParser:
 
         # If all methods fail, raise error
         raise ValueError("All parsing methods failed")
+
+    def _validate_spec(self) -> None:
+        """Validate the OpenAPI specification."""
+        if not self.spec:
+            return
+
+        try:
+            validate(self.spec)
+            logger.info("OpenAPI spec validation successful")
+        except Exception as e:
+            logger.warning(f"OpenAPI spec validation failed: {e}")
 
     def _extract_metadata(self) -> None:
         """Extract metadata from the OpenAPI specification."""

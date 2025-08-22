@@ -72,6 +72,28 @@ export ANTHROPIC_API_KEY=your_anthropic_key_here
 export OPENAI_API_KEY=your_openai_key_here
 ```
 
+### Handling Local OpenAPI Specifications
+
+When working with local OpenAPI specification files that contain relative references (`$ref`) to other local files, you must set the `OPENAPI_SPECS_DIR` environment variable. This is a security measure to ensure that the generator only accesses files within a trusted directory.
+
+Set the variable to the absolute path of the root directory containing your OpenAPI specifications.
+
+**Example:**
+
+If your specs are in `/Users/me/example-project/apis/`, you would set the variable like this:
+
+```bash
+export OPENAPI_SPECS_DIR=/Users/me/example-project/apis/
+```
+
+Or in a `.env` file:
+
+```bash
+OPENAPI_SPECS_DIR=/Users/me/example-project/apis/
+```
+
+**Note:** The generator will then be able to safely resolve any relative references within that directory.
+
 ## Usage
 
 ### Basic Usage
@@ -290,4 +312,3 @@ This Arazzo Generator powers the automated workflow generation in the [jentic-pu
 3. Optionally, specify any specific workflows you'd like to generate
 
 The system will automatically process your request and generate the corresponding Arazzo specification. You'll be notified when the generation is complete.
-
