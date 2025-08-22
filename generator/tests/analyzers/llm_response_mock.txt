@@ -1,0 +1,46 @@
+```json
+[
+  {
+    "name": "Pet Management",
+    "description": "End-to-end workflow for managing pets in the store",
+    "type": "process",
+    "operations": [
+      {
+        "method": "get",
+        "path": "/pets/{petId}",
+        "operation_id": "getPetById",
+        "summary": "Get a pet by ID",
+        "tags": ["pet"]
+      },
+      {
+        "method": "get",
+        "path": "/pets",
+        "operation_id": "listPets",
+        "summary": "List all pets",
+        "tags": ["pet"]
+      }
+    ]
+  },
+  {
+    "name": "Pet Lookup",
+    "description": "Simple workflow for looking up pet information",
+    "type": "lookup",
+    "operations": [
+      {
+        "method": "get",
+        "path": "/pets",
+        "operation_id": "listPets",
+        "summary": "List all pets",
+        "tags": ["pet"]
+      },
+      {
+        "method": "get",
+        "path": "/pets/{petId}",
+        "operation_id": "getPetById",
+        "summary": "Get a pet by ID",
+        "tags": ["pet"]
+      }
+    ]
+  }
+]
+```

@@ -5,7 +5,7 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 from arazzo_generator.api.app import GenerateRequest, app
-from arazzo_generator.generator_service import generate_arazzo
+from arazzo_generator.generator.generator_service import generate_arazzo
 
 
 # Testing the API root endpoint

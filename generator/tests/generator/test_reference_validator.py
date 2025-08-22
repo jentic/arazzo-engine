@@ -3,7 +3,7 @@
 import copy
 import unittest
 
-from arazzo_generator.generator.reference_validator import ReferenceValidato
+from arazzo_generator.generator.reference_validator import ReferenceValidator
 from arazzo_generator.utils.logging import get_logger
 
 
@@ -142,9 +142,7 @@ class TestReferenceValidator(unittest.TestCase):
                 copy.deepcopy(self.workflow_with_invalid_refs)
             )
             # Check if the warning about fixing the output reference is present
-            self.assertTrue(
-                any("Fixing invalid output reference" in msg for msg in log.output)
-            )
+            self.assertTrue(any("Fixing invalid output reference" in msg for msg in log.output))
 
     def test_validate_step_references_empty_workflow(self):
         """Test that validate_step_references handles empty workflows gracefully."""
@@ -229,9 +227,7 @@ class TestReferenceValidator(unittest.TestCase):
         step_outputs = {"step1": ["output1"], "step2": []}
 
         # Fix the parameter references
-        ReferenceValidator._fix_parameter_references(
-            workflow, valid_step_ids, step_outputs
-        )
+        ReferenceValidator._fix_parameter_references(workflow, valid_step_ids, step_outputs)
 
         # Based on the implementation, we know it's fixing output references but not step IDs
         # Verify that the output name was fixed (output_one -> output1)
@@ -278,18 +274,14 @@ class TestReferenceValidator(unittest.TestCase):
         step_outputs = {"step1": ["output1"], "step2": [], "step3": [], "step4": []}
 
         # Fix the request body references
-        ReferenceValidator._fix_request_body_references(
-            workflow, valid_step_ids, step_outputs
-        )
+        ReferenceValidator._fix_request_body_references(workflow, valid_step_ids, step_outputs)
 
         # Based on the implementation, we know it's fixing output references but not step IDs
         # Verify that the output name was fixed (output_one -> output1)
         self.assertIn("output1", workflow["steps"][2]["requestBody"]["payload"])
 
         # Verify that the non-reference request body was left unchanged
-        self.assertEqual(
-            workflow["steps"][3]["requestBody"]["payload"], {"key": "value"}
-        )
+        self.assertEqual(workflow["steps"][3]["requestBody"]["payload"], {"key": "value"})
 
 
 if __name__ == "__main__":
