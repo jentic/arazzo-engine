@@ -1,0 +1,38 @@
+name: Arazzo Generator CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  generator-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    
+    steps:
+    - uses: actions/checkout@v5
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install PDM
+      run: pip install pdm
+    
+    - name: Install dependencies
+      run: pdm install
+      working-directory: ./generator
+    
+    - name: Run tests
+      run: pdm run test
+      working-directory: ./generator
