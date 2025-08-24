@@ -454,7 +454,7 @@ class LiteLLMService:
         prompt_file = (
             pathlib.Path(__file__).parent
             / "prompts"
-            / "user_workflow_instructions_prompt.txt"
+            / "user_workflow_instructions.prompt"
         )
         try:
             with open(prompt_file, "r") as f:
@@ -515,7 +515,7 @@ class LiteLLMService:
 
         # Get the prompt template file path
         prompt_file = (
-            pathlib.Path(__file__).parent / "prompts" / "endpoint_analysis_prompt.txt"
+            pathlib.Path(__file__).parent / "prompts" / "endpoint_analysis.prompt"
         )
 
         try:
