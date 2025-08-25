@@ -276,13 +276,20 @@ class OpenAPIParser:
             # Very simplistic YAML to JSON conversion (only handles basic structures)
             # Replace YAML indentation with JSON nesting
             json_like = cleaned_content
+            # 1) key: <non-empty value>  ->  "key": "value",
             json_like = re.sub(
-                r"^(\s*)([\w\-]+):\s*(.+?)$",
-                lambda m: f'{m.group(1)}"{m.group(2)}": "{m.group(3).rstrip()}",',
+                r"^(?P<i>[ \t]*)(?P<k>[A-Za-z0-9_-]+):[ \t]*(?P<v>\S[^\n]*?)(?=[ \t]*$)",
+                lambda m: f'{m.group("i")}"{m.group("k")}": "{m.group("v")}",',
                 json_like,
                 flags=re.MULTILINE,
             )
-            json_like = re.sub(r"^(\s*)([\w\-]+):\s*$", r'\1"\2": {', json_like, flags=re.MULTILINE)
+            # 2) key: <empty>            ->  "key": {
+            json_like = re.sub(
+                r"^(?P<i>[ \t]*)(?P<k>[A-Za-z0-9_-]+):[ \t]*$",
+                r'\g<i>"\g<k>": {',
+                json_like,
+                flags=re.MULTILINE,
+            )
             json_like = "{" + json_like + "}"
             # Attempt to parse the JSON-like content
             spec = json.loads(json_like)
