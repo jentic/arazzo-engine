@@ -258,7 +258,7 @@ class OpenAPIParser:
         """
         logger.info("Attempting alternative parsing methods")
 
-        # Method 1: Try using a more lenient parsing method by cleaning the content
+        # Method 1: Try to parse after cleaning the content
         try:
             # Decode with lenient encoding
             text_content = content.decode("utf-8", errors="replace")
