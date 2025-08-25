@@ -279,7 +279,7 @@ class OpenAPIParser:
             # 1) key: <non-empty value>  ->  "key": "value",
             json_like = re.sub(
                 r"^(?P<i>[ \t]*)(?P<k>[A-Za-z0-9_-]+):[ \t]*(?P<v>\S[^\n]*?)(?=[ \t]*$)",
-                lambda m: f'{m.group("i")}"{m.group("k")}": "{m.group("v")}",',
+                r'\g<i>"\g<k>": "\g<v>",',
                 json_like,
                 flags=re.MULTILINE,
             )
