@@ -206,6 +206,143 @@ class OpenAPIParser:
 
         return cleaned
 
+    @staticmethod
+    def _fix_missing_spaces_after_colons(text: str) -> str:
+
+        def fix_line(line: str) -> str:
+            # quick outs
+            stripped = line.lstrip()
+            if not stripped or stripped.startswith('#'):
+                return line
+
+            in_s = in_d = False
+            bracket = brace = 0
+
+            # find the colon that likely separates key/value before any comment '#'
+            limit = len(line)
+            hash_pos = -1
+
+            # Find actual comment start (not inside quotes)
+            temp_in_s = temp_in_d = False
+            i = 0
+            while i < len(line):
+                ch = line[i]
+                if ch == '\\' and i + 1 < len(line):
+                    i += 2  # Skip both backslash and escaped character
+                    continue
+                if ch == "'" and not temp_in_d:
+                    temp_in_s = not temp_in_s
+                elif ch == '"' and not temp_in_s:
+                    temp_in_d = not temp_in_d
+                elif ch == '#' and not temp_in_s and not temp_in_d:
+                    hash_pos = i
+                    break
+                i += 1
+
+            if hash_pos != -1:
+                limit = hash_pos
+
+            # Track all colon positions that need fixing
+            result_line = line
+            offset = 0  # Track how many characters we've added
+            fixed_first = False  # Ensure we only fix the first key:value colon per line
+
+            i = 0
+            while i < limit:
+                ch = line[i]
+
+                # Handle escaped characters properly
+                if ch == '\\' and i + 1 < len(line):
+                    i += 2  # Skip both backslash and escaped character
+                    continue
+
+                if ch == "'" and not in_d:
+                    in_s = not in_s
+                elif ch == '"' and not in_s:
+                    in_d = not in_d
+                elif not in_s and not in_d:
+                    if ch == '[':
+                        bracket += 1
+                    elif ch == ']':
+                        bracket -= 1
+                        # Handle malformed YAML - reset if negative
+                        if bracket < 0:
+                            bracket = 0
+                    elif ch == '{':
+                        brace += 1
+                    elif ch == '}':
+                        brace -= 1
+                        # Handle malformed YAML - reset if negative
+                        if brace < 0:
+                            brace = 0
+                    elif ch == ':' and bracket == 0 and brace == 0 and not fixed_first:
+                        # candidate key:value separator
+                        next_pos = i + 1 + offset
+                        if next_pos < len(result_line) and result_line[next_pos] not in ' \t\n':
+                            # Check if this looks like a key:value pair
+                            head = line[:i].lstrip()
+
+                            # Handle list items with flexible spacing
+                            has_leading_dash = head.startswith('-')
+                            if has_leading_dash:
+                                # Remove dash and any following whitespace for validation
+                                head = head[1:].lstrip()
+
+                            # Validate key - must be non-empty and properly quoted if it contains spaces
+                            if head and _is_valid_yaml_key(head):
+                                # Check for URL patterns more carefully
+                                if not _looks_like_url(line[:i + 1]):
+                                    # If line starts with '-' and no space after '-', insert one
+                                    j = len(line) - len(line.lstrip())
+                                    if j < len(line) and line[j] == '-' and (j + 1 < len(line) and line[j + 1] not in ' \t'):
+                                        result_line = result_line[:j + 1] + ' ' + result_line[j + 1:]
+                                        offset += 1
+                                    # Insert space after colon
+                                    result_line = result_line[:i + 1 + offset] + ' ' + result_line[i + 1 + offset:]
+                                    offset += 1
+                                    fixed_first = True
+                i += 1
+            return result_line
+
+        def _is_valid_yaml_key(key: str) -> bool:
+            """Check if the key is a valid YAML key"""
+            if not key:
+                return False
+
+            key = key.strip()
+
+            # Simple key without spaces or special characters and without ':'
+            if ':' not in key and ' ' not in key and not any(c in key for c in '[]{}'):
+                return True
+
+            # Properly quoted key (can contain spaces or colons)
+            if len(key) >= 2:
+                if ((key.startswith('"') and key.endswith('"')) or
+                        (key.startswith("'") and key.endswith("'"))):
+                    # Basic validation - no unescaped quotes inside
+                    inner = key[1:-1]
+                    if key.startswith('"'):
+                        # Check for unescaped double quotes
+                        return '"' not in inner.replace('\\"', '')
+                    else:
+                        # Check for unescaped single quotes
+                        return "'" not in inner.replace("\\'", '')
+
+            return False
+
+        def _looks_like_url(text: str) -> bool:
+            """Check if text looks like a URL with common schemes"""
+            text = text.strip()
+            url_schemes = [
+                'http', 'https', 'ftp', 'ftps', 'file', 'mailto',
+                'ssh', 'git', 'svn', 'ldap', 'ldaps'
+            ]
+            return any(text.startswith(proto + '://') for proto in url_schemes) or \
+                text.startswith('mailto:')
+
+
+        return '\n'.join(fix_line(ln) for ln in text.splitlines())
+
     def _fix_yaml_structure(self, content: str) -> str:
         """Fix common structural issues in YAML content.
 
@@ -219,7 +356,7 @@ class OpenAPIParser:
         fixed = content
 
         # Fix missing spaces after colons in mappings
-        fixed = re.sub(r"([a-zA-Z0-9_-]+):([$a-zA-Z0-9])", r"\1: \2", fixed)
+        _fixed = self._fix_missing_spaces_after_colons(fixed)
 
         # Fix missing line breaks between mappings
         fixed = re.sub(r"([a-zA-Z0-9_-]+): ([^{\[\n].*?)([a-zA-Z0-9_-]+):", r"\1: \2\n\3:", fixed)

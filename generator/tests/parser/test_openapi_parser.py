@@ -2,6 +2,7 @@
 
 import unittest
 from unittest.mock import patch
+import textwrap
 
 from arazzo_generator.parser.openapi_parser import OpenAPIParser
 
@@ -201,3 +202,231 @@ class TestOpenAPIParser(unittest.TestCase):
         self.assertEqual(security_schemes["bearerAuth"]["type"], "http")
         self.assertEqual(security_schemes["bearerAuth"]["scheme"], "bearer")
         self.assertEqual(security_schemes["bearerAuth"]["bearerFormat"], "JWT")
+
+    def test_fix_missing_spaces_after_colons(self):
+        """Test fixing missing spaces after colons in YAML content."""
+
+        def _T(s: str) -> str:
+            """Dedent and trim trailing newline, so comparisons don't depend on final LF."""
+            return textwrap.dedent(s).strip('\n')
+
+        def assertFix(before: str, after: str):
+            self.assertEqual(OpenAPIParser._fix_missing_spaces_after_colons(_T(before)),
+                             _T(after))
+
+        # --- basic fixes & no-ops ---
+
+        # def test_simple_mapping_needs_fix
+        assertFix(
+            """
+            foo:bar
+            baz: qux
+            """,
+            """
+            foo: bar
+            baz: qux
+            """
+        )
+
+        # def test_already_spaced_is_untouched
+        assertFix(
+            """
+            a: b
+            nested:
+              c: d
+            """,
+            """
+            a: b
+            nested:
+              c: d
+            """
+        )
+
+        # def test_tab_after_colon_is_respected
+        # If the next char is a tab, it's treated like whitespace and should not add a space
+        assertFix(
+            "a:\tb",
+            "a:\tb",
+        )
+
+        # --- lists & flow collections ---
+
+        # def test_list_item_key_value
+        assertFix(
+            """
+            - name:Francesco
+            - age:42
+            - city: Trieste
+            """,
+            """
+            - name: Francesco
+            - age: 42
+            - city: Trieste
+            """
+        )
+
+        # def test_flow_mapping_internal_pairs_untouched_outer_fixed
+        assertFix(
+            """
+            person:{name:John,age:30}
+            """,
+            """
+            person: {name:John,age:30}
+            """
+        )
+
+        # def test_space_before_flow_sequence
+        assertFix(
+            """
+            tags:[a,b,c]
+            """,
+            """
+            tags: [a,b,c]
+            """
+        )
+
+        # --- quotes, escapes, and comments ---
+
+        # def test_colon_inside_quotes_untouched
+        assertFix(
+            """
+            time: "10:30"
+            note: 'a: b'
+            path: "C:\\Temp\\foo:bar"
+            """,
+            """
+            time: "10:30"
+            note: 'a: b'
+            path: "C:\\Temp\\foo:bar"
+            """
+        )
+
+        # def test_quoted_keys_with_spaces
+        assertFix(
+            """
+            "full name":Francesco
+            'with space':value
+            """,
+            """
+            "full name": Francesco
+            'with space': value
+            """
+        )
+
+        # def test_unquoted_key_with_space_is_not_considered_key
+        # Unquoted key containing space should not be auto-fixed
+        assertFix(
+            """
+            first name:Francesco
+            """,
+            """
+            first name:Francesco
+            """
+        )
+
+        # def test_inline_comment_region_is_ignored
+        assertFix(
+            """
+            a:b  # comment with a:colon that should be ignored
+            """,
+            """
+            a: b  # comment with a:colon that should be ignored
+            """
+        )
+
+        # def test_hash_in_quotes_not_a_comment
+        assertFix(
+            """
+            msg: "value # not a comment"
+            msg2:"another #test"
+            """,
+            """
+            msg: "value # not a comment"
+            msg2: "another #test"
+            """
+        )
+
+        # --- URL and scheme-like values ---
+
+
+        # --- Misc, edge behavior ---
+
+        # def test_malformed_brackets_do_not_cause_crash
+        # There is internal reset if counters go negative; behavior here is just "no crash"
+        assertFix(
+            """
+            a:b]
+            c:{d:e
+            """,
+            """
+            a: b]
+            c: {d:e
+            """
+        )
+
+        # def test_blank_and_full_line_comments_untouched
+        assertFix(
+            """
+            # top level comment
+            key:value
+              # indented comment
+            """,
+            """
+            # top level comment
+            key: value
+              # indented comment
+            """
+        )
+
+        # def test_multiple_colons_fix_only_first_key_value
+        assertFix(
+            """
+            a:b:c
+            """,
+            """
+            a: b:c
+            """
+        )
+
+        # def test_url_and_ports_in_value
+        # Should fix the key colon; leave scheme/port colons in the value untouched
+        assertFix(
+            """
+            endpoint:http://example.com:8080/api
+            repo: git://github.com/org/repo.git
+            email:mailto:user@example.com
+            """,
+            """
+            endpoint: http://example.com:8080/api
+            repo: git://github.com/org/repo.git
+            email: mailto:user@example.com
+            """
+        )
+
+        # def test_dashes_without_space
+        # Accept some flexible spacing after '-' per implementation
+        assertFix(
+            """
+            -name:value
+            -  title:Engineer
+            """,
+            """
+            - name: value
+            -  title: Engineer
+            """
+        )
+
+        """
+        Ideally, lines inside a literal block should be treated as plain text,
+        and not receive key:value fixes. Current implementation will modify them.
+        """
+        before = _T(
+            """
+            description: |
+              url:http://example.com
+              note:keep as-is
+            """
+        )
+        # Desired (no change inside the block):
+        desired = before
+        self.assertNotEqual(OpenAPIParser._fix_missing_spaces_after_colons(before), desired)
