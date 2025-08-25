@@ -277,15 +277,17 @@ class OpenAPIParser:
             # Replace YAML indentation with JSON nesting
             json_like = cleaned_content
             # 1) key: <non-empty value>  ->  "key": "value",
+            # 1) key: <non-empty value (even spaces)> -> "key": "value",
             json_like = re.sub(
-                r"^(?P<i>[ \t]*)(?P<k>[A-Za-z0-9_-]+):[ \t]*(?P<v>\S[^\n]*?)(?=[ \t]*$)",
+                r"^(?P<i>[ \t]*)(?P<k>[\w-]+):[ \t]*(?P<v>[^\n][^\n]*?)(?=[ \t]*$)",
                 r'\g<i>"\g<k>": "\g<v>",',
                 json_like,
                 flags=re.MULTILINE,
             )
-            # 2) key: <empty>            ->  "key": {
+
+            # 2) key: <empty> -> "key": {
             json_like = re.sub(
-                r"^(?P<i>[ \t]*)(?P<k>[A-Za-z0-9_-]+):[ \t]*$",
+                r"^(?P<i>[ \t]*)(?P<k>[\w-]+):[ \t]*$",
                 r'\g<i>"\g<k>": {',
                 json_like,
                 flags=re.MULTILINE,
