@@ -53,16 +53,9 @@ class OpenAPIParser:
         try:
             # Determine if the URL is a local file path or a remote URL
             is_url = bool(urlparse(self.url).scheme)
-            is_local_file = False
-            # Only validate local file paths if not a remote URL
-            if not is_url:
-                # Normalize the path and check containment in SAFE_ROOT
-                normalized_path = os.path.normpath(os.path.abspath(self.url))
-                if not normalized_path.startswith(SAFE_ROOT + os.sep):
-                    logger.error(f"Attempted access to file outside of safe root: {normalized_path}")
-                    raise ValueError("Access to files outside the allowed directory is not permitted.")
-                is_local_file = os.path.exists(normalized_path)
-                self.url = normalized_path
+            is_local_file = os.path.exists(self.url)
+
+            # First, try to use prance to parse the spec
             try:
                 logger.debug("Attempting to parse spec with prance")
 
@@ -156,9 +149,7 @@ class OpenAPIParser:
                     fixed_content = self._fix_yaml_structure(content)
                     try:
                         spec = yaml.safe_load(fixed_content)
-                        logger.info(
-                            "Successfully parsed spec after fixing YAML structure"
-                        )
+                        logger.info("Successfully parsed spec after fixing YAML structure")
                     except yaml.YAMLError as e2:
                         # Last resort: try alternative parsing methods
                         logger.warning(f"Failed to parse after fixing structure: {e2}")
@@ -231,9 +222,7 @@ class OpenAPIParser:
         fixed = re.sub(r"([a-zA-Z0-9_-]+):([$a-zA-Z0-9])", r"\1: \2", fixed)
 
         # Fix missing line breaks between mappings
-        fixed = re.sub(
-            r"([a-zA-Z0-9_-]+): ([^{\[\n].*?)([a-zA-Z0-9_-]+):", r"\1: \2\n\3:", fixed
-        )
+        fixed = re.sub(r"([a-zA-Z0-9_-]+): ([^{\[\n].*?)([a-zA-Z0-9_-]+):", r"\1: \2\n\3:", fixed)
 
         # Fix indentation of nested mappings
         lines = fixed.split("\n")
@@ -293,9 +282,7 @@ class OpenAPIParser:
                 json_like,
                 flags=re.MULTILINE,
             )
-            json_like = re.sub(
-                r"^(\s*)([\w\-]+):\s*$", r'\1"\2": {', json_like, flags=re.MULTILINE
-            )
+            json_like = re.sub(r"^(\s*)([\w\-]+):\s*$", r'\1"\2": {', json_like, flags=re.MULTILINE)
             json_like = "{" + json_like + "}"
             # Attempt to parse the JSON-like content
             spec = json.loads(json_like)
@@ -320,9 +307,7 @@ class OpenAPIParser:
 
             # Create basic path entries
             for path in paths:
-                spec["paths"]["/" + path] = {
-                    "get": {"responses": {"200": {"description": "OK"}}}
-                }
+                spec["paths"]["/" + path] = {"get": {"responses": {"200": {"description": "OK"}}}}
 
             logger.info(
                 f"Generated basic spec structure with {len(paths)} paths using fallback method"
@@ -487,9 +472,7 @@ class OpenAPIParser:
                 if part in current:
                     current = current[part]
                 else:
-                    raise ValueError(
-                        f"Reference part '{part}' not found in the specification"
-                    )
+                    raise ValueError(f"Reference part '{part}' not found in the specification")
 
             return current
         except Exception as e:
