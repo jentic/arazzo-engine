@@ -8,7 +8,6 @@ from arazzo_generator.llm.litellm_service import LiteLLMService
 class TestPromptBuilder:
     # Tests the build of the endpoint analysis prompt with workflows(optional)
     @patch("arazzo_generator.llm.litellm_service.logger")
-    @pytest.mark.skip(reason="temporarily disabled")
     def test_build_endpoint_analysis_prompt_with_workflows(self, mock_logger):
         svc = LiteLLMService(api_key="test-key")
         assert svc.api_key == "test-key"

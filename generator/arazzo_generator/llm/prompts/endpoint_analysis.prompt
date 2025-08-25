@@ -1,0 +1,170 @@
+You are an expert API workflow analyst. Your task is to analyze the provided OpenAPI specification 
+and identify meaningful workflows that can be created by combining ONLY the endpoints listed in the specification.
+A workflow in this context consists of a sequence of API calls that together accomplish a SPECIFIC task or
+business process. Good workflows have a clear purpose and connect related operations to solve real user needs.
+
+Analyze the API metadata first to understand the business context better and context of the API, then examine the endpoints
+to identify logical workflows that would be valuable for API consumers.
+
+{metadata_section}
+
+Here are the endpoints from the API:
+
+{endpoints}
+
+Available Components:
+schemas: {schema_types}
+parameters: {parameters}
+requestBodies: {requestBodies}
+responses: {responses}
+
+IMPORTANT: Many request and response payloads use `$ref` to point to shared object schemas (like `#/components/schemas/Pet`).
+You MUST resolve and use these schema definitions when analyzing API inputs and outputs. This will help you correctly understand:
+- What fields are required in the request body
+- What data is returned in the response
+- What information can be passed between workflow steps
+
+Always refer to the `components/schemas` definitions provided and use them to determine how workflows connect and what inputs/outputs are required.
+
+Your task is to:
+
+1. Identify logical workflows USING ONLY the endpoints listed above
+2. Group related endpoints into meaningful sequences
+3. Prioritize workflows based on their usefulness and alignment with the API's purpose
+4. Consider real-world usage scenarios that can be accomplished with ONLY the available endpoints
+5. Fully resolve and use schema definitions when interpreting API inputs and outputs
+
+Please return your answer as a JSON array of workflow definitions, with each workflow having these properties:
+- name: A descriptive name for the workflow (should be concise and clear)
+- description: A clear description of what the workflow accomplishes and why it's valuable
+- type: The workflow type (auth, process, user_journey)
+- operations: An array of operations in the workflow, each with:
+  - name: Operation name (e.g., "create", "read", "process_payment", "get_user")
+  - endpoints: Array of [path, method] pairs EXACTLY as they appear in the endpoint list above
+  - description: Brief description of what this step accomplishes
+  - inputs: Array of input parameters this operation requires (e.g., ["productId", "quantity"])
+  - outputs: Array of output parameters this operation produces. Each output can be specified in two ways:
+    - Simple format (for body outputs): just the output name as a string (e.g., ["orderId", "orderStatus"])
+    - Detailed format (for specifying source): an object with "name" and "source" properties (e.g., [{"name": "orderId", "source": "body"}, {"name": "rateLimit", "source": "header"}])
+    - Make sure the output parameters EXACTLY match the keys in the response object or header names
+  - dependencies: Object mapping input names to sources. For example:
+    {"productId": {"step": "search-products", "output": "productIds[0]"}} means this step's productId comes from the first item in the productIds output of the "search-products" step
+- rank: A number from 1-10 indicating importance (10 highest)
+
+CRITICAL: For multi-step workflows, you MUST include the dependencies property to show how data flows between steps. In a well-designed workflow, later steps should use outputs from earlier steps as their inputs whenever logical. Only the first step or truly independent steps should have empty dependencies.
+
+CRITICAL: Be extremely careful and consistent with operation naming and references between steps. Each operation name must match EXACTLY when referenced in dependencies
+- The "name" field in each operation is used as a reference in dependencies
+- Any step referenced in a dependency MUST use the EXACT same name as defined in its operation
+- Example: If an operation has "name": "get-user", then any dependency referencing it MUST use "step": "get-user" (not "getUser" or "get_user")
+
+CRITICAL: You MUST ONLY use endpoints that EXACTLY match the paths and methods in the endpoint list above. The system will REJECT any workflow containing endpoints not found in the list. Do not create endpoints based on your general knowledge of similar APIs.
+
+Example of the correct response format:
+```json
+[
+  {
+    "name": "User Authentication",
+    "description": "Authenticate a user and retrieve their profile information",
+    "type": "auth",
+    "operations": [
+      {
+        "name": "login-user",
+        "endpoints": [["/auth/login", "post"]],
+        "description": "Authenticate user credentials and receive access token",
+        "inputs": ["username", "password"],
+        "outputs": [
+          {"name": "access_token", "source": "body"},
+          {"name": "user_id", "source": "body"},
+          {"name": "rate_limit", "source": "header"}
+        ],
+        "dependencies": {}
+      },
+      {
+        "name": "get-profile",
+        "endpoints": [["/users/@me", "get"]],
+        "description": "Retrieve authenticated user's profile information",
+        "inputs": ["auth_token"],
+        "outputs": ["user_profile"],
+        "dependencies": {
+          "auth_token": {"step": "login-user", "output": "access_token"}
+        }
+      }
+    ],
+    "rank": 10
+  },
+  {
+    "name": "Order Management",
+    "description": "Retrieve an order and then delete it if needed",
+    "type": "process",
+    "operations": [
+      {
+        "name": "get-order",
+        "endpoints": [["/orders/{orderId}", "get"]],
+        "description": "Retrieve details of a specific order",
+        "inputs": ["orderId"],
+        "outputs": [
+          {"name": "order_details", "source": "body"},
+          {"name": "order_id", "source": "body"}
+        ],
+        "dependencies": {}
+      },
+      {
+        "name": "delete-order",
+        "endpoints": [["/orders/{orderId}", "delete"]],
+        "description": "Delete an order by ID",
+        "inputs": ["orderId"],
+        "outputs": [
+          {"name": "deletion_status", "source": "body"}
+        ],
+        "dependencies": {
+          "orderId": {"step": "get-order", "output": "order_id"}
+        }
+      }
+    ],
+    "rank": 8
+  }
+]
+```
+
+{user_workflows}
+
+Only include workflows that are meaningful and would provide real value to API consumers. Focus on workflows that:
+1. Represent complete user journeys that can be accomplished with the available endpoints
+2. Demonstrate the core value proposition of the API
+3. Connect logically related operations into cohesive sequences
+4. Solve specific business problems or user needs
+5. Do not include under no circumstances workflows that are no-op operations
+
+VERY IMPORTANT - STRICT VALIDATION RULES:
+
+1. Your response MUST be a valid JSON array like the example above
+
+2. Every endpoint must EXACTLY match one from the provided list - match both the path and method precisely
+
+3. Check the path strings carefully - even minor differences like missing or extra slashes will cause rejection
+
+4. *** CRITICAL RULE ***: DO NOT CREATE no-op workflows
+   - NEVER combine Create, Read, Update, and Delete operations into a single "Life Cycle Management" workflow.
+    For Example: A workflow where a resource is created, then retrieved, then updated, and finally deleted does not provide any value to the user and .
+    NOTE: ONLY include workflows that makes sense and provides meaningful sequences of operations that can be used by API consumers.
+   - INCORRECT: A "Pet Management" workflow containing steps 1.addPet, 2.getPet, 3.updatePet, and 4.deletePet operations, this is a no-op operation example
+
+
+5. Double-check that every endpoint in your response exactly matches one from the provided list
+
+6. *** CRITICAL RULE ABOUT JSON FORMAT ***:
+   - Your response MUST be a syntactically valid JSON array that can be parsed by JSON.parse()
+   - If you can't fit all workflows in your response, include fewer workflows but ensure the JSON is complete and valid
+   - Every workflow MUST have all required fields (name, description, type, operations, rank)
+   - Every operation MUST have all required fields (name, endpoints, description, inputs, outputs, dependencies)
+   - Make sure the inputs in workflows are of the format : "inputs": ["input1", "input2", "input3"] ex: "inputs": ["username", "password"] and not "inputs": ["PartnerUpsert object (name, address, emails, etc.)"]
+   - All arrays and objects MUST be properly closed with ] and } respectively
+   - NEVER return truncated or malformed JSON - quality over quantity, When handling complex APIs, prioritize the most important workflows and ensure your JSON is complete rather than trying to be comprehensive
+   - Always check that your final JSON is valid before returning it
+   - Include a "rank" field for EVERY workflow, even if the API is complex
+
+7. *** CRITICAL RULE ABOUT STEP NAMING ***:
+   - Always use kebab-case for operation names (e.g., "login-user", "get-profile")
+   - When referencing a step, use EXACTLY the same name that was defined in that step
+   - For example, if you define a step with "name": "login-user", then any reference to it must use "step": "login-user" (not "login" or "loginUser")

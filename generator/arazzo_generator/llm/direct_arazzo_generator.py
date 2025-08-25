@@ -193,7 +193,7 @@ class DirectArazzoGenerator:
         prompt_file = (
             pathlib.Path(__file__).parent
             / "prompts"
-            / "direct_llm_arazzo_generation_prompt"
+            / "direct_llm_arazzo_generation.prompt"
         )
 
         try:

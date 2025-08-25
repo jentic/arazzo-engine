@@ -76,5 +76,4 @@ node_modules/
 
 # Data & generated files
 *.txt
-!/arazzo_generator/llm/prompts/user_workflow_instructions_prompt.txt
 !/tests/analyzers/llm_response_mock.txt
