@@ -1,5 +1,10 @@
 # Arazzo Runner [Beta]
 
+[![Discord](https://img.shields.io/badge/JOIN%20OUR%20DISCORD-COMMUNITY-7289DA?style=plastic&logo=discord&logoColor=white)](https://discord.gg/yrxmDZWMqB)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-3.0-40c463.svg)](https://github.com/jentic/arazzo-engine/blob/HEAD/CODE_OF_CONDUCT.md)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/jentic/arazzo-engine/blob/HEAD/LICENSE)
+[![PyPI version](https://badge.fury.io/py/arazzo-runner.svg)](https://badge.fury.io/py/arazzo-runner)
+
 The Arazzo Runner is a workflow execution engine that processes and executes API workflows defined in the Arazzo format and individual API calls defined in OpenAPI specifications.
 
 ## Usage
