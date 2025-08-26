@@ -160,10 +160,10 @@ class OpenAPIParser:
             return spec
 
         except requests.RequestException as e:
-            logger.exception(f"Failed to fetch from URL '{self.url}'")
+            logger.error(f"Failed to fetch from URL {self.url}")
             raise ValueError(f"Failed to fetch OpenAPI specification: {e}") from e
         except Exception as e:
-            logger.exception(f"All parsing methods failed: {e}", extra={"url": self.url})
+            logger.error(f"All parsing methods failed: {e}", extra={"url": self.url})
             raise ValueError("Failed to parse OpenAPI specification") from e
 
     def _clean_spec_content(self, content: str) -> str:
@@ -481,5 +481,5 @@ class OpenAPIParser:
 
             return current
         except Exception as e:
-            logger.exception(f"Failed to resolve reference {ref}")
+            logger.error(f"Failed to resolve reference {ref}: {e}")
             raise ValueError(f"Could not resolve reference {ref}") from e
