@@ -27,7 +27,6 @@ var/
 .pdm-python
 .pdm-build/
 __pypackages__/
-pdm.lock
 
 # Logs
 logs/
