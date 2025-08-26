@@ -482,4 +482,4 @@ class OpenAPIParser:
             return current
         except Exception as e:
             logger.error(f"Failed to resolve reference {ref}: {e}")
-            raise ValueError(f"Could not resolve reference {ref}") from e
+            raise ValueError(f"Could not resolve reference {ref}: {e}") from e
