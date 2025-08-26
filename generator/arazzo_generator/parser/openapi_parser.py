@@ -4,9 +4,10 @@ import json
 import os
 import re
 from typing import Any, Dict
-from urllib.parse import urlparse
 
 import prance
+from prance.util.url import absurl
+from prance.util.fs import abspath
 import requests
 import yaml
 from openapi_spec_validator import validate
@@ -19,18 +20,22 @@ logger = get_logger(__name__)
 class OpenAPIParser:
     """OpenAPI specification parser.
 
-    This class is responsible for fetching and parsing OpenAPI specifications from URLs.
-    It supports OpenAPI versions 3.0 and 3.1, with robust error handling for real-world
+    This class is responsible for fetching and parsing OpenAPI specifications from URI-Reference.
+    It supports OpenAPI versions 3.0.x/3.1.x, with robust error handling for real-world
     specifications that may not strictly follow standards.
+
+    Local or remote references are not resolved during the parsing.
+    This avoids possible security issues with local file access.
     """
 
     def __init__(self, url: str):
-        """Initialize the OpenAPI parser with a URL to an OpenAPI specification.
+        """Initialize the OpenAPI parser with a URI-Reference to an OpenAPI specification.
 
-        Args:
-            url: The URL to the OpenAPI specification.
+        Parameters:
+        url (string): The URI-Reference to the OpenAPI specification.
         """
-        self.url = url
+        self.url_parsed = absurl(url, abspath(os.getcwd()))
+        self.url = self.url_parsed.geturl()
         self.spec = None
         self.paths = {}
         self.components = {}
@@ -38,7 +43,7 @@ class OpenAPIParser:
         self.parser = None
 
     def fetch_spec(self) -> Dict[str, Any]:
-        """Fetch the OpenAPI specification from the URL or file path.
+        """Fetch the OpenAPI specification from the URL.
 
         Returns:
             The OpenAPI specification as a dictionary.
@@ -48,36 +53,20 @@ class OpenAPIParser:
             requests.RequestException: If the request to the URL fails.
             FileNotFoundError: If the local file is not found.
         """
-        logger.info(f"Fetching OpenAPI spec from {self.url}")
+        logger.info(f"Reading OpenAPI spec from '{self.url}'")
 
         try:
-            # Determine if the URL is a local file path or a remote URL
-            is_url = bool(urlparse(self.url).scheme)
-            is_local_file = os.path.exists(self.url)
-
             # First, try to use prance to parse the spec
             try:
-                logger.debug("Attempting to parse spec with prance")
-
-                if is_local_file:
-                    logger.debug(f"Using local file parser for {self.url}")
-                    # Use file URL format for local files
-                    file_url = (
-                        f"file:///{os.path.abspath(self.url)}"
-                        if not self.url.startswith("file://")
-                        else self.url
-                    )
-                    parser = prance.BaseParser(file_url, strict=False)
-                else:
-                    # It's a remote URL
-                    logger.debug(f"Using URL parser for {self.url}")
-                    parser = prance.BaseParser(self.url, strict=False)
-
+                logger.debug(
+                    "Attempting to parse OpenAPI spec with prance", extra={"url": self.url}
+                )
+                parser = prance.BaseParser(self.url, strict=False)
                 self.spec = parser.specification
                 self.parser = parser
-                logger.info("Successfully parsed spec with prance")
+                logger.info("Successfully parsed spec with prance", extra={"url": self.url})
             except Exception as e:
-                logger.warning(f"Prance parsing failed: {e}")
+                logger.warning(f"Prance parsing failed: {e}", extra={"url": self.url})
                 # Fall back to manual fetching and parsing with robust error handling
                 self.spec = self._fetch_and_parse_with_fallbacks()
 
@@ -90,7 +79,7 @@ class OpenAPIParser:
             return self.spec
 
         except requests.RequestException as e:
-            logger.error(f"Failed to fetch OpenAPI spec: {e}")
+            logger.exception(f"Failed to fetch OpenAPI spec: {e}", extra={"url": self.url})
             raise
 
     def _fetch_and_parse_with_fallbacks(self) -> Dict[str, Any]:
@@ -102,20 +91,17 @@ class OpenAPIParser:
         Raises:
             ValueError: If all parsing methods fail.
         """
-        # Determine if we're dealing with a local file or a URL
-        is_url = bool(urlparse(self.url).scheme)
-        is_local_file = os.path.exists(self.url)
 
         try:
             # Get the content depending on whether it's a file or URL
-            if is_local_file:
-                logger.debug(f"Reading local file: {self.url}")
+            if self.url_parsed.schema == "file":
+                logger.debug(f"Reading local file '{self.url}'")
                 try:
                     with open(self.url, "rb") as f:
                         raw_content = f.read()
                 except Exception as e:
-                    logger.error(f"Failed to read local file: {e}")
-                    raise ValueError(f"Failed to read OpenAPI specification file: {e}")
+                    logger.exception(f"Failed to read local file: {e}", extra={"url": self.url})
+                    raise ValueError(f"Failed to read OpenAPI specification file: {e}") from e
             else:
                 # It's a URL
                 logger.debug(f"Fetching from URL: {self.url}")
@@ -123,12 +109,14 @@ class OpenAPIParser:
                 response.raise_for_status()
                 raw_content = response.content
 
-            # First try to decode as UTF-8
+            # First, try to decode as UTF-8
             try:
                 content = raw_content.decode("utf-8")
             except UnicodeDecodeError:
                 # If UTF-8 decoding fails, try with ISO-8859-1 (Latin-1) which accepts all byte values
-                logger.warning("UTF-8 decoding failed, trying with ISO-8859-1")
+                logger.warning(
+                    "UTF-8 decoding failed, trying with ISO-8859-1", extra={"url": self.url}
+                )
                 content = raw_content.decode("iso-8859-1")
 
             # Clean the content
@@ -137,28 +125,34 @@ class OpenAPIParser:
             # Try to parse as JSON
             try:
                 spec = json.loads(content)
-                logger.debug("Successfully parsed spec as JSON")
+                logger.debug("Successfully parsed spec as JSON", extra={"url": self.url})
             except json.JSONDecodeError:
                 # Try as YAML
                 try:
                     spec = yaml.safe_load(content)
-                    logger.debug("Successfully parsed spec as YAML")
-                except yaml.YAMLError as e:
+                    logger.debug("Successfully parsed spec as YAML", extra={"url": self.url})
+                except yaml.YAMLError as e1:
                     # Try to fix common YAML structural issues
-                    logger.warning(f"YAML parsing failed: {e}")
+                    logger.warning(f"YAML parsing failed: {e1}", extra={"url": self.url})
                     fixed_content = self._fix_yaml_structure(content)
                     try:
                         spec = yaml.safe_load(fixed_content)
-                        logger.info("Successfully parsed spec after fixing YAML structure")
+                        logger.info(
+                            "Successfully parsed spec after fixing YAML structure",
+                            extra={"url": self.url},
+                        )
                     except yaml.YAMLError as e2:
                         # Last resort: try alternative parsing methods
-                        logger.warning(f"Failed to parse after fixing structure: {e2}")
+                        logger.warning(
+                            "Failed to parse after fixing structure {e2}",
+                            extra={"url": self.url},
+                        )
                         spec = self._try_alternative_parsing_methods(raw_content)
 
             # Validate the spec
             try:
                 validate(spec)
-                logger.info("OpenAPI spec validation successful")
+                logger.info("OpenAPI spec validation successful", extra={"url": self.url})
             except Exception as e:
                 logger.warning(f"OpenAPI spec validation failed: {e}")
                 # Continue despite validation errors
@@ -166,11 +160,11 @@ class OpenAPIParser:
             return spec
 
         except requests.RequestException as e:
-            logger.error(f"Failed to fetch from URL: {e}")
-            raise ValueError(f"Failed to fetch OpenAPI specification: {e}")
+            logger.error(f"Failed to fetch from URL {self.url}")
+            raise ValueError(f"Failed to fetch OpenAPI specification: {e}") from e
         except Exception as e:
-            logger.error(f"All parsing methods failed: {e}")
-            raise ValueError(f"Failed to parse OpenAPI specification: {e}")
+            logger.error(f"All parsing methods failed: {e}", extra={"url": self.url})
+            raise ValueError("Failed to parse OpenAPI specification") from e
 
     def _clean_spec_content(self, content: str) -> str:
         """Clean the OpenAPI spec content to handle common issues.
@@ -241,7 +235,7 @@ class OpenAPIParser:
 
         fixed = "\n".join(fixed_lines)
 
-        logger.info("Fixed YAML structure issues")
+        logger.info("Fixed YAML structure issues", extra={"url": self.url})
         return fixed
 
     def _try_alternative_parsing_methods(self, content: bytes) -> Dict[str, Any]:
@@ -256,7 +250,7 @@ class OpenAPIParser:
         Raises:
             ValueError: If all parsing methods fail.
         """
-        logger.info("Attempting alternative parsing methods")
+        logger.info("Attempting alternative parsing methods", extra={"url": self.url})
 
         # Method 1: Try to parse after cleaning the content
         try:
@@ -264,10 +258,10 @@ class OpenAPIParser:
             text_content = content.decode("utf-8", errors="replace")
             cleaned_content = self._clean_spec_content(text_content)
             spec = yaml.safe_load(cleaned_content)
-            logger.info("Successfully parsed spec with safe YAML loader")
+            logger.info("Successfully parsed spec with safe YAML loader", extra={"url": self.url})
             return spec
         except Exception as e:
-            logger.warning(f"Alternative method 1 failed: {e}")
+            logger.warning(f"Alternative method 1 failed: {e}", extra={"url": self.url})
 
         # Method 2: Try to convert YAML to JSON using a regexp-based approach
         try:
@@ -294,10 +288,12 @@ class OpenAPIParser:
             json_like = "{" + json_like + "}"
             # Attempt to parse the JSON-like content
             spec = json.loads(json_like)
-            logger.info("Successfully parsed spec with YAML-to-JSON conversion")
+            logger.info(
+                "Successfully parsed spec with YAML-to-JSON conversion", extra={"url": self.url}
+            )
             return spec
         except Exception as e:
-            logger.warning(f"Alternative method 2 failed: {e}")
+            logger.warning(f"Alternative method 2 failed: {e}", extra={"url": self.url})
 
         # Method 3: Try using a custom tokenizer approach (simplified)
         try:
@@ -318,13 +314,14 @@ class OpenAPIParser:
                 spec["paths"]["/" + path] = {"get": {"responses": {"200": {"description": "OK"}}}}
 
             logger.info(
-                f"Generated basic spec structure with {len(paths)} paths using fallback method"
+                f"Generated basic spec structure with {len(paths)} paths using fallback method",
+                extra={"url": self.url},
             )
             return spec
         except Exception as e:
-            logger.warning(f"Alternative method 3 failed: {e}")
+            logger.warning(f"Alternative method 3 failed: {e}", extra={"url": self.url})
 
-        # If all methods fail, raise error
+        # If all methods fail, raise an exception
         raise ValueError("All parsing methods failed")
 
     def _extract_metadata(self) -> None:
@@ -465,8 +462,8 @@ class OpenAPIParser:
                 try:
                     resolver = self.parser.resolver
                     return resolver.resolve_reference(ref)[0]
-                except Exception as e:
-                    logger.warning(f"Failed to resolve external reference {ref}: {e}")
+                except Exception:
+                    logger.warning(f"Failed to resolve external reference {ref}", exc_info=True)
 
         # Local reference or fallback for external
         try:
@@ -485,4 +482,4 @@ class OpenAPIParser:
             return current
         except Exception as e:
             logger.error(f"Failed to resolve reference {ref}: {e}")
-            raise ValueError(f"Could not resolve reference {ref}: {e}")
+            raise ValueError(f"Could not resolve reference {ref}: {e}") from e
