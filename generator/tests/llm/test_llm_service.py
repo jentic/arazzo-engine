@@ -3,6 +3,8 @@ Unit tests for the LLMService class in llm_service.py.
 This file uses pytest and unittest.mock to test initialization and endpoint analysis logic.
 """
 
+import shutil
+import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -62,7 +64,6 @@ class TestLLMServiceAnalyzeEndpoints:
     @patch("arazzo_generator.llm.litellm_service.log_llm_prompt")
     @patch(
         "arazzo_generator.llm.litellm_service.setup_log_directory",
-        return_value=("/tmp", "timestamp"),
     )
     def test_analyze_endpoints_success(
         self,
@@ -78,6 +79,8 @@ class TestLLMServiceAnalyzeEndpoints:
         dummy_responses,
         dummy_request_bodies,
     ):
+        temp_dir = tempfile.mkdtemp()
+        mock_log_dir.return_value = (temp_dir, "timestamp")
 
         llm_response = "Mock LLM response with workflow data"
         parsed_response = [
@@ -121,7 +124,7 @@ class TestLLMServiceAnalyzeEndpoints:
         mock_log_llm_prompt.assert_called_once()
         args = mock_log_llm_prompt.call_args[0]
         assert len(args) == 4  # prompt, log_dir, file_prefix, timestamp
-        assert args[1] == "/tmp"  # log_dir
+        assert args[1] == temp_dir  # log_dir
         assert args[2] == "workflow_analysis"  # file_prefix
         assert args[3] == "timestamp"  # timestamp
 
@@ -131,14 +134,12 @@ class TestLLMServiceAnalyzeEndpoints:
         assert isinstance(prompt_sent, str)
 
         # Verify response logging
-        mock_log_llm_response.assert_called_once_with(
-            llm_response, "/tmp", "workflow_analysis"
-        )
+        mock_log_llm_response.assert_called_once_with(llm_response, temp_dir, "workflow_analysis")
 
         # Verify workflow parsing
-        mock_parse_workflow_response.assert_called_once_with(
-            mock_make_request.return_value
-        )
+        mock_parse_workflow_response.assert_called_once_with(mock_make_request.return_value)
+
+        shutil.rmtree(temp_dir)
 
     # Tests endpoint analysis failure
     @patch("arazzo_generator.llm.litellm_service.LiteLLMService.is_available", return_value=True)
@@ -148,7 +149,6 @@ class TestLLMServiceAnalyzeEndpoints:
     @patch("arazzo_generator.llm.litellm_service.log_llm_prompt")
     @patch(
         "arazzo_generator.llm.litellm_service.setup_log_directory",
-        return_value=("/tmp", "timestamp"),
     )
     @patch("arazzo_generator.llm.litellm_service.logger")
     def test_analyze_endpoints_failure(
@@ -166,6 +166,8 @@ class TestLLMServiceAnalyzeEndpoints:
         dummy_responses,
         dummy_request_bodies,
     ):
+        temp_dir = tempfile.mkdtemp()
+        mock_log_dir.return_value = (temp_dir, "timestamp")
         # Setup mocks to simulate error
         mock_make_request.side_effect = Exception("Test error")
 
@@ -183,9 +185,8 @@ class TestLLMServiceAnalyzeEndpoints:
         assert result == []
 
         # Verify the error was logged correctly
-        mock_logger.error.assert_called_with(
-            "Error in LLM workflow analysis: Test error"
-        )
+        mock_logger.error.assert_called_with("Error in LLM workflow analysis: Test error")
+        shutil.rmtree(temp_dir)
 
 
 # Section 5: Extraction function tests
@@ -285,9 +286,7 @@ class TestLLMServiceMakeRequest:
         assert svc.llm_provider == "gemini"
         assert svc.llm_model == "gemini/gemini-2.0-flash"
 
-        with patch.object(
-            svc, "_make_request", return_value="gemini-response"
-        ) as mock_method:
+        with patch.object(svc, "_make_request", return_value="gemini-response") as mock_method:
             result = svc._make_request("prompt")
             assert result == "gemini-response"
             mock_method.assert_called_once_with("prompt")
@@ -303,9 +302,7 @@ class TestLLMServiceMakeRequest:
         assert svc.llm_provider == "gemini"
         assert svc.llm_model == "gemini/gemini-2.0-flash"
 
-        with patch.object(
-            svc, "_make_request", return_value="gemini-response"
-        ) as mock_method:
+        with patch.object(svc, "_make_request", return_value="gemini-response") as mock_method:
             result = svc._make_request("prompt")
             assert result == "gemini-response"
             mock_method.assert_called_once_with("prompt")
@@ -321,24 +318,18 @@ class TestLLMServiceMakeRequest:
         assert svc.llm_provider == "anthropic"
         assert svc.llm_model == "claude-3-sonnet-20240229"
 
-        with patch.object(
-            svc, "_make_request", return_value="anthropic-response"
-        ) as mock_method:
+        with patch.object(svc, "_make_request", return_value="anthropic-response") as mock_method:
             result = svc._make_request("prompt")
             assert result == "anthropic-response"
             mock_method.assert_called_once_with("prompt")
 
     def test_make_request_openai(self):
-        svc = LiteLLMService(
-            api_key="test-key", llm_provider="openai", llm_model="gpt-4o"
-        )
+        svc = LiteLLMService(api_key="test-key", llm_provider="openai", llm_model="gpt-4o")
         assert svc.api_key == "test-key"
         assert svc.llm_provider == "openai"
         assert svc.llm_model == "gpt-4o"
 
-        with patch.object(
-            svc, "_make_request", return_value="openai-response"
-        ) as mock_method:
+        with patch.object(svc, "_make_request", return_value="openai-response") as mock_method:
             result = svc._make_request("prompt")
             assert result == "openai-response"
             mock_method.assert_called_once_with("prompt")

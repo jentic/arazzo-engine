@@ -3,7 +3,6 @@
 import os
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
 
 import click
 from dotenv import load_dotenv
@@ -72,20 +71,18 @@ def cli():
     multiple=True,
     help="User-requested workflow description to generate. Repeat for multiple descriptions.",
 )
-@click.option(
-    "--verbose", "-v", is_flag=True, default=False, help="Enable verbose output."
-)
+@click.option("--verbose", "-v", is_flag=True, default=False, help="Enable verbose output.")
 def generate(
     url: str,
-    output: Optional[str],
+    output: str | None,
     format: str,
     validate_spec: bool,
     verbose: bool,
     direct_llm: bool,
-    api_key: Optional[str],
-    llm_model: Optional[str],
-    llm_provider: Optional[str],
-    workflow_descriptions: Tuple[str],
+    api_key: str | None,
+    llm_model: str | None,
+    llm_provider: str | None,
+    workflow_descriptions: tuple[str],
 ):
     """Generate an Arazzo spec from an OpenAPI spec URL.
 
@@ -102,19 +99,15 @@ def generate(
         setup_logging(log_level=log_level)
 
         # Call the service function to generate the Arazzo specification
-        arazzo_spec, arazzo_content, is_valid, validation_errors, fallback_used = (
-            generate_arazzo(
-                url=url,
-                output=output,
-                format=format,
-                validate_spec=validate_spec,
-                direct_llm=direct_llm,
-                llm_model=llm_model,
-                llm_provider=llm_provider,
-                workflow_descriptions=(
-                    list(workflow_descriptions) if workflow_descriptions else None
-                ),
-            )
+        arazzo_spec, arazzo_content, is_valid, validation_errors, fallback_used = generate_arazzo(
+            url=url,
+            output=output,
+            format=format,
+            validate_spec=validate_spec,
+            direct_llm=direct_llm,
+            llm_model=llm_model,
+            llm_provider=llm_provider,
+            workflow_descriptions=(list(workflow_descriptions) if workflow_descriptions else None),
         )
 
         # Log fallback warning if used when workflow_descriptions were provided and failed to generate valid workflows
@@ -184,21 +177,15 @@ def validate(file: str):
     type=click.Choice(["gemini", "anthropic", "openai"]),
     help="LLM provider to use (must be used with --llm-model)",
 )
-@click.option(
-    "--llm-model", help="Specific LLM model to use (must be used with --llm-provider)"
-)
-@click.option(
-    "--delay", default=20, type=int, help="Delay in seconds between processing files"
-)
+@click.option("--llm-model", help="Specific LLM model to use (must be used with --llm-provider)")
+@click.option("--delay", default=20, type=int, help="Delay in seconds between processing files")
 @click.option("--summary-file", help="File to write processing summary")
 @click.option(
     "--force/--skip-existing",
     default=False,
     help="Force regeneration even if workflow exists",
 )
-@click.option(
-    "--save-logs/--no-logs", default=True, help="Save LLM logs to logs directory"
-)
+@click.option("--save-logs/--no-logs", default=True, help="Save LLM logs to logs directory")
 @click.option("--verbose", is_flag=True, help="Enable verbose logging")
 @click.option("--spec-list", help="Process specifications from a file list")
 @click.option("--all", is_flag=True, help="Process all specs in the directory")
@@ -237,9 +224,7 @@ def batch(
     # Only add LLM config if both provider and model are provided
     if llm_provider is not None or llm_model is not None:
         if llm_provider is None or llm_model is None:
-            logger.error(
-                "Both --llm-provider and --llm-model must be specified if either is used"
-            )
+            logger.error("Both --llm-provider and --llm-model must be specified if either is used")
             sys.exit(1)
         processor_kwargs.update(
             {
@@ -261,7 +246,7 @@ def batch(
             sys.exit(1)
 
         specs = []
-        with open(spec_list_path, "r") as f:
+        with open(spec_list_path) as f:
             specs = [line.strip() for line in f if line.strip()]
 
         logger.info(f"Found {len(specs)} specifications in spec list file")

@@ -1,7 +1,7 @@
 """Base analyzer class for workflow extraction from OpenAPI specifications."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from arazzo_generator.utils.logging import get_logger
 
@@ -16,9 +16,7 @@ class BaseAnalyzer(ABC):
     OpenAPI specifications and extract workflows.
     """
 
-    def __init__(
-        self, endpoints: Dict[str, Dict], relationships: Optional[Dict] = None
-    ):
+    def __init__(self, endpoints: dict[str, dict], relationships: dict | None = None):
         """Initialize the base analyzer.
 
         Args:
@@ -30,21 +28,18 @@ class BaseAnalyzer(ABC):
         self.workflows = []
 
     @abstractmethod
-    def analyze(self) -> List[Dict[str, Any]]:
+    def analyze(self) -> list[dict[str, Any]]:
         """Analyze the OpenAPI specification to identify workflows.
 
-        This method must be implemented by all subclasses to perform
-        the actual workflow identification logic.
-
-        Returns:
-            A list of identified workflows.
+        This method should be implemented by subclasses to perform the
+        actual analysis and workflow extraction.
         """
         pass
 
-    def get_workflows(self) -> List[Dict[str, Any]]:
+    def get_workflows(self) -> list[dict[str, Any]]:
         """Get the list of identified workflows.
 
         Returns:
-            The list of workflows identified by the analyzer.
+            A list of dictionaries, where each dictionary represents a workflow.
         """
         return self.workflows

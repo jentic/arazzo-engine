@@ -6,13 +6,12 @@ using LLMs, bypassing the traditional generator workflow.
 
 import json
 import pathlib
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..generator.output_mapping_validator import OutputMappingValidator
 from ..generator.reference_validator import ReferenceValidator
 from ..llm.litellm_service import DateTimeEncoder, LiteLLMService
-from ..utils.logging import (get_logger, log_llm_prompt, log_llm_response,
-                             setup_log_directory)
+from ..utils.logging import get_logger, log_llm_prompt, log_llm_response, setup_log_directory
 from ..utils.serializer import ArazzoSerializer
 
 logger = get_logger(__name__)
@@ -28,16 +27,16 @@ class DirectArazzoGenerator:
     def __init__(
         self,
         openapi_spec_url: str,
-        endpoints: Dict[str, Dict[str, Any]],
-        schemas: Dict[str, Any],
-        parameters: Dict[str, Any],
-        responses: Dict[str, Any],
-        request_bodies: Dict[str, Any],
-        openapi_spec: Dict[str, Any] = None,
-        api_key: Optional[str] = None,
-        llm_model: Optional[str] = None,
-        llm_provider: Optional[str] = None,
-        workflow_descriptions: Optional[List[str]] = None,
+        endpoints: dict[str, dict[str, Any]],
+        schemas: dict[str, Any],
+        parameters: dict[str, Any],
+        responses: dict[str, Any],
+        request_bodies: dict[str, Any],
+        openapi_spec: dict[str, Any] = None,
+        api_key: str | None = None,
+        llm_model: str | None = None,
+        llm_provider: str | None = None,
+        workflow_descriptions: list[str] | None = None,
     ):
         """Initialize the direct Arazzo generator.
 
@@ -86,7 +85,7 @@ class DirectArazzoGenerator:
         """
         return self.llm_service.is_available()
 
-    def generate(self) -> Dict[str, Any]:
+    def generate(self) -> dict[str, Any]:
         """Generate an Arazzo specification directly using the LLM.
 
         Returns:
@@ -94,9 +93,7 @@ class DirectArazzoGenerator:
             Returns None if generation fails.
         """
         if not self.is_available():
-            logger.warning(
-                "LLM service not available. Cannot generate Arazzo specification."
-            )
+            logger.warning("LLM service not available. Cannot generate Arazzo specification.")
             return None
 
         try:
@@ -118,9 +115,7 @@ class DirectArazzoGenerator:
             arazzo_json = self._extract_arazzo_from_response(response)
 
             if not arazzo_json:
-                logger.error(
-                    "Failed to extract valid Arazzo specification from LLM response"
-                )
+                logger.error("Failed to extract valid Arazzo specification from LLM response")
                 return None
 
             # Validate and fix step references in each workflow
@@ -130,21 +125,15 @@ class DirectArazzoGenerator:
                     workflow_id = workflow.get("workflowId", f"workflow_{i}")
 
                     # Validate step references
-                    logger.debug(
-                        f"Validating step references for workflow: {workflow_id}"
-                    )
-                    arazzo_json["workflows"][i] = (
-                        ReferenceValidator.validate_step_references(workflow)
+                    logger.debug(f"Validating step references for workflow: {workflow_id}")
+                    arazzo_json["workflows"][i] = ReferenceValidator.validate_step_references(
+                        workflow
                     )
 
                     # Validate output mappings
-                    logger.debug(
-                        f"Validating output mappings for workflow: {workflow_id}"
-                    )
-                    arazzo_json["workflows"][i] = (
-                        OutputMappingValidator.validate_output_mappings(
-                            workflow, self.openapi_spec, self.endpoints
-                        )
+                    logger.debug(f"Validating output mappings for workflow: {workflow_id}")
+                    arazzo_json["workflows"][i] = OutputMappingValidator.validate_output_mappings(
+                        workflow, self.openapi_spec, self.endpoints
                     )
 
             self.arazzo_spec = arazzo_json
@@ -191,14 +180,12 @@ class DirectArazzoGenerator:
 
         # Get the prompt template file path
         prompt_file = (
-            pathlib.Path(__file__).parent
-            / "prompts"
-            / "direct_llm_arazzo_generation.prompt"
+            pathlib.Path(__file__).parent / "prompts" / "direct_llm_arazzo_generation.prompt"
         )
 
         try:
             # Read the prompt template
-            with open(prompt_file, "r") as f:
+            with open(prompt_file) as f:
                 prompt_template = f.read()
 
             # Use string replace instead of format to avoid issues with JSON examples
@@ -211,16 +198,14 @@ class DirectArazzoGenerator:
             prompt = prompt.replace("{requestBodies}", formatted_request_bodies)
             prompt = prompt.replace("{metadata_section}", metadata_section)
             prompt = prompt.replace("{user_workflows}", workflow_section)
-            logger.debug(
-                f"Final prompt after replacements: '{prompt[:200]}...' (truncated)"
-            )
+            logger.debug(f"Final prompt after replacements: '{prompt[:200]}...' (truncated)")
 
             return prompt
 
         except FileNotFoundError:
             raise FileNotFoundError(f"Prompt file not found: {prompt_file}") from None
 
-    def _extract_arazzo_from_response(self, response: str) -> Dict[str, Any]:
+    def _extract_arazzo_from_response(self, response: str) -> dict[str, Any]:
         """Extract and parse the Arazzo specification from the LLM response.
 
         Args:

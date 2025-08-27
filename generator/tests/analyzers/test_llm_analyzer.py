@@ -39,15 +39,11 @@ class TestLLMAnalyzer(unittest.TestCase):
         self.relationships = {"/pets": ["/pets/{petId}"]}
 
         # Load mock LLM response from file
-        mock_file_path = os.path.join(
-            os.path.dirname(__file__), "llm_response_mock.txt"
-        )
-        with open(mock_file_path, "r") as f:
+        mock_file_path = os.path.join(os.path.dirname(__file__), "llm_response_mock.txt")
+        with open(mock_file_path) as f:
             content = f.read()
             # Extract JSON content from the markdown code block
-            json_content = (
-                content.strip().replace("```json", "").replace("```", "").strip()
-            )
+            json_content = content.strip().replace("```json", "").replace("```", "").strip()
             self.sample_workflows = json.loads(json_content)
 
     @patch("arazzo_generator.analyzers.llm_analyzer.LiteLLMService")

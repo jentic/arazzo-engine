@@ -3,12 +3,17 @@
 import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import arazzo_generator.utils.logging as logging_module
+
 import pytest
 
-from arazzo_generator.utils.logging import (_current_session_log_dir, get_logger,
-                               log_llm_prompt, log_llm_response,
-                               setup_log_directory, setup_logging)
+import arazzo_generator.utils.logging as logging_module
+from arazzo_generator.utils.logging import (
+    get_logger,
+    log_llm_prompt,
+    log_llm_response,
+    setup_log_directory,
+    setup_logging,
+)
 
 
 # Fixtures
@@ -139,8 +144,7 @@ class TestLogging:
         assert "file" in config["handlers"]
         # The path should use the test_logs directory from our mock config
         assert (
-            config["handlers"]["file"]["filename"]
-            == "/project/test_logs/20250101_120000/app.log"
+            config["handlers"]["file"]["filename"] == "/project/test_logs/20250101_120000/app.log"
         )
 
     @patch("pathlib.Path.mkdir")
@@ -201,9 +205,7 @@ class TestLogging:
         # Reset the global variable in the module
 
         original_dir = logging_module._current_session_log_dir
-        logging_module._current_session_log_dir = Path(
-            "/project/test_logs/20250101_120000"
-        )
+        logging_module._current_session_log_dir = Path("/project/test_logs/20250101_120000")
 
         try:
             # Setup mock
@@ -227,9 +229,7 @@ class TestLogging:
             # Restore the original global variable
             logging_module._current_session_log_dir = original_dir
 
-    def test_log_llm_prompt(
-        self, tmp_path, prompt="example prompt", log_type="test_generation"
-    ):
+    def test_log_llm_prompt(self, tmp_path, prompt="example prompt", log_type="test_generation"):
         """Test logging an LLM prompt to a file."""
         with (
             patch("builtins.open", create=True) as mock_open,

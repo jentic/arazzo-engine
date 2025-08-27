@@ -8,7 +8,7 @@ config.toml using Pydantic models for validation and type safety.
 import tomllib
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -24,9 +24,7 @@ class LoggingPathsConfig(BaseModel):
     """Logging paths configuration."""
 
     logs_dir: str = Field(default="logs", description="Main logs directory")
-    batch_logs_dir: str = Field(
-        default="batch_logs", description="Batch processing logs directory"
-    )
+    batch_logs_dir: str = Field(default="batch_logs", description="Batch processing logs directory")
 
 
 class LoggingConfig(BaseModel):
@@ -36,7 +34,7 @@ class LoggingConfig(BaseModel):
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         description="Log message format",
     )
-    destinations: List[Literal["console", "file"]] = Field(
+    destinations: list[Literal["console", "file"]] = Field(
         default=["console", "file"], description="Output destinations for logs"
     )
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
@@ -166,7 +164,7 @@ def load_config() -> Config:
         with open(config_path, "rb") as f:
             config_data = tomllib.load(f)
     except tomllib.TOMLDecodeError as e:
-        raise tomllib.TOMLDecodeError(f"Invalid TOML in {config_path}: {e}")
+        raise tomllib.TOMLDecodeError(f"Invalid TOML in {config_path}: {e}") from e
 
     return Config(**config_data)
 
@@ -181,7 +179,7 @@ def get_config() -> Config:
     return load_config()
 
 
-def get_output_path(output_dir: Optional[str] = None) -> Path:
+def get_output_path(output_dir: str | None = None) -> Path:
     """
     Get the output path for generated files.
 

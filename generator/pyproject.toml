@@ -51,7 +51,8 @@ api = "python -m arazzo_generator.api.run"
 test = "pytest"
 format = {cmd = "bash -c 'black arazzo_generator/ tests/ && isort arazzo_generator/ tests/'"}
 check-format = {cmd = "bash -c 'black --check arazzo_generator/ tests/ && isort --check-only arazzo_generator/ tests/ || exit 0'"}
-lint = {composite = ["black .", "isort .", "ruff check .", "mypy ."]}
+lint = {composite = ["black .", "isort .", "ruff check ."]}
+typecheck = "mypy ."
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -78,8 +79,14 @@ warn_unused_ignores = true
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
 select = ["E", "F", "B", "W", "I", "N", "UP", "YTT", "S"]
 ignore = []
+extend-ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S311"]
 
 [project.urls]
 Homepage = "https://github.com/jentic/arazzo-engine"

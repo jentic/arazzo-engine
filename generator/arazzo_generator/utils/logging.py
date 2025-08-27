@@ -3,12 +3,11 @@ import logging.config
 import logging.handlers
 import pathlib
 from datetime import datetime
-from typing import Optional
 
 from .config import get_config, get_project_root
 
 # Global variable to store the current session log directory
-_current_session_log_dir: Optional[pathlib.Path] = None
+_current_session_log_dir: pathlib.Path | None = None
 
 
 def setup_logging(log_level: str = None) -> None:
@@ -45,9 +44,7 @@ def setup_logging(log_level: str = None) -> None:
         log_dir.mkdir(parents=True, exist_ok=True)
 
     # Set up formatters
-    formatters = {
-        "standard": {"format": log_cfg["format"], "datefmt": "%Y-%m-%d %H:%M:%S"}
-    }
+    formatters = {"standard": {"format": log_cfg["format"], "datefmt": "%Y-%m-%d %H:%M:%S"}}
 
     # Set up handlers
     handlers = {}
@@ -137,9 +134,7 @@ def setup_log_directory() -> tuple[pathlib.Path, str]:
 
     # If we already have a session directory from application logging, use it
     if _current_session_log_dir is not None:
-        logger.debug(
-            f"Using existing session log directory: {_current_session_log_dir}"
-        )
+        logger.debug(f"Using existing session log directory: {_current_session_log_dir}")
         # Extract timestamp from directory name
         timestamp = _current_session_log_dir.name
         return _current_session_log_dir, timestamp
@@ -175,7 +170,7 @@ def log_llm_prompt(
     prompt: str,
     log_dir: pathlib.Path,
     prompt_type: str,
-    timestamp: Optional[str] = None,
+    timestamp: str | None = None,
 ) -> str:
     """Log the LLM prompt to a file.
 

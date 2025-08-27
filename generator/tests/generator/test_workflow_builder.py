@@ -63,9 +63,7 @@ class TestWorkflowBuilder(unittest.TestCase):
                                     "application/json": {
                                         "schema": {
                                             "type": "array",
-                                            "items": {
-                                                "$ref": "#/components/schemas/Pet"
-                                            },
+                                            "items": {"$ref": "#/components/schemas/Pet"},
                                         }
                                     }
                                 },
@@ -109,9 +107,7 @@ class TestWorkflowBuilder(unittest.TestCase):
                         ],
                         "requestBody": {
                             "content": {
-                                "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/Pet"}
-                                }
+                                "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                             }
                         },
                         "responses": {
@@ -177,9 +173,7 @@ class TestWorkflowBuilder(unittest.TestCase):
                     "200": {
                         "description": "A pet",
                         "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/Pet"}
-                            }
+                            "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                         },
                     }
                 },
@@ -198,18 +192,14 @@ class TestWorkflowBuilder(unittest.TestCase):
                 ],
                 "requestBody": {
                     "content": {
-                        "application/json": {
-                            "schema": {"$ref": "#/components/schemas/Pet"}
-                        }
+                        "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                     }
                 },
                 "responses": {
                     "200": {
                         "description": "Updated pet",
                         "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/Pet"}
-                            }
+                            "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                         },
                     }
                 },
@@ -274,9 +264,7 @@ class TestWorkflowBuilder(unittest.TestCase):
             self.assertEqual(
                 workflow["workflowId"], to_kebab_case(self.identified_workflow["name"])
             )
-            self.assertEqual(
-                workflow["description"], self.identified_workflow["description"]
-            )
+            self.assertEqual(workflow["description"], self.identified_workflow["description"])
             self.assertEqual(len(workflow["steps"]), 2)
             self.assertEqual(workflow["steps"][0]["stepId"], "list-pets")
             self.assertEqual(workflow["steps"][1]["stepId"], "get-pet")
@@ -333,9 +321,7 @@ class TestWorkflowBuilder(unittest.TestCase):
                             }
                         ],
                         "outputs": {"pet_details": "$response.body"},
-                        "failureActions": [
-                            {"reference": "$components.failureActions.not_found"}
-                        ],
+                        "failureActions": [{"reference": "$components.failureActions.not_found"}],
                     }
                 )
 
@@ -347,9 +333,7 @@ class TestWorkflowBuilder(unittest.TestCase):
             self.assertEqual(
                 workflow["workflowId"], to_kebab_case(self.identified_workflow["name"])
             )
-            self.assertEqual(
-                workflow["description"], self.identified_workflow["description"]
-            )
+            self.assertEqual(workflow["description"], self.identified_workflow["description"])
             self.assertEqual(len(workflow["steps"]), 2)
             self.assertEqual(workflow["steps"][0]["stepId"], "list-pets")
             self.assertEqual(workflow["steps"][1]["stepId"], "get-pet")
@@ -425,9 +409,7 @@ class TestWorkflowBuilder(unittest.TestCase):
             workflow = self.workflow_builder.create_workflow(self.identified_workflow)
 
             # Verify the request body
-            self.assertEqual(
-                workflow["steps"][2]["requestBody"]["contentType"], "application/json"
-            )
+            self.assertEqual(workflow["steps"][2]["requestBody"]["contentType"], "application/json")
             self.assertEqual(
                 workflow["steps"][2]["requestBody"]["payload"]["name"],
                 "Updated Pet Name",
@@ -492,9 +474,7 @@ class TestWorkflowBuilder(unittest.TestCase):
             )
 
         # Create a WorkflowBuilder with OpenAI provider
-        openai_builder = WorkflowBuilder(
-            endpoints=self.endpoints, openapi_spec=self.openapi_spec
-        )
+        openai_builder = WorkflowBuilder(endpoints=self.endpoints, openapi_spec=self.openapi_spec)
 
         # Create a workflow from the identified workflow
         with patch.object(openai_builder, "_create_steps") as mock_create_steps:

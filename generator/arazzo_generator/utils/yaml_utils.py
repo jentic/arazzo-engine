@@ -28,20 +28,14 @@ def fix_output_references(yaml_str: str) -> str:
             continue
 
         # Check if this line might continue on the next line
-        if (
-            "$steps." in line
-            and ".outputs." in line
-            and line.strip().endswith(".outputs.")
-        ):
+        if "$steps." in line and ".outputs." in line and line.strip().endswith(".outputs."):
             # This line ends with ".outputs." and likely continues
             concat_next = True
 
         fixed_yaml += line + "\n"
 
     # Now let's apply one more regex-based fix for any remaining broken references
-    pattern = (
-        r"(\$steps\.[A-Za-z0-9_\-]+\.outputs\.[A-Za-z0-9_\-]+)\s*\n\s+([A-Za-z0-9_\-]+)"
-    )
+    pattern = r"(\$steps\.[A-Za-z0-9_\-]+\.outputs\.[A-Za-z0-9_\-]+)\s*\n\s+([A-Za-z0-9_\-]+)"
     fixed_yaml = re.sub(pattern, r"\1 \2", fixed_yaml)
 
     return fixed_yaml

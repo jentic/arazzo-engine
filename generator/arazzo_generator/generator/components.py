@@ -1,6 +1,6 @@
 """Components for Arazzo specifications."""
 
-from typing import Any, Dict
+from typing import Any
 
 from arazzo_generator.utils.logging import get_logger
 
@@ -12,8 +12,8 @@ class ArazzoComponentsBuilder:
 
     @staticmethod
     def create_action(
-        action_type: str, name: str, action_definition: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        action_type: str, name: str, action_definition: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create an action (success or failure) that complies with the Arazzo schema.
 
         Args:
@@ -29,7 +29,7 @@ class ArazzoComponentsBuilder:
         return action
 
     @staticmethod
-    def build_default_components() -> Dict[str, Any]:
+    def build_default_components() -> dict[str, Any]:
         """Build the default components section for an Arazzo specification.
 
         Returns:
@@ -39,9 +39,7 @@ class ArazzoComponentsBuilder:
 
         # Define common success actions
         success_actions = {
-            "default_success": ArazzoComponentsBuilder.create_action(
-                "end", "default_success", {}
-            )
+            "default_success": ArazzoComponentsBuilder.create_action("end", "default_success", {})
         }
 
         # Define comprehensive failure actions for common error scenarios
@@ -76,9 +74,7 @@ class ArazzoComponentsBuilder:
                     "retryLimit": 3,
                 },
             ),
-            "default_failure": ArazzoComponentsBuilder.create_action(
-                "end", "default_failure", {}
-            ),
+            "default_failure": ArazzoComponentsBuilder.create_action("end", "default_failure", {}),
         }
 
         components["components"]["successActions"] = success_actions

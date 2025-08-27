@@ -229,9 +229,7 @@ class TestArazzoValidator(unittest.TestCase):
                     # Missing name
                 }
             ],
-            "workflows": [
-                {"workflowId": "test_workflow", "steps": []}  # Empty steps array
-            ],
+            "workflows": [{"workflowId": "test_workflow", "steps": []}],  # Empty steps array
         }
 
         # Create validator with the test schema
@@ -252,17 +250,11 @@ class TestArazzoValidator(unittest.TestCase):
         # Check for specific error messages based on the actual format returned by the validator
         # The format is "path: message" where path is the JSON path to the error
         info_error = any("info" in error and "version" in error for error in errors)
-        source_error = any(
-            "sourceDescriptions/0" in error and "name" in error for error in errors
-        )
-        steps_error = any(
-            "workflows/0/steps" in error and "non-empty" in error for error in errors
-        )
+        source_error = any("sourceDescriptions/0" in error and "name" in error for error in errors)
+        steps_error = any("workflows/0/steps" in error and "non-empty" in error for error in errors)
 
         self.assertTrue(info_error, "No error found for missing version in info")
-        self.assertTrue(
-            source_error, "No error found for missing name in sourceDescriptions"
-        )
+        self.assertTrue(source_error, "No error found for missing name in sourceDescriptions")
         self.assertTrue(steps_error, "No error found for empty steps array")
 
     def test_validate_yaml_string(self):

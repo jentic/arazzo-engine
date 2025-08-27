@@ -1,7 +1,7 @@
 """Arazzo specification validator module."""
 
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any
 
 import jsonschema
 import requests
@@ -24,17 +24,14 @@ class ArazzoValidator:
     )
     ARAZZO_SCHEMA_VERSION = "1.0.1"  # Current schema version
     ARAZZO_SCHEMA_PATH = str(
-        Path(__file__).parent
-        / "arazzo_schema"
-        / ARAZZO_SCHEMA_VERSION
-        / "arazzo-schema.yaml"
+        Path(__file__).parent / "arazzo_schema" / ARAZZO_SCHEMA_VERSION / "arazzo-schema.yaml"
     )
 
     def __init__(self):
         """Initialize the Arazzo validator."""
         self.schema = None
 
-    def load_schema(self) -> Dict[str, Any]:
+    def load_schema(self) -> dict[str, Any]:
         """Load the Arazzo schema.
 
         Returns:
@@ -54,17 +51,12 @@ class ArazzoValidator:
             for version in schema_versions:
                 # Try the validator directory first
                 schema_path = (
-                    Path(__file__).parent
-                    / "arazzo_schema"
-                    / version
-                    / "arazzo-schema.yaml"
+                    Path(__file__).parent / "arazzo_schema" / version / "arazzo-schema.yaml"
                 )
                 if schema_path.exists():
-                    with open(schema_path, "r") as f:
+                    with open(schema_path) as f:
                         self.schema = yaml.safe_load(f)
-                    logger.info(
-                        f"Loaded Arazzo schema version {version} from validator directory"
-                    )
+                    logger.info(f"Loaded Arazzo schema version {version} from validator directory")
                     return self.schema
 
                 # Then try the design directory
@@ -76,17 +68,15 @@ class ArazzoValidator:
                     / "arazzo-schema.yaml"
                 )
                 if design_path.exists():
-                    with open(design_path, "r") as f:
+                    with open(design_path) as f:
                         self.schema = yaml.safe_load(f)
-                    logger.info(
-                        f"Loaded Arazzo schema version {version} from design directory"
-                    )
+                    logger.info(f"Loaded Arazzo schema version {version} from design directory")
                     return self.schema
 
             # If versioned schemas are not found, try the legacy non-versioned path
             legacy_path = Path(__file__).parents[3] / "design" / "arazzo-schema.yaml"
             if legacy_path.exists():
-                with open(legacy_path, "r") as f:
+                with open(legacy_path) as f:
                     self.schema = yaml.safe_load(f)
                 logger.info("Loaded Arazzo schema from legacy path")
                 return self.schema
@@ -96,16 +86,16 @@ class ArazzoValidator:
 
         try:
             # Fallback: Try to load the schema from the URL
-            response = requests.get(self.ARAZZO_SCHEMA_URL)
+            response = requests.get(self.ARAZZO_SCHEMA_URL, timeout=100)
             response.raise_for_status()
             self.schema = response.json()
             logger.info("Loaded Arazzo schema from URL")
             return self.schema
         except Exception as e:
             logger.warning(f"Failed to load Arazzo schema from URL: {e}")
-            raise ValueError("Failed to load Arazzo schema from local files or URL")
+            raise ValueError("Failed to load Arazzo schema from local files or URL") from e
 
-    def validate(self, arazzo_spec: Union[Dict[str, Any], str]) -> bool:
+    def validate(self, arazzo_spec: dict[str, Any] | str) -> bool:
         """Validate an Arazzo specification against the schema.
 
         Args:
@@ -135,9 +125,7 @@ class ArazzoValidator:
             logger.error(f"Arazzo specification validation failed: {e}")
             return False
 
-    def get_validation_errors(
-        self, arazzo_spec: Union[Dict[str, Any], str]
-    ) -> List[str]:
+    def get_validation_errors(self, arazzo_spec: dict[str, Any] | str) -> list[str]:
         """Get validation errors for an Arazzo specification.
 
         Args:

@@ -103,9 +103,7 @@ def create_workflow_dir(vendor_name):
     return workflow_dir
 
 
-def write_summary_entry(
-    summary_file, vendor, api, spec_path, output_path, status, duration
-):
+def write_summary_entry(summary_file, vendor, api, spec_path, output_path, status, duration):
     """Write a single summary entry to a CSV file.
 
     Args:
@@ -128,9 +126,7 @@ def write_summary_entry(
 
             # Escape any commas in the paths to avoid CSV issues
             spec_path_escaped = f'"{spec_path}"' if "," in spec_path else spec_path
-            output_path_escaped = (
-                f'"{output_path}"' if "," in output_path else output_path
-            )
+            output_path_escaped = f'"{output_path}"' if "," in output_path else output_path
             timestamp = datetime.now().isoformat()
 
             f.write(

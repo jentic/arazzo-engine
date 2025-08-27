@@ -5,7 +5,7 @@ class ArazzoError(Exception):
     """Base class for predictable generator-level failures."""
 
 
-class InvalidUserWorkflow(ArazzoError):
+class InvalidUserWorkflowError(ArazzoError):
     """Raised when the requested workflows cannot be built from the OpenAPI spec.
 
     Args:

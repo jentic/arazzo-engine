@@ -129,9 +129,7 @@ class TestArazzoComponentsBuilder(unittest.TestCase):
         # Check permission_denied action
         self.assertIn("permission_denied", failure_actions)
         self.assertEqual(failure_actions["permission_denied"]["type"], "end")
-        self.assertEqual(
-            failure_actions["permission_denied"]["name"], "permission_denied"
-        )
+        self.assertEqual(failure_actions["permission_denied"]["name"], "permission_denied")
         self.assertEqual(
             failure_actions["permission_denied"]["criteria"][0]["condition"],
             "$statusCode == 403",

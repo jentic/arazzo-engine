@@ -4,7 +4,7 @@ This module provides a REST API for generating Arazzo specifications from OpenAP
 """
 
 import re
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from arazzo_generator.generator.generator_service import generate_arazzo
 from arazzo_generator.utils.config import get_config
-from arazzo_generator.utils.exceptions import InvalidUserWorkflow, SpecValidationError
+from arazzo_generator.utils.exceptions import InvalidUserWorkflowError, SpecValidationError
 from arazzo_generator.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -50,22 +50,25 @@ class GenerateRequest(BaseModel):
     direct_llm: bool = Field(
         False, description="Enable direct LLM generation of Arazzo specification"
     )
-    api_key: Optional[str] = Field(None, description="API key for LLM service")
-    llm_model: Optional[str] = Field(
+    api_key: str | None = Field(None, description="API key for LLM service")
+    llm_model: str | None = Field(
         default=config.llm.llm_model,
         description="LLM model to use for analysis. If not provided, the default config model will be used.",
     )
-    llm_provider: Optional[str] = Field(
+    llm_provider: str | None = Field(
         default=config.llm.llm_provider,
         description="LLM provider to use. If not provided, the default config provider will be used.",
     )
-    workflow_descriptions: Optional[List[str]] = Field(
+    workflow_descriptions: list[str] | None = Field(
         None,
-        description=("Optional list of workflow descriptions (as strings) to guide the generator in creating specific workflows requested by the user. "
-                   "If provided, the generator will attempt to create only these workflows using the OpenAPI spec."),
+        description=(
+            "Optional list of workflow descriptions (as strings) to guide the generator in creating specific workflows requested by the user. "
+            "If provided, the generator will attempt to create only these workflows using the OpenAPI spec."
+        ),
     )
 
     @field_validator("url")
+    @classmethod
     def validate_url(cls, v):
         """Validate that the URL is a valid http, https, or file URL."""
         if not re.match(r"^(http|https|file)://", v):
@@ -76,23 +79,15 @@ class GenerateRequest(BaseModel):
 class GenerationResponse(BaseModel):
     """Response model for generation results."""
 
-    is_valid: bool = Field(
-        ..., description="Whether the generated Arazzo spec is valid"
-    )
-    validation_errors: List[str] = Field(
-        [], description="List of validation errors if not valid"
-    )
-    arazzo_spec: Dict[str, Any] = Field(
-        ..., description="The generated Arazzo specification"
-    )
-    content: str = Field(
-        ..., description="The serialized Arazzo specification (JSON or YAML)"
-    )
+    is_valid: bool = Field(..., description="Whether the generated Arazzo spec is valid")
+    validation_errors: list[str] = Field([], description="List of validation errors if not valid")
+    arazzo_spec: dict[str, Any] = Field(..., description="The generated Arazzo specification")
+    content: str = Field(..., description="The serialized Arazzo specification (JSON or YAML)")
     fallback_used: bool = Field(
         False,
         description="Whether fallback logic (retry without workflow_descriptions) was used",
     )
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None, description="Optional informational message about the generation process"
     )
 
@@ -112,17 +107,15 @@ async def generate_endpoint(request: GenerateRequest):
     """Generate an Arazzo specification from an OpenAPI specification URL."""
     try:
         # Call the service function
-        arazzo_spec, arazzo_content, is_valid, validation_errors, fallback_used = (
-            generate_arazzo(
-                url=str(request.url),
-                format=request.format,
-                validate_spec=request.validate_spec,
-                direct_llm=request.direct_llm,
-                api_key=request.api_key,
-                llm_model=request.llm_model,
-                llm_provider=request.llm_provider,
-                workflow_descriptions=request.workflow_descriptions,
-            )
+        arazzo_spec, arazzo_content, is_valid, validation_errors, fallback_used = generate_arazzo(
+            url=str(request.url),
+            format=request.format,
+            validate_spec=request.validate_spec,
+            direct_llm=request.direct_llm,
+            api_key=request.api_key,
+            llm_model=request.llm_model,
+            llm_provider=request.llm_provider,
+            workflow_descriptions=request.workflow_descriptions,
         )
 
         if not arazzo_spec:
@@ -152,18 +145,18 @@ async def generate_endpoint(request: GenerateRequest):
             ),
         )
 
-    except InvalidUserWorkflow as e:
+    except InvalidUserWorkflowError as e:
         logger.warning(f"Invalid user workflow requested: {e.requested_workflows}")
-        raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e)) from None
 
     except SpecValidationError as e:
         logger.error(f"Spec validation error: {e.errors}")
         raise HTTPException(
             status_code=400, detail={"message": str(e), "errors": e.errors}
-        )
+        ) from None
 
     except Exception as e:
         logger.error(f"Error generating Arazzo specification: {e}")
         raise HTTPException(
             status_code=500, detail=f"Error generating Arazzo specification: {e}"
-        )
+        ) from None

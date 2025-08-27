@@ -23,9 +23,7 @@ class TestLLMServiceFormatEndpoints:
                     ],
                     "request_body": {
                         "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/Pet"}
-                            }
+                            "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                         }
                     },
                     "responses": {
@@ -54,8 +52,7 @@ class TestLLMServiceFormatEndpoints:
         assert "content" in req_body
         assert "application/json" in req_body["content"]
         assert (
-            req_body["content"]["application/json"]["schema"]["$ref"]
-            == "#/components/schemas/Pet"
+            req_body["content"]["application/json"]["schema"]["$ref"] == "#/components/schemas/Pet"
         )
         # Check responses
         responses = formatted[0]["responses"]
@@ -105,9 +102,7 @@ class TestLLMServiceFormatEndpoints:
             }
         }
         formatted = json.loads(svc._format_endpoints_for_llm(endpoints))
-        assert formatted[0]["parameters"][0]["schema"] == {
-            "$ref": "#/components/schemas/Foo"
-        }
+        assert formatted[0]["parameters"][0]["schema"] == {"$ref": "#/components/schemas/Foo"}
 
     # Tests endpoint formatting for endpoints with request body as ref
     def test_format_endpoints_for_llm_request_body_as_ref(self):
@@ -121,9 +116,7 @@ class TestLLMServiceFormatEndpoints:
             }
         }
         formatted = json.loads(svc._format_endpoints_for_llm(endpoints))
-        assert formatted[0]["request_body"] == {
-            "$ref": "#/components/requestBodies/Baz"
-        }
+        assert formatted[0]["request_body"] == {"$ref": "#/components/requestBodies/Baz"}
 
     # Tests endpoint formatting for endpoints with no parameters or request body
     def test_format_endpoints_for_llm_no_parameters_or_request_body(self):
@@ -140,9 +133,7 @@ class TestLLMServiceFormatEndpoints:
             "/upload": {
                 "post": {
                     "request_body": {
-                        "content": {
-                            "multipart/form-data": {"schema": {"type": "string"}}
-                        }
+                        "content": {"multipart/form-data": {"schema": {"type": "string"}}}
                     },
                     "responses": {},
                 }
@@ -155,11 +146,7 @@ class TestLLMServiceFormatEndpoints:
     # Tests endpoint formatting for endpoints with empty content types
     def test_format_endpoints_for_llm_empty_content_types(self):
         svc = LiteLLMService(api_key="test-key")
-        endpoints = {
-            "/emptycontent": {
-                "post": {"request_body": {"content": {}}, "responses": {}}
-            }
-        }
+        endpoints = {"/emptycontent": {"post": {"request_body": {"content": {}}, "responses": {}}}}
         formatted = json.loads(svc._format_endpoints_for_llm(endpoints))
         # No content types, so content should be empty
         assert formatted[0]["request_body"]["content"] == {}
@@ -227,25 +214,23 @@ class TestLLMServiceFormatEndpoints:
         assert "level1" in formatted[0]["parameters"][0]["schema"]["properties"]
         assert (
             "level2"
-            in formatted[0]["parameters"][0]["schema"]["properties"]["level1"][
-                "properties"
-            ]
+            in formatted[0]["parameters"][0]["schema"]["properties"]["level1"]["properties"]
         )
         assert (
             "level3"
-            in formatted[0]["parameters"][0]["schema"]["properties"]["level1"][
-                "properties"
-            ]["level2"]["properties"]
+            in formatted[0]["parameters"][0]["schema"]["properties"]["level1"]["properties"][
+                "level2"
+            ]["properties"]
         )
         assert (
             "$ref"
-            in formatted[0]["parameters"][0]["schema"]["properties"]["level1"][
-                "properties"
-            ]["level2"]["properties"]["level3"]
+            in formatted[0]["parameters"][0]["schema"]["properties"]["level1"]["properties"][
+                "level2"
+            ]["properties"]["level3"]
         )
         assert (
-            formatted[0]["parameters"][0]["schema"]["properties"]["level1"][
+            formatted[0]["parameters"][0]["schema"]["properties"]["level1"]["properties"]["level2"][
                 "properties"
-            ]["level2"]["properties"]["level3"]["$ref"]
+            ]["level3"]["$ref"]
             == "#/components/schemas/DeepNested"
         )

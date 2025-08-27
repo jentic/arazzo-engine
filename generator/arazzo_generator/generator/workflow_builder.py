@@ -2,7 +2,7 @@
 
 import re
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any
 
 from Levenshtein import distance
 
@@ -15,9 +15,7 @@ logger = get_logger(__name__)
 class WorkflowBuilder:
     """Builds Arazzo workflows from identified workflows."""
 
-    def __init__(
-        self, endpoints: Dict[str, Dict[str, Any]], openapi_spec: Dict[str, Any] = None
-    ):
+    def __init__(self, endpoints: dict[str, dict[str, Any]], openapi_spec: dict[str, Any] = None):
         """Initialize the workflow builder.
 
         Args:
@@ -29,7 +27,7 @@ class WorkflowBuilder:
         self.step_id_map = {}
         self.workflow = None  # Store the original workflow
 
-    def create_workflow(self, workflow: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def create_workflow(self, workflow: dict[str, Any]) -> dict[str, Any] | None:
         """Create an Arazzo workflow from an identified workflow.
 
         Args:
@@ -50,9 +48,7 @@ class WorkflowBuilder:
         description = workflow.get("description", "")
         if not description:
             if workflow_type == "crud":
-                description = (
-                    f"CRUD operations for {workflow.get('resource', 'resource')}"
-                )
+                description = f"CRUD operations for {workflow.get('resource', 'resource')}"
             elif workflow_type == "auth":
                 description = "Authentication workflow"
             elif workflow_type == "process":
@@ -128,9 +124,7 @@ class WorkflowBuilder:
 
         return final_workflow
 
-    def _create_steps(
-        self, workflow: Dict[str, Any], arazzo_workflow: Dict[str, Any]
-    ) -> None:
+    def _create_steps(self, workflow: dict[str, Any], arazzo_workflow: dict[str, Any]) -> None:
         """Create steps for the Arazzo workflow.
 
         Args:
@@ -146,9 +140,7 @@ class WorkflowBuilder:
 
                 path, method = endpoint
                 if path not in self.endpoints or method not in self.endpoints[path]:
-                    logger.warning(
-                        f"Endpoint {method} {path} not found in OpenAPI spec"
-                    )
+                    logger.warning(f"Endpoint {method} {path} not found in OpenAPI spec")
                     continue
 
                 endpoint_data = self.endpoints[path][method]
@@ -191,8 +183,8 @@ class WorkflowBuilder:
 
     def _get_step_description(
         self,
-        operation: Dict[str, Any],
-        endpoint_data: Dict[str, Any],
+        operation: dict[str, Any],
+        endpoint_data: dict[str, Any],
         operation_id: str,
         method: str,
         path: str,
@@ -226,7 +218,7 @@ class WorkflowBuilder:
         return description
 
     def _add_operation_reference(
-        self, step: Dict[str, Any], operation_id: str, path: str, method: str
+        self, step: dict[str, Any], operation_id: str, path: str, method: str
     ) -> None:
         """Add operation reference to a step.
 
@@ -243,7 +235,7 @@ class WorkflowBuilder:
             encoded_path = encode_json_pointer(path)
             step["operationPath"] = f"openapi_source#/paths/{encoded_path}/{method}"
 
-    def _resolve_reference(self, ref: str) -> Dict[str, Any]:
+    def _resolve_reference(self, ref: str) -> dict[str, Any]:
         """Resolve a reference to its actual definition in the OpenAPI spec.
 
         Args:
@@ -260,9 +252,7 @@ class WorkflowBuilder:
                 # Extract component type and key from the reference
                 ref_parts = ref.split("/")
                 if len(ref_parts) >= 4:
-                    component_type = ref_parts[
-                        2
-                    ]  # 'parameters', 'schemas', 'requestBodies', etc.
+                    component_type = ref_parts[2]  # 'parameters', 'schemas', 'requestBodies', etc.
                     component_key = ref_parts[3]  # The specific component name
 
                     # First try to find the component in the full OpenAPI spec if available
@@ -273,7 +263,7 @@ class WorkflowBuilder:
                             return component_dict[component_key]
 
                     # Fallback: Try to find the component in the endpoints data
-                    for endpoint_path, endpoint_data in self.endpoints.items():
+                    for endpoint_data in self.endpoints.values():
                         # Some endpoints might have a 'components' field directly
                         if "components" in endpoint_data:
                             components = endpoint_data.get("components", {})
@@ -291,11 +281,11 @@ class WorkflowBuilder:
 
     def _add_step_parameters(
         self,
-        step: Dict[str, Any],
-        endpoint_data: Dict[str, Any],
-        operation: Dict[str, Any],
+        step: dict[str, Any],
+        endpoint_data: dict[str, Any],
+        operation: dict[str, Any],
         i: int,
-        workflow: Dict[str, Any],
+        workflow: dict[str, Any],
     ) -> None:
         """Add parameters to a step.
 
@@ -330,9 +320,7 @@ class WorkflowBuilder:
 
                 # Skip if we've already processed this parameter
                 if param_key in param_keys:
-                    logger.warning(
-                        f"Skipping duplicate parameter: {param_name} in {param_in}"
-                    )
+                    logger.warning(f"Skipping duplicate parameter: {param_name} in {param_in}")
                     continue
 
                 # Add to our tracking set
@@ -350,16 +338,12 @@ class WorkflowBuilder:
                         dep_output = dependency.get("output")
 
                         # Find the corresponding step by name
-                        for prev_i, prev_op in enumerate(
-                            workflow.get("operations", [])
-                        ):
+                        for prev_i, prev_op in enumerate(workflow.get("operations", [])):
                             if prev_i < i and prev_op.get("name") == dep_step:
                                 # Get the step ID from our mapping if it exists
                                 prev_op_name = prev_op.get("name")
                                 if prev_op_name in self.step_id_map:
-                                    prev_step_id = self.step_id_map[prev_op_name][
-                                        "step_id"
-                                    ]
+                                    prev_step_id = self.step_id_map[prev_op_name]["step_id"]
                                 else:
                                     # Fallback to to_kebab_case if not in mapping
                                     prev_step_id = f"{to_kebab_case(prev_op_name)}"
@@ -389,9 +373,7 @@ class WorkflowBuilder:
 
                                 # Only create the reference if the base output exists in the previous step's outputs
                                 if output_exists:
-                                    output_ref = (
-                                        f"$steps.{prev_step_id}.outputs.{dep_output}"
-                                    )
+                                    output_ref = f"$steps.{prev_step_id}.outputs.{dep_output}"
 
                                     parameters.append(
                                         {
@@ -437,11 +419,11 @@ class WorkflowBuilder:
 
     def _add_request_body(
         self,
-        step: Dict[str, Any],
-        endpoint_data: Dict[str, Any],
-        operation: Dict[str, Any],
+        step: dict[str, Any],
+        endpoint_data: dict[str, Any],
+        operation: dict[str, Any],
         i: int,
-        workflow: Dict[str, Any],
+        workflow: dict[str, Any],
     ) -> None:
         """Add request body to a step.
 
@@ -488,9 +470,7 @@ class WorkflowBuilder:
                 # First, check if any of the operation's inputs match the required properties
                 # or if there are explicit dependencies for any inputs
                 if "dependencies" in operation:
-                    for input_name, dependency in operation.get(
-                        "dependencies", {}
-                    ).items():
+                    for input_name, dependency in operation.get("dependencies", {}).items():
                         # Check if this input is in the required properties or is a known input
                         if input_name in required_props or input_name in operation.get(
                             "inputs", []
@@ -499,14 +479,10 @@ class WorkflowBuilder:
                             dep_output = dependency.get("output")
 
                             # Find the corresponding step by name
-                            for prev_i, prev_op in enumerate(
-                                workflow.get("operations", [])
-                            ):
+                            for prev_i, prev_op in enumerate(workflow.get("operations", [])):
                                 if prev_i < i and prev_op.get("name") == dep_step:
                                     # Create a step reference
-                                    prev_step_id = (
-                                        f"{to_kebab_case(prev_op.get('name'))}"
-                                    )
+                                    prev_step_id = f"{to_kebab_case(prev_op.get('name'))}"
 
                                     # Validate that the referenced output exists in the previous step's outputs
                                     prev_outputs = prev_op.get("outputs", [])
@@ -547,9 +523,8 @@ class WorkflowBuilder:
                 # R1
                 if schema and "properties" in schema:
                     for prop_name in required_props:
-                        if (
-                            prop_name not in constructed_body
-                            and prop_name in operation.get("inputs", [])
+                        if prop_name not in constructed_body and prop_name in operation.get(
+                            "inputs", []
                         ):
                             constructed_body[prop_name] = f"$inputs.{prop_name}"
                             dependencies_found = True
@@ -571,9 +546,7 @@ class WorkflowBuilder:
                     # Look for dependencies if this isn't the first operation
                     if i > 0 and "dependencies" in operation:
                         # Check for dependencies that might relate to the request body
-                        for input_name, dependency in operation.get(
-                            "dependencies", {}
-                        ).items():
+                        for input_name, dependency in operation.get("dependencies", {}).items():
                             # If this is a body-related input (simple heuristic)
                             if "body" in input_name.lower() or input_name in [
                                 "payload",
@@ -584,14 +557,10 @@ class WorkflowBuilder:
                                 dep_output = dependency.get("output")
 
                                 # Find the corresponding step by name
-                                for prev_i, prev_op in enumerate(
-                                    workflow.get("operations", [])
-                                ):
+                                for prev_i, prev_op in enumerate(workflow.get("operations", [])):
                                     if prev_i < i and prev_op.get("name") == dep_step:
                                         # Create a step reference
-                                        prev_step_id = (
-                                            f"{to_kebab_case(prev_op.get('name'))}"
-                                        )
+                                        prev_step_id = f"{to_kebab_case(prev_op.get('name'))}"
 
                                         # Validate that the referenced output exists in the previous step's outputs
                                         prev_outputs = prev_op.get("outputs", [])
@@ -615,7 +584,9 @@ class WorkflowBuilder:
 
                                         # Only create the reference if the base output exists in the previous step's outputs
                                         if output_exists:
-                                            payload_ref = f"$steps.{prev_step_id}.outputs.{dep_output}"
+                                            payload_ref = (
+                                                f"$steps.{prev_step_id}.outputs.{dep_output}"
+                                            )
 
                                             logger.debug(
                                                 f"Added request body dependency: {input_name} -> {payload_ref}"
@@ -645,7 +616,7 @@ class WorkflowBuilder:
                     }
 
     def _add_step_outputs(
-        self, step: Dict[str, Any], endpoint_data: Dict[str, Any], step_name: str
+        self, step: dict[str, Any], endpoint_data: dict[str, Any], step_name: str
     ) -> None:
         """Add outputs to a step.
 
@@ -663,7 +634,7 @@ class WorkflowBuilder:
         success_responses = []
         for code in responses.keys():
             # Convert to string and check if it starts with '2'
-            if isinstance(code, (str, int)) and str(code).startswith("2"):
+            if isinstance(code, str | int) and str(code).startswith("2"):
                 success_responses.append(code)
 
         if success_responses:
@@ -675,18 +646,14 @@ class WorkflowBuilder:
             for operation in self.workflow.get("operations", []):
                 if operation.get("name") == step["stepId"]:
                     original_outputs = operation.get("outputs", [])
-                    logger.debug(
-                        f"Found LLM outputs for step {step['stepId']}: {original_outputs}"
-                    )
+                    logger.debug(f"Found LLM outputs for step {step['stepId']}: {original_outputs}")
                     break
 
             # Extract response schema properties if available
             schema = self._extract_response_schema(responses, success_responses)
 
             # Extract response headers if available
-            response_headers = self._extract_response_headers(
-                responses, success_responses
-            )
+            response_headers = self._extract_response_headers(responses, success_responses)
             logger.debug(f"Extracted response headers: {response_headers}")
 
             # If LLM provided outputs, use those names and map to response properties
@@ -714,8 +681,8 @@ class WorkflowBuilder:
             step["outputs"] = outputs
 
     def _extract_response_schema(
-        self, responses: Dict[str, Any], success_codes: list
-    ) -> Dict[str, Any]:
+        self, responses: dict[str, Any], success_codes: list
+    ) -> dict[str, Any]:
         """Extract the response schema from the responses object.
 
         Args:
@@ -773,8 +740,8 @@ class WorkflowBuilder:
             return schema
 
     def _extract_response_headers(
-        self, responses: Dict[str, Any], success_codes: list
-    ) -> Dict[str, Any]:
+        self, responses: dict[str, Any], success_codes: list
+    ) -> dict[str, Any]:
         """Extract the response headers from the responses object.
 
         Args:
@@ -796,8 +763,8 @@ class WorkflowBuilder:
         return {}
 
     def _create_output_mappings(
-        self, output_names: list, schema: Dict[str, Any], headers: Dict[str, Any]
-    ) -> Dict[str, str]:
+        self, output_names: list, schema: dict[str, Any], headers: dict[str, Any]
+    ) -> dict[str, str]:
         """Create mappings from LLM output names to response property paths.
 
         Args:
@@ -816,9 +783,7 @@ class WorkflowBuilder:
         mappings = {}
 
         # Check if the response is an array
-        is_array_response = schema.get("type") == "array" and schema.get(
-            "is_array", False
-        )
+        is_array_response = schema.get("type") == "array" and schema.get("is_array", False)
 
         # Get the appropriate properties based on schema type
         if is_array_response and "item_properties" in schema:
@@ -834,22 +799,16 @@ class WorkflowBuilder:
 
         # Add headers to the flattened schema with their full paths
         header_schema = {}
-        for header_name, header_info in headers.items():
+        for header_name in headers:
             header_schema[header_name] = f"$response.headers.{header_name}"
 
         for output_item in output_names:
             # Handle both string outputs and detailed output format
-            if (
-                isinstance(output_item, dict)
-                and "name" in output_item
-                and "source" in output_item
-            ):
+            if isinstance(output_item, dict) and "name" in output_item and "source" in output_item:
                 output_name = output_item["name"]
                 output_source = output_item["source"].lower()
 
-                logger.debug(
-                    f"Processing detailed output: {output_name} from {output_source}"
-                )
+                logger.debug(f"Processing detailed output: {output_name} from {output_source}")
 
                 if output_source == "header":
                     # For header outputs, try to find a matching header
@@ -866,9 +825,7 @@ class WorkflowBuilder:
                             mappings[output_name] = f"$response.headers.{output_name}"
                 else:
                     # For body outputs, use the regular property matching
-                    property_path = self._find_best_property_match(
-                        output_name, flat_schema
-                    )
+                    property_path = self._find_best_property_match(output_name, flat_schema)
 
                     # If this is an array response and the property path doesn't already include an array index
                     if is_array_response and not any(
@@ -906,9 +863,7 @@ class WorkflowBuilder:
 
         return mappings
 
-    def _flatten_schema(
-        self, properties: Dict[str, Any], prefix: str = ""
-    ) -> Dict[str, str]:
+    def _flatten_schema(self, properties: dict[str, Any], prefix: str = "") -> dict[str, str]:
         """Flatten a nested schema into a dictionary of property paths.
 
         Args:
@@ -947,9 +902,7 @@ class WorkflowBuilder:
 
         return result
 
-    def _find_best_property_match(
-        self, output_name: str, flat_schema: Dict[str, str]
-    ) -> str:
+    def _find_best_property_match(self, output_name: str, flat_schema: dict[str, str]) -> str:
         """Find the best matching property in the schema for an output name.
 
         Args:
@@ -985,9 +938,7 @@ class WorkflowBuilder:
             max_len = max(len(output_name), len(prop_name))
             score = 1 - (distance_value / max_len) if max_len > 0 else 0
 
-            if (
-                score > best_score and score > 0.7
-            ):  # Higher threshold for more confidence
+            if score > best_score and score > 0.7:  # Higher threshold for more confidence
                 best_score = score
                 best_match = path
 
@@ -1011,7 +962,7 @@ class WorkflowBuilder:
         # Keeping as a placeholder in case we need to revert
         return 0.0
 
-    def _add_workflow_inputs(self, arazzo_workflow: Dict[str, Any]) -> None:
+    def _add_workflow_inputs(self, arazzo_workflow: dict[str, Any]) -> None:
         """Add inputs to the workflow based on parameters and request bodies.
 
         Args:
@@ -1038,21 +989,17 @@ class WorkflowBuilder:
                     if "requestBody" in step and "payload" in step["requestBody"]:
                         payload_ref = step["requestBody"]["payload"]
                         # Check if payload_ref is a string (simple reference) or a dict (structured body)
-                        if isinstance(payload_ref, str) and payload_ref.startswith(
-                            "$inputs."
-                        ):
+                        if isinstance(payload_ref, str) and payload_ref.startswith("$inputs."):
                             body_name = payload_ref[8:]  # Remove "$inputs." prefix
                             input_properties[body_name] = {"type": "object"}
                         elif isinstance(payload_ref, dict):
                             # For structured request bodies, we need to extract any input references
                             # and add them to the workflow inputs
-                            for field_name, field_value in payload_ref.items():
-                                if isinstance(
-                                    field_value, str
-                                ) and field_value.startswith("$inputs."):
-                                    input_name = field_value[
-                                        8:
-                                    ]  # Remove "$inputs." prefix
+                            for field_value in payload_ref.values():
+                                if isinstance(field_value, str) and field_value.startswith(
+                                    "$inputs."
+                                ):
+                                    input_name = field_value[8:]  # Remove "$inputs." prefix
                                     input_properties[input_name] = {"type": "string"}
                             # Skip creating a single input for the entire body
                             continue
@@ -1069,7 +1016,7 @@ class WorkflowBuilder:
                 "properties": input_properties,
             }
 
-    def _add_workflow_outputs(self, arazzo_workflow: Dict[str, Any]) -> None:
+    def _add_workflow_outputs(self, arazzo_workflow: dict[str, Any]) -> None:
         """Add outputs to the workflow based on step outputs.
 
         Args:
@@ -1080,7 +1027,7 @@ class WorkflowBuilder:
         # Collect outputs from all steps
         for step in arazzo_workflow["steps"]:
             step_outputs = step.get("outputs", {})
-            for output_name, output_value in step_outputs.items():
+            for output_name in step_outputs:
                 # Format the reference in a way that ensures it stays on one line
                 reference = f"$steps.{step['stepId']}.outputs.{output_name}"
                 outputs[output_name] = reference

@@ -125,9 +125,7 @@ steps:
                 {"stepId": "step1", "outputs": {"output1": "$response.body"}},
                 {
                     "stepId": "step2",
-                    "parameters": [
-                        {"name": "param1", "value": "$steps.step1.outputs.output1"}
-                    ],
+                    "parameters": [{"name": "param1", "value": "$steps.step1.outputs.output1"}],
                 },
             ]
         }
@@ -139,9 +137,7 @@ steps:
         self.assertIn('"$steps.step1.outputs.output1"', yaml_str)
 
         # Verify that the dumper works with nested references
-        data["steps"][1]["parameters"][0][
-            "value"
-        ] = "$steps.step1.outputs.output1.nested.property"
+        data["steps"][1]["parameters"][0]["value"] = "$steps.step1.outputs.output1.nested.property"
         yaml_str = yaml.dump(data, Dumper=NoWrapSafeDumper)
         self.assertIn('"$steps.step1.outputs.output1.nested.property"', yaml_str)
 
