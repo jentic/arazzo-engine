@@ -95,7 +95,7 @@ class ParameterProcessor:
             # Handle blob references
             if isinstance(value, dict) and "blob_ref" in value:
                 processed_payload[key] = self._rehydrate_blob_reference(value, key)
-            elif isinstance(value, (bytes, bytearray)):
+            elif isinstance(value, bytes | bytearray):
                 logger.debug(f"Wrapping binary data in field '{key}' for multipart upload.")
                 processed_payload[key] = {
                     "content": value,
@@ -105,7 +105,7 @@ class ParameterProcessor:
             else:
                 # If the value is a dict/list (e.g., payload_json requires a JSON string),
                 # serialize it so that the form field contains a proper JSON string.
-                if isinstance(value, (dict, list)):
+                if isinstance(value, dict | list):
                     try:
                         processed_payload[key] = json.dumps(value, separators=(",", ":"))
                     except (TypeError, ValueError):
@@ -160,7 +160,7 @@ class ParameterProcessor:
                             # Return JSON-compatible value or string representation
                             if value is None:
                                 return "null"
-                            elif isinstance(value, (dict, list)):
+                            elif isinstance(value, (dict | list)):
                                 # Keep actual data structure for direct inclusion in JSON
                                 try:
                                     # First try to stringify to ensure it's JSON-safe
@@ -286,7 +286,7 @@ class ParameterProcessor:
 
         # Handle replacements
         replacements = request_body.get("replacements", [])
-        if replacements and isinstance(payload, (dict, list)):
+        if replacements and isinstance(payload, dict | list):
             for replacement in replacements:
                 target = replacement.get("target")
                 value = replacement.get("value")
@@ -471,7 +471,7 @@ class ParameterProcessor:
                     # If we detect a file upload (bytes or blob_ref) we must choose multipart/form-data
                     contains_file = False
                     for _k, _v in payload_dict.items():
-                        if isinstance(_v, (bytes, bytearray)):
+                        if isinstance(_v, bytes | bytearray):
                             contains_file = True
                             break
                         if isinstance(_v, dict) and ("content" in _v or "blob_ref" in _v):
