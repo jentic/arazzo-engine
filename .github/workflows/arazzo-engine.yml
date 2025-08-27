@@ -65,6 +65,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Static Analysis runner
-        if: ${{ needs.detect-changes.outputs.runner == 'true' }}
+        if: ${{ needs.detect-changes.outputs.runner == 'true' && matrix.python-version == '3.11' }}
         uses: ./.github/actions/arazzo-runner/static-analysis/action.yml
 
