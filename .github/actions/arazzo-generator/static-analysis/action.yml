@@ -26,5 +26,5 @@ runs:
     - name: Typecheck code
       shell: bash
       run: pdm run typecheck
-      working-directory: ./runner
+      working-directory: ./generator
       continue-on-error: true
