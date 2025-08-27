@@ -1,0 +1,31 @@
+name: Arazzo Runner Tests
+
+inputs:
+  python-version:
+    description: Python version to use (e.g. 3.11)
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install PDM
+      shell: bash
+      run: pip install pdm
+      working-directory: runner
+
+    - name: Install dependencies
+      shell: bash
+      run: pdm install
+      working-directory: runner
+
+    - name: Run tests
+      shell: bash
+      run: pdm run test
+      working-directory: runner
