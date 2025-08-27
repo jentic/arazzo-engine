@@ -40,6 +40,8 @@ jobs:
       - name: sentinel
         run: echo "generator check"
 
+      - uses: actions/checkout@v4
+
       - name: Test generator
         if: ${{ needs.detect-changes.outputs.generator == 'true' }}
         uses: ./.github/actions/arazzo-generator/test/action.yml
@@ -57,6 +59,8 @@ jobs:
       # Always run at least one step so the job posts a success check
       - name: sentinel
         run: echo "runner check"
+
+      - uses: actions/checkout@v4
 
       - name: Test runner
         if: ${{ needs.detect-changes.outputs.runner == 'true' }}
