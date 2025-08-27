@@ -13,6 +13,11 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - name: Install PDM
+      shell: bash
+      run: pip install pdm
+      working-directory: ./runner
+
     - name: Install dependencies
       shell: bash
       run: pdm install

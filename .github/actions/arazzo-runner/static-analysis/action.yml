@@ -8,6 +8,11 @@ runs:
       with:
         python-version: 3.11
 
+    - name: Install PDM
+      shell: bash
+      run: pip install pdm
+      working-directory: ./runner
+
     - name: Install dependencies
       shell: bash
       run: pdm install
