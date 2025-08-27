@@ -62,22 +62,13 @@ jobs:
 
       - uses: actions/checkout@v5
 
-      - name: Debug - List action directories
-        run: |
-          echo "Checking if action directories exist:"
-          ls -la .github/actions/
-          echo "Checking arazzo-runner structure:"
-          ls -la .github/actions/arazzo-runner/ || echo "arazzo-runner directory not found"
-          echo "Checking for test action:"
-          ls -la .github/actions/arazzo-runner/test/ || echo "test directory not found"
-
       - name: Test runner
         if: ${{ needs.detect-changes.outputs.runner == 'true' }}
-        uses: ./.github/actions/arazzo-runner/test/action.yml
+        uses: ./.github/actions/arazzo-runner/test
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Static Analysis runner
         if: ${{ needs.detect-changes.outputs.runner == 'true' && matrix.python-version == '3.11' }}
-        uses: ./.github/actions/arazzo-runner/static-analysis/action.yml
+        uses: ./.github/actions/arazzo-runner/static-analysis
 

@@ -8,8 +8,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v5
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
