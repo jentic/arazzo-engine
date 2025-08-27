@@ -5,7 +5,6 @@ Batch processor for generating Arazzo workflows from multiple OpenAPI specificat
 import os
 import time
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from arazzo_generator.generator.generator_service import generate_arazzo
 from arazzo_generator.utils.config import get_config, get_project_root
@@ -19,10 +18,10 @@ class BatchProcessor:
 
     def __init__(
         self,
-        llm_provider: Optional[str] = None,
-        llm_model: Optional[str] = None,
-        logs_dir: Optional[str] = None,
-        summary_file: Optional[str] = None,
+        llm_provider: str | None = None,
+        llm_model: str | None = None,
+        logs_dir: str | None = None,
+        summary_file: str | None = None,
         max_retries: int = 3,
         save_logs: bool = True,
         output_format: str = "json",
@@ -89,15 +88,11 @@ class BatchProcessor:
                 # Create the summary directory if it doesn't exist
                 os.makedirs(summary_dir, exist_ok=True)
 
-                self.summary_file = os.path.join(
-                    summary_dir, f"batch_summary_{timestamp}.csv"
-                )
+                self.summary_file = os.path.join(summary_dir, f"batch_summary_{timestamp}.csv")
             else:
                 self.summary_file = self._summary_file_param
                 # Ensure the directory exists for custom summary file paths too
-                os.makedirs(
-                    os.path.dirname(os.path.abspath(self.summary_file)), exist_ok=True
-                )
+                os.makedirs(os.path.dirname(os.path.abspath(self.summary_file)), exist_ok=True)
 
             self.logger.info(f"Summary will be written to: {self.summary_file}")
 
@@ -154,9 +149,7 @@ class BatchProcessor:
             )
 
             if arazzo_content is None or not is_valid:
-                logger.error(
-                    f"Failed to generate valid Arazzo workflow for {openapi_path}"
-                )
+                logger.error(f"Failed to generate valid Arazzo workflow for {openapi_path}")
                 if validation_errors:
                     logger.error(f"Validation errors: {validation_errors}")
                 return False
@@ -169,19 +162,15 @@ class BatchProcessor:
             self.logger.info(f"Successfully generated Arazzo workflow: {output_path}")
 
             if not is_valid and validation_errors:
-                logger.warning(
-                    f"Generated workflow has validation issues: {validation_errors}"
-                )
+                logger.warning(f"Generated workflow has validation issues: {validation_errors}")
 
             return True
 
         except Exception as e:
-            logger.error(
-                f"Error generating Arazzo workflow for {openapi_path}: {str(e)}"
-            )
+            logger.error(f"Error generating Arazzo workflow for {openapi_path}: {str(e)}")
             return False
 
-    def _extract_vendor_api_from_path(self, spec_path: str) -> Tuple[str, str]:
+    def _extract_vendor_api_from_path(self, spec_path: str) -> tuple[str, str]:
         """Extract vendor and API name from path."""
         path_parts = spec_path.split(os.sep)
         vendor_index = path_parts.index("openapi") + 1
@@ -210,9 +199,7 @@ class BatchProcessor:
 
         # Extract vendor and api names from path
         filename = os.path.basename(spec_path)
-        vendor_name = filename.split(".")[
-            0
-        ]  # e.g., "discord.openapi.json" -> "discord"
+        vendor_name = filename.split(".")[0]  # e.g., "discord.openapi.json" -> "discord"
         api_name = "main"  # Default for single files
 
         if not os.path.exists(spec_path):
@@ -265,9 +252,7 @@ class BatchProcessor:
         except Exception as e:
             success = False
             error_message = str(e)
-            self.logger.error(
-                f"Unexpected error processing {spec_path}: {error_message}"
-            )
+            self.logger.error(f"Unexpected error processing {spec_path}: {error_message}")
 
         # Create summary data
         summary_data = {
@@ -282,9 +267,7 @@ class BatchProcessor:
 
         return success, summary_data
 
-    def process_all(
-        self, force: bool = False, delay_between_specs: int = 0
-    ) -> Tuple[int, int]:
+    def process_all(self, force: bool = False, delay_between_specs: int = 0) -> tuple[int, int]:
         """
         Process all OpenAPI specifications.
 
@@ -310,8 +293,8 @@ class BatchProcessor:
         return self.process_spec_list(spec_files, force, delay_between_specs)
 
     def process_spec_list(
-        self, spec_list: List[str], force: bool = False, delay_between_specs: int = 20
-    ) -> Tuple[int, int]:
+        self, spec_list: list[str], force: bool = False, delay_between_specs: int = 20
+    ) -> tuple[int, int]:
         """
         Process OpenAPI specifications from a list of paths.
 
@@ -358,9 +341,7 @@ class BatchProcessor:
 
             # Add delay between specs (except for the last one)
             if i < len(spec_list) - 1 and delay_between_specs > 0:
-                self.logger.info(
-                    f"Waiting {delay_between_specs}s before next file..."
-                )
+                self.logger.info(f"Waiting {delay_between_specs}s before next file...")
                 time.sleep(delay_between_specs)
 
         self.logger.info(

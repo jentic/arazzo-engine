@@ -1,7 +1,7 @@
 """Serialization utilities for Arazzo specifications."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 
@@ -15,7 +15,7 @@ class ArazzoSerializer:
     """Handles serialization of Arazzo specifications to YAML and JSON formats."""
 
     @staticmethod
-    def to_yaml(arazzo_spec: Dict[str, Any]) -> str:
+    def to_yaml(arazzo_spec: dict[str, Any]) -> str:
         """Convert the Arazzo specification to YAML.
 
         Args:
@@ -43,7 +43,7 @@ class ArazzoSerializer:
         return fixed_yaml
 
     @staticmethod
-    def to_json(arazzo_spec: Dict[str, Any]) -> str:
+    def to_json(arazzo_spec: dict[str, Any]) -> str:
         """Convert the Arazzo specification to JSON.
 
         Args:
@@ -62,9 +62,7 @@ class ArazzoSerializer:
         return json_str
 
     @staticmethod
-    def get_arazzo_in_target_format(
-        arazzo_spec: Dict[str, Any], target_format: str = "json"
-    ):
+    def get_arazzo_in_target_format(arazzo_spec: dict[str, Any], target_format: str = "json"):
         if target_format == "yaml":
             return ArazzoSerializer.to_yaml(arazzo_spec)
         elif target_format == "json":

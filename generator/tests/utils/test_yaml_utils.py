@@ -1,7 +1,6 @@
 """Tests for the yaml_utils module."""
 
 import unittest
-from unittest.mock import MagicMock
 
 import yaml
 
@@ -33,7 +32,7 @@ class TestFixOutputReferences(unittest.TestCase):
               user:
                 id: 123
                 name: test
-        
+
         value: $steps.step1.outputs.user.id
         """
         result = fix_output_references(yaml_content)
@@ -56,7 +55,7 @@ class TestFixOutputReferences(unittest.TestCase):
           step2:
             outputs:
               result: success
-    
+
         user_id: $steps.step1.outputs.user.id
         status: $steps.step2.outputs.result
         """
@@ -79,14 +78,12 @@ class TestFixOutputReferences(unittest.TestCase):
                 user:
                   profile:
                     id: 123
-    
+
         user_id: $steps.complex_step.outputs.data.user.profile.id
         """
         result = fix_output_references(yaml_content)
         # Verify the reference is present
-        self.assertIn(
-            "user_id: $steps.complex_step.outputs.data.user.profile.id", result
-        )
+        self.assertIn("user_id: $steps.complex_step.outputs.data.user.profile.id", result)
         # Verify the rest of the YAML is preserved
         self.assertIn("id: 123", result)
         self.assertIn("profile:", result)

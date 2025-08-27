@@ -50,18 +50,14 @@ class TestArazzoGenerator(unittest.TestCase):
                     "requestBody": {
                         "description": "Pet to add to the store",
                         "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/Pet"}
-                            }
+                            "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                         },
                     },
                     "responses": {
                         "201": {
                             "description": "Pet created",
                             "content": {
-                                "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/Pet"}
-                                }
+                                "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                             },
                         }
                     },
@@ -86,9 +82,7 @@ class TestArazzoGenerator(unittest.TestCase):
                         "200": {
                             "description": "Pet found",
                             "content": {
-                                "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/Pet"}
-                                }
+                                "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                             },
                         }
                     },
@@ -110,18 +104,14 @@ class TestArazzoGenerator(unittest.TestCase):
                     "requestBody": {
                         "description": "Pet to update",
                         "content": {
-                            "application/json": {
-                                "schema": {"$ref": "#/components/schemas/Pet"}
-                            }
+                            "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                         },
                     },
                     "responses": {
                         "200": {
                             "description": "Pet updated",
                             "content": {
-                                "application/json": {
-                                    "schema": {"$ref": "#/components/schemas/Pet"}
-                                }
+                                "application/json": {"schema": {"$ref": "#/components/schemas/Pet"}}
                             },
                         }
                     },
@@ -270,9 +260,7 @@ class TestArazzoGenerator(unittest.TestCase):
 
     def test_generate_no_workflows(self):
         """Test generate method with no workflows."""
-        generator = ArazzoGenerator(
-            [], "https://example.com/openapi.json", self.endpoints
-        )
+        generator = ArazzoGenerator([], "https://example.com/openapi.json", self.endpoints)
         result = generator.generate()
         self.assertIsNone(result)
 
@@ -307,9 +295,7 @@ class TestArazzoGenerator(unittest.TestCase):
                             }
                         ],
                         "outputs": {"pet_details": "$response.body"},
-                        "dependencies": [
-                            {"condition": "$steps.list-pets.status == 'success'"}
-                        ],
+                        "dependencies": [{"condition": "$steps.list-pets.status == 'success'"}],
                     },
                     {
                         "stepId": "update-pet",
@@ -325,9 +311,7 @@ class TestArazzoGenerator(unittest.TestCase):
                             "payload": "$steps.get-pet.outputs.pet_details",
                         },
                         "outputs": {"updated_pet": "$response.body"},
-                        "dependencies": [
-                            {"condition": "$steps.get-pet.status == 'success'"}
-                        ],
+                        "dependencies": [{"condition": "$steps.get-pet.status == 'success'"}],
                     },
                 ],
                 "inputs": {
@@ -359,9 +343,7 @@ class TestArazzoGenerator(unittest.TestCase):
         result = generator.generate()
 
         # Verify that WorkflowBuilder was initialized correctly
-        mock_workflow_builder_class.assert_called_once_with(
-            self.endpoints, self.openapi_spec
-        )
+        mock_workflow_builder_class.assert_called_once_with(self.endpoints, self.openapi_spec)
 
         # Verify that create_workflow was called for each workflow
         self.assertEqual(mock_workflow_builder.create_workflow.call_count, 2)
@@ -371,13 +353,9 @@ class TestArazzoGenerator(unittest.TestCase):
         # Verify the result
         self.assertIsNotNone(result)
         self.assertEqual(result["arazzo"], "1.0.1")
-        self.assertEqual(
-            result["info"]["title"], "Jentic Generated Arazzo Specification"
-        )
+        self.assertEqual(result["info"]["title"], "Jentic Generated Arazzo Specification")
         self.assertEqual(len(result["sourceDescriptions"]), 1)
-        self.assertEqual(
-            result["sourceDescriptions"][0]["url"], "https://example.com/openapi.json"
-        )
+        self.assertEqual(result["sourceDescriptions"][0]["url"], "https://example.com/openapi.json")
         self.assertEqual(len(result["workflows"]), 1)  # Only one valid workflow
         self.assertEqual(result["workflows"][0]["workflowId"], "pet-management")
         self.assertIn("components", result)
@@ -750,9 +728,7 @@ class TestArazzoGenerator(unittest.TestCase):
                     "endpoints": [["/pets/{petId}", "get"]],
                     "inputs": ["petId"],
                     "outputs": ["pet"],
-                    "dependencies": {
-                        "petId": {"step": "list_pets", "output": "pets[0].id"}
-                    },
+                    "dependencies": {"petId": {"step": "list_pets", "output": "pets[0].id"}},
                 },
             ],
         }
@@ -842,17 +818,13 @@ class TestArazzoGenerator(unittest.TestCase):
 
         # Verify that the Arazzo specification has the correct properties
         self.assertEqual(result["arazzo"], "1.0.1")
-        self.assertEqual(
-            result["info"]["title"], "Jentic Generated Arazzo Specification"
-        )
+        self.assertEqual(result["info"]["title"], "Jentic Generated Arazzo Specification")
         self.assertEqual(result["info"]["version"], "1.0.0")
 
         # Verify that the source descriptions are correct
         self.assertEqual(len(result["sourceDescriptions"]), 1)
         self.assertEqual(result["sourceDescriptions"][0]["name"], "openapi_source")
-        self.assertEqual(
-            result["sourceDescriptions"][0]["url"], "https://example.com/openapi.json"
-        )
+        self.assertEqual(result["sourceDescriptions"][0]["url"], "https://example.com/openapi.json")
         self.assertEqual(result["sourceDescriptions"][0]["type"], "openapi")
 
         # Verify that the components section exists

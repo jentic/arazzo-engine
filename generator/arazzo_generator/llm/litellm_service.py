@@ -5,20 +5,19 @@ import json
 import os
 import pathlib
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import litellm
 from litellm import completion
 
 from ..utils.config import get_config
-from ..utils.logging import (get_logger, log_llm_prompt, log_llm_response,
-                             setup_log_directory)
+from ..utils.logging import get_logger, log_llm_prompt, log_llm_response, setup_log_directory
 
 
 # Custom JSON encoder to handle datetime objects
 class DateTimeEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, (datetime.date, datetime.datetime)):
+        if isinstance(obj, (datetime.date | datetime.datetime)):
             return obj.isoformat()
         return super().default(obj)
 
@@ -36,10 +35,10 @@ class LiteLLMService:
     def __init__(
         self,
         # Default to None to indicate we'll use config values
-        llm_model: Optional[str] = None,
-        api_key: Optional[str] = None,
-        llm_provider: Optional[str] = None,
-        temperature: Optional[float] = None,
+        llm_model: str | None = None,
+        api_key: str | None = None,
+        llm_provider: str | None = None,
+        temperature: float | None = None,
     ):
         """Initialize the LiteLLM service.
 
@@ -188,19 +187,19 @@ class LiteLLMService:
             except Exception as e:
                 logger.warning(f"Request failed for model {model}: {str(e)}")
                 if model == models_to_try[-1]:  # Last model in list
-                    raise Exception(f"All models failed. Last error: {str(e)}")
+                    raise Exception(f"All models failed. Last error: {str(e)}") from e
                 continue
 
     def analyze_endpoints(
         self,
-        endpoints: Dict[str, Dict[str, Any]],
-        schemas: Dict[str, Any],
-        parameters: Dict[str, Any],
-        responses: Dict[str, Any],
-        request_bodies: Dict[str, Any],
-        spec: Dict[str, Any] = None,
-        user_workflow_descriptions: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
+        endpoints: dict[str, dict[str, Any]],
+        schemas: dict[str, Any],
+        parameters: dict[str, Any],
+        responses: dict[str, Any],
+        request_bodies: dict[str, Any],
+        spec: dict[str, Any] = None,
+        user_workflow_descriptions: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Analyze endpoints to identify workflows.
 
         Args:
@@ -270,7 +269,7 @@ class LiteLLMService:
             logger.error(f"Error in LLM workflow analysis: {str(e)}")
             return []
 
-    def _format_endpoints_for_llm(self, endpoints: Dict[str, Dict[str, Any]]) -> str:
+    def _format_endpoints_for_llm(self, endpoints: dict[str, dict[str, Any]]) -> str:
         """Format endpoints in a readable format for the LLM.
 
         Args:
@@ -296,9 +295,7 @@ class LiteLLMService:
                         param_copy = param.copy()
                         if "schema" in param_copy and "$ref" in param_copy["schema"]:
                             # Keep only the schema reference
-                            param_copy["schema"] = {
-                                "$ref": param_copy["schema"]["$ref"]
-                            }
+                            param_copy["schema"] = {"$ref": param_copy["schema"]["$ref"]}
                         parameters.append(param_copy)
 
                 # Process request body (preserve refs)
@@ -310,9 +307,7 @@ class LiteLLMService:
                     request_body = {"$ref": orig_request_body["$ref"]}
                 elif "content" in orig_request_body:
                     # Copy the request body structure
-                    request_body = {
-                        k: v for k, v in orig_request_body.items() if k != "content"
-                    }
+                    request_body = {k: v for k, v in orig_request_body.items() if k != "content"}
                     content = {}
 
                     # Extract just the JSON content type if available, otherwise use first available
@@ -344,9 +339,7 @@ class LiteLLMService:
                         responses[status] = {"$ref": response["$ref"]}
                     elif "content" in response:
                         # Copy the response structure
-                        responses[status] = {
-                            k: v for k, v in response.items() if k != "content"
-                        }
+                        responses[status] = {k: v for k, v in response.items() if k != "content"}
                         content = {}
 
                         # Extract just one content type (prefer JSON)
@@ -360,10 +353,7 @@ class LiteLLMService:
                         if content_type:
                             content_obj = response["content"][content_type]
                             # Check if schema has a reference and preserve it
-                            if (
-                                "schema" in content_obj
-                                and "$ref" in content_obj["schema"]
-                            ):
+                            if "schema" in content_obj and "$ref" in content_obj["schema"]:
                                 content[content_type] = {
                                     "schema": {"$ref": content_obj["schema"]["$ref"]}
                                 }
@@ -406,7 +396,7 @@ class LiteLLMService:
                 )
             return json.dumps(simplified_endpoints, indent=2)
 
-    def _extract_api_metadata(self, spec: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_api_metadata(self, spec: dict[str, Any]) -> dict[str, Any]:
         """Extract key metadata from the OpenAPI specification.
 
         Args:
@@ -431,9 +421,7 @@ class LiteLLMService:
 
         return metadata
 
-    def _format_user_workflow_section(
-        self, user_workflow_descriptions: Optional[List[str]]
-    ) -> str:
+    def _format_user_workflow_section(self, user_workflow_descriptions: list[str] | None) -> str:
         """Formats the user-requested workflow descriptions into a string section for the prompt.
 
         Args:
@@ -446,40 +434,32 @@ class LiteLLMService:
             return ""
 
         # Format the list of descriptions
-        formatted_descriptions_list = "\n".join(
-            f"- {desc}" for desc in user_workflow_descriptions
-        )
+        formatted_descriptions_list = "\n".join(f"- {desc}" for desc in user_workflow_descriptions)
 
         # Read the template file
         prompt_file = (
-            pathlib.Path(__file__).parent
-            / "prompts"
-            / "user_workflow_instructions.prompt"
+            pathlib.Path(__file__).parent / "prompts" / "user_workflow_instructions.prompt"
         )
         try:
-            with open(prompt_file, "r") as f:
+            with open(prompt_file) as f:
                 prompt_template = f.read()
 
             # Replace the placeholder with the formatted list
-            return prompt_template.replace(
-                "{formatted_descriptions}", formatted_descriptions_list
-            )
+            return prompt_template.replace("{formatted_descriptions}", formatted_descriptions_list)
         except FileNotFoundError:
-            logger.error(
-                f"User workflow instructions prompt file not found: {prompt_file}"
-            )
+            logger.error(f"User workflow instructions prompt file not found: {prompt_file}")
             # Fallback or raise an error if the template is crucial
             return ""  # Return empty string on error for now
 
     def _build_endpoint_analysis_prompt(
         self,
         formatted_endpoints: str,
-        schemas: Dict[str, Any],
-        parameters: Dict[str, Any],
-        responses: Dict[str, Any],
-        request_bodies: Dict[str, Any],
-        metadata: Dict[str, Any] = None,
-        user_workflow_descriptions: Optional[List[str]] = None,
+        schemas: dict[str, Any],
+        parameters: dict[str, Any],
+        responses: dict[str, Any],
+        request_bodies: dict[str, Any],
+        metadata: dict[str, Any] = None,
+        user_workflow_descriptions: list[str] | None = None,
     ) -> str:
         """Build a prompt for endpoint analysis.
 
@@ -509,18 +489,14 @@ class LiteLLMService:
 
         # Get the formatted user workflow section using the helper method
         logger.info(f"Workflow descriptions received: {user_workflow_descriptions}")
-        workflow_section = self._format_user_workflow_section(
-            user_workflow_descriptions
-        )
+        workflow_section = self._format_user_workflow_section(user_workflow_descriptions)
 
         # Get the prompt template file path
-        prompt_file = (
-            pathlib.Path(__file__).parent / "prompts" / "endpoint_analysis.prompt"
-        )
+        prompt_file = pathlib.Path(__file__).parent / "prompts" / "endpoint_analysis.prompt"
 
         try:
             # Read the prompt template
-            with open(prompt_file, "r") as f:
+            with open(prompt_file) as f:
                 prompt_template = f.read()
 
             # Use safe string replace instead of format to avoid issues with JSON examples
@@ -538,9 +514,7 @@ class LiteLLMService:
             return prompt
 
         except FileNotFoundError:
-            logger.warning(
-                f"Prompt file not found: {prompt_file}. Using fallback prompt."
-            )
+            logger.warning(f"Prompt file not found: {prompt_file}. Using fallback prompt.")
             # Fallback to a basic prompt if file not found
             metadata_section = ""
             if metadata:
@@ -558,7 +532,7 @@ Schema definitions: {formatted_schemas}
 Return a JSON array of workflow definitions with: name, description, type, operations (with name and endpoints), and rank (1-10).
 """
 
-    def _parse_workflow_response(self, response: str) -> List[Dict[str, Any]]:
+    def _parse_workflow_response(self, response: str) -> list[dict[str, Any]]:
         """Parse the LLM response for workflow analysis.
 
         Args:
@@ -601,19 +575,13 @@ Return a JSON array of workflow definitions with: name, description, type, opera
             # Basic cleanup of common JSON formatting issues
             json_str = json_str.replace("\\'", "'")  # Fix escaped single quotes
             json_str = json_str.replace('\\"', '"')  # Fix escaped double quotes
-            json_str = re.sub(
-                r",\s*\]", "]", json_str
-            )  # Remove trailing commas in arrays
-            json_str = re.sub(
-                r",\s*}", "}", json_str
-            )  # Remove trailing commas in objects
+            json_str = re.sub(r",\s*\]", "]", json_str)  # Remove trailing commas in arrays
+            json_str = re.sub(r",\s*}", "}", json_str)  # Remove trailing commas in objects
 
             # First attempt: Try to parse the entire JSON array
             try:
                 workflows = json.loads(json_str)
-                logger.debug(
-                    f"Successfully parsed complete JSON, found {len(workflows)} workflows"
-                )
+                logger.debug(f"Successfully parsed complete JSON, found {len(workflows)} workflows")
 
                 # Process workflows to ensure they have the required fields
                 processed_workflows = self._process_workflows(workflows)
@@ -623,9 +591,7 @@ Return a JSON array of workflow definitions with: name, description, type, opera
                 logger.warning(f"Failed to parse full JSON: {e}")
 
                 # Second attempt: Try to recover by parsing individual workflows
-                logger.info(
-                    "Attempting to recover by parsing individual complete workflows..."
-                )
+                logger.info("Attempting to recover by parsing individual complete workflows...")
                 workflows = self._recover_workflows_from_malformed_json(json_str)
 
                 if workflows:
@@ -639,13 +605,11 @@ Return a JSON array of workflow definitions with: name, description, type, opera
                     logger.error("Could not recover any workflows from JSON")
                     return []
 
-        except Exception as e:
+        except Exception:
             logger.error("Error parsing LLM workflow response: {e}")
             return []
 
-    def _process_workflows(
-        self, workflows: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+    def _process_workflows(self, workflows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Ensure workflows have all required fields.
 
         Args:
@@ -668,9 +632,7 @@ Return a JSON array of workflow definitions with: name, description, type, opera
                 for operation in workflow["operations"]:
                     if "description" not in operation:
                         operation_name = operation.get("name", "")
-                        operation["description"] = (
-                            f"Performs the {operation_name} operation"
-                        )
+                        operation["description"] = f"Performs the {operation_name} operation"
 
                     # Ensure dependencies exists
                     if "dependencies" not in operation:
@@ -678,9 +640,7 @@ Return a JSON array of workflow definitions with: name, description, type, opera
 
         return workflows
 
-    def _recover_workflows_from_malformed_json(
-        self, json_str: str
-    ) -> List[Dict[str, Any]]:
+    def _recover_workflows_from_malformed_json(self, json_str: str) -> list[dict[str, Any]]:
         """Attempt to recover valid workflows from malformed JSON.
 
         Args:
@@ -708,8 +668,7 @@ Return a JSON array of workflow definitions with: name, description, type, opera
 
                 # Verify it has the minimum required fields
                 if all(
-                    key in workflow
-                    for key in ["name", "description", "type", "operations", "rank"]
+                    key in workflow for key in ["name", "description", "type", "operations", "rank"]
                 ):
                     workflows.append(workflow)
             except json.JSONDecodeError:
@@ -718,9 +677,7 @@ Return a JSON array of workflow definitions with: name, description, type, opera
         # If we couldn't recover any complete workflows, try a fallback approach
         if not workflows:
             # Try to find partial workflows and fix them
-            partial_pattern = (
-                r'\{\s*"name"\s*:\s*"[^"]+?"(?:.*?)(?:"operations"\s*:\s*\[[^\]]*\])'
-            )
+            partial_pattern = r'\{\s*"name"\s*:\s*"[^"]+?"(?:.*?)(?:"operations"\s*:\s*\[[^\]]*\])'
             partial_matches = re.findall(partial_pattern, json_str, re.DOTALL)
 
             for partial_str in partial_matches:
@@ -731,9 +688,7 @@ Return a JSON array of workflow definitions with: name, description, type, opera
                     workflow = json.loads(test_json)[0]  # Extract the first item
 
                     # Verify it has the minimum required fields
-                    if all(
-                        key in workflow for key in ["name", "description", "operations"]
-                    ):
+                    if all(key in workflow for key in ["name", "description", "operations"]):
                         # Add missing fields
                         if "type" not in workflow:
                             workflow["type"] = "process"

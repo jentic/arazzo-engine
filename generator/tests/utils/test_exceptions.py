@@ -4,8 +4,11 @@ import unittest
 
 import pytest
 
-from arazzo_generator.utils.exceptions import (ArazzoError, InvalidUserWorkflow,
-                                  SpecValidationError)
+from arazzo_generator.utils.exceptions import (
+    ArazzoError,
+    InvalidUserWorkflowError,
+    SpecValidationError,
+)
 
 
 class TestArazzoExceptions(unittest.TestCase):
@@ -15,18 +18,18 @@ class TestArazzoExceptions(unittest.TestCase):
             raise ArazzoError("Test error")
 
     def test_invalid_user_workflow_default(self):
-        """Test InvalidUserWorkflow with default parameters."""
-        with pytest.raises(InvalidUserWorkflow) as exc_info:
-            raise InvalidUserWorkflow()
+        """Test InvalidUserWorkflowError with default parameters."""
+        with pytest.raises(InvalidUserWorkflowError) as exc_info:
+            raise InvalidUserWorkflowError()
 
         assert exc_info.value.requested_workflows == []
         assert "No valid workflows identified" in str(exc_info.value)
 
     def test_invalid_user_workflow_with_workflows(self):
-        """Test InvalidUserWorkflow with specific workflows."""
+        """Test InvalidUserWorkflowError with specific workflows."""
         workflows = ["workflow1", "workflow2"]
-        with pytest.raises(InvalidUserWorkflow) as exc_info:
-            raise InvalidUserWorkflow(workflows)
+        with pytest.raises(InvalidUserWorkflowError) as exc_info:
+            raise InvalidUserWorkflowError(workflows)
 
         assert exc_info.value.requested_workflows == workflows
 
@@ -41,12 +44,12 @@ class TestArazzoExceptions(unittest.TestCase):
 
     def test_exception_hierarchy(self):
         """Test that custom exceptions inherit from ArazzoError."""
-        assert issubclass(InvalidUserWorkflow, ArazzoError)
+        assert issubclass(InvalidUserWorkflowError, ArazzoError)
         assert issubclass(SpecValidationError, ArazzoError)
 
         # Verify they can be caught as ArazzoError
         with pytest.raises(ArazzoError):
-            raise InvalidUserWorkflow()
+            raise InvalidUserWorkflowError()
 
         with pytest.raises(ArazzoError):
             raise SpecValidationError(["Test error"])

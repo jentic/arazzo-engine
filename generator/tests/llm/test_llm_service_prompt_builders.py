@@ -1,5 +1,4 @@
 import json
-import pytest
 from unittest.mock import patch
 
 from arazzo_generator.llm.litellm_service import LiteLLMService
@@ -82,17 +81,6 @@ class TestPromptBuilder:
         ]
 
         responses = {
-            "200": {
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "items": {"$ref": "#/components/schemas/Activity"},
-                            "type": "array",
-                        }
-                    }
-                },
-                "description": "An array of activities",
-            },
             "401": {"description": "Unauthorized"},
             "403": {"description": "Forbidden"},
             "404": {"description": "Not Found"},

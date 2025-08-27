@@ -3,14 +3,14 @@
 import json
 import os
 import re
-from typing import Any, Dict
+from typing import Any
 
 import prance
-from prance.util.url import absurl
-from prance.util.fs import abspath
 import requests
 import yaml
 from openapi_spec_validator import validate
+from prance.util.fs import abspath
+from prance.util.url import absurl
 
 from arazzo_generator.utils.logging import get_logger
 
@@ -42,7 +42,7 @@ class OpenAPIParser:
         self.version = None
         self.parser = None
 
-    def fetch_spec(self) -> Dict[str, Any]:
+    def fetch_spec(self) -> dict[str, Any]:
         """Fetch the OpenAPI specification from the URL.
 
         Returns:
@@ -82,7 +82,7 @@ class OpenAPIParser:
             logger.exception(f"Failed to fetch OpenAPI spec: {e}", extra={"url": self.url})
             raise
 
-    def _fetch_and_parse_with_fallbacks(self) -> Dict[str, Any]:
+    def _fetch_and_parse_with_fallbacks(self) -> dict[str, Any]:
         """Fetch and parse the OpenAPI spec with fallback mechanisms.
 
         Returns:
@@ -105,7 +105,7 @@ class OpenAPIParser:
             else:
                 # It's a URL
                 logger.debug(f"Fetching from URL: {self.url}")
-                response = requests.get(self.url)
+                response = requests.get(self.url, timeout=100)
                 response.raise_for_status()
                 raw_content = response.content
 
@@ -141,7 +141,7 @@ class OpenAPIParser:
                             "Successfully parsed spec after fixing YAML structure",
                             extra={"url": self.url},
                         )
-                    except yaml.YAMLError as e2:
+                    except yaml.YAMLError:
                         # Last resort: try alternative parsing methods
                         logger.warning(
                             "Failed to parse after fixing structure {e2}",
@@ -238,7 +238,7 @@ class OpenAPIParser:
         logger.info("Fixed YAML structure issues", extra={"url": self.url})
         return fixed
 
-    def _try_alternative_parsing_methods(self, content: bytes) -> Dict[str, Any]:
+    def _try_alternative_parsing_methods(self, content: bytes) -> dict[str, Any]:
         """Try alternative methods to parse the OpenAPI spec.
 
         Args:
@@ -341,7 +341,7 @@ class OpenAPIParser:
         # Get components
         self.components = self.spec.get("components", {})
 
-    def get_endpoints(self) -> Dict[str, Dict[str, Any]]:
+    def get_endpoints(self) -> dict[str, dict[str, Any]]:
         """Extract all endpoints from the OpenAPI specification.
 
         Returns:
@@ -389,7 +389,7 @@ class OpenAPIParser:
 
         return endpoints
 
-    def get_schemas(self) -> Dict[str, Any]:
+    def get_schemas(self) -> dict[str, Any]:
         """Extract all schemas from the OpenAPI specification.
 
         Returns:
@@ -400,7 +400,7 @@ class OpenAPIParser:
 
         return self.components.get("schemas", {})
 
-    def get_parameters(self) -> Dict[str, Any]:
+    def get_parameters(self) -> dict[str, Any]:
         """Extract all parameters from the OpenAPI specification.
 
         Returns:
@@ -411,7 +411,7 @@ class OpenAPIParser:
 
         return self.components.get("parameters", {})
 
-    def get_responses(self) -> Dict[str, Any]:
+    def get_responses(self) -> dict[str, Any]:
         """Extract all responses from the OpenAPI specification.
 
         Returns:
@@ -422,7 +422,7 @@ class OpenAPIParser:
 
         return self.components.get("responses", {})
 
-    def get_request_bodies(self) -> Dict[str, Any]:
+    def get_request_bodies(self) -> dict[str, Any]:
         """Extract all request bodies from the OpenAPI specification.
 
         Returns:
@@ -433,7 +433,7 @@ class OpenAPIParser:
 
         return self.components.get("requestBodies", {})
 
-    def get_security_schemes(self) -> Dict[str, Any]:
+    def get_security_schemes(self) -> dict[str, Any]:
         """Extract all security schemes from the OpenAPI specification.
 
         Returns:
@@ -444,7 +444,7 @@ class OpenAPIParser:
 
         return self.components.get("securitySchemes", {})
 
-    def resolve_reference(self, ref: str) -> Dict[str, Any]:
+    def resolve_reference(self, ref: str) -> dict[str, Any]:
         """Resolve a reference to its actual content.
 
         Args:

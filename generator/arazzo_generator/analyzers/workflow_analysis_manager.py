@@ -4,7 +4,7 @@ This module contains the WorkflowManager class that coordinates the workflow
 analysis process.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from arazzo_generator.utils.logging import get_logger
 
@@ -21,16 +21,16 @@ class WorkflowAnalysisManager:
 
     def __init__(
         self,
-        spec: Dict[str, Dict[str, Any]],
-        endpoints: Dict[str, Dict[str, Any]],
-        schemas: Dict[str, Any],
-        parameters: Dict[str, Any],
-        responses: Dict[str, Any],
-        request_bodies: Dict[str, Any],
-        api_key: Optional[str] = None,
-        llm_model: Optional[str] = None,
-        llm_provider: Optional[str] = None,
-        workflow_descriptions: Optional[List[str]] = None,
+        spec: dict[str, dict[str, Any]],
+        endpoints: dict[str, dict[str, Any]],
+        schemas: dict[str, Any],
+        parameters: dict[str, Any],
+        responses: dict[str, Any],
+        request_bodies: dict[str, Any],
+        api_key: str | None = None,
+        llm_model: str | None = None,
+        llm_provider: str | None = None,
+        workflow_descriptions: list[str] | None = None,
     ):
         """Initialize the workflow manager.
 
@@ -86,7 +86,7 @@ class WorkflowAnalysisManager:
             logger.warning("LLM service not available. Disabling LLM-based analysis.")
             self.llm_analyzer = None
 
-    def analyze(self) -> List[Dict[str, Any]]:
+    def analyze(self) -> list[dict[str, Any]]:
         """Analyze the OpenAPI specification to identify workflows.
 
         This method coordinates the analysis process, running the appropriate
@@ -107,9 +107,7 @@ class WorkflowAnalysisManager:
             )
 
             if llm_workflows:
-                logger.info(
-                    f"LLM-based analysis identified {len(llm_workflows)} workflows"
-                )
+                logger.info(f"LLM-based analysis identified {len(llm_workflows)} workflows")
             else:
                 logger.info("LLM-based analysis did not identify any workflows")
 

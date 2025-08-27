@@ -48,6 +48,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Static Analysis for generator
+        if: ${{ needs.detect-changes.outputs.runner == 'true' && matrix.python-version == '3.11' }}
+        uses: ./.github/actions/arazzo-generator/static-analysis
+
+
   runner:
     name: runner
     runs-on: ubuntu-latest
@@ -68,7 +73,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Static Analysis runner
+      - name: Static Analysis for runner
         if: ${{ needs.detect-changes.outputs.runner == 'true' && matrix.python-version == '3.11' }}
         uses: ./.github/actions/arazzo-runner/static-analysis
 

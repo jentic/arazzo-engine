@@ -5,12 +5,11 @@ that uses large language models to identify and generate workflows from
 OpenAPI specifications.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from arazzo_generator.utils.logging import get_logger
-
-from arazzo_generator.llm.litellm_service import LiteLLMService
 from arazzo_generator.analyzers.base_analyzer import BaseAnalyzer
+from arazzo_generator.llm.litellm_service import LiteLLMService
+from arazzo_generator.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -20,16 +19,16 @@ class LLMAnalyzer(BaseAnalyzer):
 
     def __init__(
         self,
-        endpoints: Dict[str, Dict],
-        schemas: Dict[str, Any],
-        parameters: Dict[str, Any],
-        responses: Dict[str, Any],
-        request_bodies: Dict[str, Any],
-        spec: Dict[str, Any] = None,
-        relationships: Optional[Dict] = None,
-        api_key: Optional[str] = None,
-        llm_model: Optional[str] = None,
-        llm_provider: Optional[str] = None,
+        endpoints: dict[str, dict],
+        schemas: dict[str, Any],
+        parameters: dict[str, Any],
+        responses: dict[str, Any],
+        request_bodies: dict[str, Any],
+        spec: dict[str, Any] = None,
+        relationships: dict | None = None,
+        api_key: str | None = None,
+        llm_model: str | None = None,
+        llm_provider: str | None = None,
     ):
         """Initialize the LLM-based analyzer.
 
@@ -71,9 +70,7 @@ class LLMAnalyzer(BaseAnalyzer):
         """
         return self.llm_service.is_available()
 
-    def analyze(
-        self, user_workflow_descriptions: Optional[List[str]] = None
-    ) -> List[Dict[str, Any]]:
+    def analyze(self, user_workflow_descriptions: list[str] | None = None) -> list[dict[str, Any]]:
         """Analyze the OpenAPI specification to identify workflows using LLM.
         If user_workflow_descriptions is provided, it focuses the LLM on those specific workflows.
 
@@ -81,9 +78,7 @@ class LLMAnalyzer(BaseAnalyzer):
             A list of identified workflows.
         """
         if not self.is_available():
-            logger.warning(
-                "LLM service not available. No workflows will be identified."
-            )
+            logger.warning("LLM service not available. No workflows will be identified.")
             return []
 
         try:
@@ -100,11 +95,8 @@ class LLMAnalyzer(BaseAnalyzer):
                 user_workflow_descriptions=user_workflow_descriptions,  # Pass user descriptions
             )
 
-            logger.info(
-                f"LLM-based analysis identified {len(self.workflows)} workflows"
-            )
+            logger.info(f"LLM-based analysis identified {len(self.workflows)} workflows")
             [logger.info(f": {workflow['name']}") for workflow in self.workflows]
-
             return self.workflows
 
         except Exception as e:

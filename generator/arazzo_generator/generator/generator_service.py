@@ -7,13 +7,13 @@ from OpenAPI specifications, separated from interface concerns.
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from arazzo_generator.analyzers.workflow_analysis_manager import WorkflowAnalysisManager
 from arazzo_generator.generator.arazzo_generator import ArazzoGenerator
 from arazzo_generator.llm.direct_arazzo_generator import DirectArazzoGenerator
 from arazzo_generator.parser.openapi_parser import OpenAPIParser
-from arazzo_generator.utils.exceptions import InvalidUserWorkflow, SpecValidationError
+from arazzo_generator.utils.exceptions import InvalidUserWorkflowError, SpecValidationError
 from arazzo_generator.utils.logging import get_logger
 from arazzo_generator.utils.serializer import ArazzoSerializer
 from arazzo_generator.validator.arazzo_validator import ArazzoValidator
@@ -23,17 +23,17 @@ logger = get_logger(__name__)
 
 def generate_arazzo(
     url: str,
-    output: Optional[str] = None,
+    output: str | None = None,
     format: str = "json",
     validate_spec: bool = True,
     direct_llm: bool = False,
-    api_key: Optional[str] = None,
-    llm_model: Optional[str] = None,
-    llm_provider: Optional[str] = None,
+    api_key: str | None = None,
+    llm_model: str | None = None,
+    llm_provider: str | None = None,
     verbose: bool = False,
-    workflow_descriptions: Optional[List[str]] = None,
+    workflow_descriptions: list[str] | None = None,
     _fallback_attempt: bool = False,  # Internal flag to prevent infinite recursion on fallback
-) -> Tuple[Dict[str, Any], str, bool, List[str], bool]:
+) -> tuple[dict[str, Any], str, bool, list[str], bool]:
     """
     Core business logic for generating Arazzo specifications.
 
@@ -130,7 +130,7 @@ def generate_arazzo(
 
         # If user requested specific workflows but none could be generated, raise domain exception
         if not workflows:
-            raise InvalidUserWorkflow(workflow_descriptions)
+            raise InvalidUserWorkflowError(workflow_descriptions)
         else:
             logger.info(f"Identified {len(workflows)} workflows")
 
@@ -167,9 +167,7 @@ def generate_arazzo(
                     workflow_descriptions=None,
                     _fallback_attempt=True,
                 )
-            logger.error(
-                "No valid workflows were found. Cannot generate Arazzo specification."
-            )
+            logger.error("No valid workflows were found. Cannot generate Arazzo specification.")
             return (
                 None,
                 None,
@@ -191,13 +189,9 @@ def generate_arazzo(
     # Prepare output format
     if arazzo_spec:
         if format == "yaml":
-            arazzo_content = ArazzoSerializer.get_arazzo_in_target_format(
-                arazzo_spec, "yaml"
-            )
+            arazzo_content = ArazzoSerializer.get_arazzo_in_target_format(arazzo_spec, "yaml")
         else:  # json format
-            arazzo_content = ArazzoSerializer.get_arazzo_in_target_format(
-                arazzo_spec, "json"
-            )
+            arazzo_content = ArazzoSerializer.get_arazzo_in_target_format(arazzo_spec, "json")
 
     # Return result (even if spec is None)
     return arazzo_spec, arazzo_content, is_valid, validation_errors, _fallback_attempt
@@ -205,7 +199,7 @@ def generate_arazzo(
 
 def validate_arazzo(
     file_path: str, verbose: bool = False
-) -> Tuple[bool, List[str], Dict[str, Any]]:
+) -> tuple[bool, list[str], dict[str, Any]]:
     """
     Validate an existing Arazzo specification file.
 
@@ -229,7 +223,7 @@ def validate_arazzo(
 
     # Load Arazzo spec
     try:
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             if is_json:
                 arazzo_spec = json.loads(f.read())
             else:

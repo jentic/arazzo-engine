@@ -1,8 +1,6 @@
 import json
 from unittest.mock import patch
 
-import pytest
-
 from arazzo_generator.llm.litellm_service import LiteLLMService
 
 
@@ -52,9 +50,7 @@ class TestLLMServiceWorkflowProcessing:
         # wf1 should have workflowId, rank, and operation description added
         assert processed[0]["workflowId"] == "wf1"
         assert processed[0]["rank"] == 5
-        assert processed[0]["operations"][0]["description"].startswith(
-            "Performs the op1"
-        )
+        assert processed[0]["operations"][0]["description"].startswith("Performs the op1")
         # wf2 should retain its workflowId and operation description
         assert processed[1]["workflowId"] == "wf2"
         assert processed[1]["operations"][0]["description"] == "desc2"

@@ -25,9 +25,7 @@ class TestLLMServiceInitialization:
 
     # Tests initialisation of LLM service with OpenAI provider for any model
     def test_openai_init_any_model(self):
-        svc = LiteLLMService(
-            api_key="test-key", llm_provider="openai", llm_model="gpt-4o"
-        )
+        svc = LiteLLMService(api_key="test-key", llm_provider="openai", llm_model="gpt-4o")
         assert svc.api_key == "test-key"
         assert svc.llm_provider == "openai"
         assert svc.llm_model == "gpt-4o"
@@ -45,9 +43,7 @@ class TestLLMServiceInitialization:
 
     # Tests invalid provider (should not raise exception, just use fallback)
     def test_invalid_provider(self):
-        svc = LiteLLMService(
-            api_key="test-key", llm_provider="invalid", llm_model="invalid-model"
-        )
+        svc = LiteLLMService(api_key="test-key", llm_provider="invalid", llm_model="invalid-model")
         assert svc.api_key == "test-key"
         assert svc.llm_provider == "invalid"
         assert svc.llm_model == "invalid-model"
@@ -106,9 +102,7 @@ class TestLLMServiceInitialization:
 
         monkeypatch.setattr("litellm.completion", mock_completion)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "env-test-key")
-        svc = LiteLLMService(
-            llm_provider="anthropic", llm_model="claude-3-sonnet-20240229"
-        )
+        svc = LiteLLMService(llm_provider="anthropic", llm_model="claude-3-sonnet-20240229")
         assert os.environ.get("ANTHROPIC_API_KEY") == "env-test-key"
         assert svc.is_available() is True
 

@@ -1,7 +1,7 @@
 """Validator for output mappings in Arazzo workflows."""
 
 import difflib
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from Levenshtein import distance
 
@@ -15,10 +15,10 @@ class OutputMappingValidator:
 
     @staticmethod
     def validate_output_mappings(
-        workflow: Dict[str, Any],
-        openapi_spec: Dict[str, Any],
-        endpoints: Dict[str, Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        workflow: dict[str, Any],
+        openapi_spec: dict[str, Any],
+        endpoints: dict[str, dict[str, Any]],
+    ) -> dict[str, Any]:
         """Validate and fix output mappings in a workflow.
 
         This function checks all output mappings in a workflow against the
@@ -43,18 +43,14 @@ class OutputMappingValidator:
                 continue
 
             # Get the endpoint information for this step
-            endpoint_data = OutputMappingValidator._get_endpoint_for_step(
-                step, endpoints
-            )
+            endpoint_data = OutputMappingValidator._get_endpoint_for_step(step, endpoints)
             if not endpoint_data:
-                logger.warning(
-                    f"Could not find endpoint for step: {step.get('stepId', 'unknown')}"
-                )
+                logger.warning(f"Could not find endpoint for step: {step.get('stepId', 'unknown')}")
                 continue
 
             # Extract response schema for this endpoint
-            response_schema, response_headers = (
-                OutputMappingValidator._extract_response_info(endpoint_data)
+            response_schema, response_headers = OutputMappingValidator._extract_response_info(
+                endpoint_data
             )
 
             # Validate and fix output mappings
@@ -66,8 +62,8 @@ class OutputMappingValidator:
 
     @staticmethod
     def _get_endpoint_for_step(
-        step: Dict[str, Any], endpoints: Dict[str, Dict[str, Any]]
-    ) -> Optional[Dict[str, Any]]:
+        step: dict[str, Any], endpoints: dict[str, dict[str, Any]]
+    ) -> dict[str, Any] | None:
         """Get the endpoint data for a step.
 
         Args:
@@ -80,8 +76,8 @@ class OutputMappingValidator:
         # Try to get endpoint from operationId if available
         if "operationId" in step:
             operation_id = step["operationId"]
-            for path, path_data in endpoints.items():
-                for method, endpoint_data in path_data.items():
+            for path_data in endpoints.values():
+                for endpoint_data in path_data.values():
                     if endpoint_data.get("operation_id") == operation_id:
                         return endpoint_data
 
@@ -102,8 +98,8 @@ class OutputMappingValidator:
 
     @staticmethod
     def _extract_response_info(
-        endpoint_data: Dict[str, Any],
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        endpoint_data: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Extract response schema and headers from endpoint data.
 
         Args:
@@ -121,7 +117,7 @@ class OutputMappingValidator:
         # Find success response codes (2xx)
         success_codes = []
         for code in responses.keys():
-            if isinstance(code, (str, int)) and str(code).startswith("2"):
+            if isinstance(code, (str | int)) and str(code).startswith("2"):
                 success_codes.append(code)
 
         # Extract schema and headers from success responses
@@ -130,7 +126,7 @@ class OutputMappingValidator:
 
             # Extract schema
             content = response_data.get("content", {})
-            for content_type, content_data in content.items():
+            for content_data in content.values():
                 if "schema" in content_data:
                     schema = content_data["schema"]
 
@@ -141,9 +137,7 @@ class OutputMappingValidator:
 
                         # If items have properties, add them
                         if "properties" in items_schema:
-                            response_schema["item_properties"] = items_schema.get(
-                                "properties", {}
-                            )
+                            response_schema["item_properties"] = items_schema.get("properties", {})
                     # Handle object responses
                     elif "properties" in schema:
                         response_schema = schema
@@ -164,8 +158,8 @@ class OutputMappingValidator:
 
     @staticmethod
     def _validate_step_outputs(
-        outputs: Dict[str, str], schema: Dict[str, Any], headers: Dict[str, Any]
-    ) -> Dict[str, str]:
+        outputs: dict[str, str], schema: dict[str, Any], headers: dict[str, Any]
+    ) -> dict[str, str]:
         """Validate and fix output mappings for a step.
 
         Args:
@@ -182,9 +176,7 @@ class OutputMappingValidator:
         validated_outputs = {}
 
         # Check if the response is an array
-        is_array_response = schema.get("type") == "array" and schema.get(
-            "is_array", False
-        )
+        is_array_response = schema.get("type") == "array" and schema.get("is_array", False)
 
         # Get the appropriate properties based on schema type
         if is_array_response and "item_properties" in schema:
@@ -197,7 +189,7 @@ class OutputMappingValidator:
 
         # Add headers to the flattened schema with their full paths
         header_schema = {}
-        for header_name, header_info in headers.items():
+        for header_name in headers:
             header_schema[header_name] = f"$response.headers.{header_name}"
 
         # Validate each output mapping
@@ -209,7 +201,7 @@ class OutputMappingValidator:
 
             # Handle header references
             if output_path.startswith("$response.headers."):
-                header_name = output_path[len("$response.headers."):]
+                header_name = output_path[len("$response.headers.") :]
 
                 # Check if the header exists
                 if header_name in header_schema:
@@ -223,9 +215,7 @@ class OutputMappingValidator:
                         logger.warning(
                             f"Fixing invalid header reference: '{header_name}' -> '{best_match}'"
                         )
-                        validated_outputs[output_name] = (
-                            f"$response.headers.{best_match}"
-                        )
+                        validated_outputs[output_name] = f"$response.headers.{best_match}"
                     else:
                         # Keep the original if no match found
                         validated_outputs[output_name] = output_path
@@ -233,7 +223,7 @@ class OutputMappingValidator:
             # Handle body references
             elif output_path.startswith("$response.body"):
                 # Extract the property path from the output path
-                property_path = output_path[len("$response.body"):]
+                property_path = output_path[len("$response.body") :]
 
                 # Skip if property path is empty (referencing the entire body)
                 if not property_path or property_path == "#":
@@ -242,9 +232,7 @@ class OutputMappingValidator:
 
                 # Check if the property path is valid
                 # First, normalize the path to remove array indices
-                normalized_path = OutputMappingValidator._normalize_property_path(
-                    property_path
-                )
+                normalized_path = OutputMappingValidator._normalize_property_path(property_path)
 
                 # Check if the normalized path exists in the flattened schema
                 if normalized_path in flat_schema.values():
@@ -311,7 +299,7 @@ class OutputMappingValidator:
         return "/".join(normalized_segments)
 
     @staticmethod
-    def _find_best_match(target: str, candidates: List[str]) -> Optional[str]:
+    def _find_best_match(target: str, candidates: list[str]) -> str | None:
         """Find the best matching string from a list of candidates using sequence matching.
 
         Args:
@@ -337,9 +325,7 @@ class OutputMappingValidator:
         return similarities[0][0]
 
     @staticmethod
-    def _find_best_property_match(
-        output_name: str, flat_schema: Dict[str, str]
-    ) -> Optional[str]:
+    def _find_best_property_match(output_name: str, flat_schema: dict[str, str]) -> str | None:
         """Find the best matching property in the schema for an output name.
 
         Args:
@@ -377,16 +363,14 @@ class OutputMappingValidator:
             max_len = max(len(output_name), len(prop_name))
             score = 1 - (distance_value / max_len) if max_len > 0 else 0
 
-            if (
-                score > best_score and score > 0.7
-            ):  # Higher threshold for more confidence
+            if score > best_score and score > 0.7:  # Higher threshold for more confidence
                 best_score = score
                 best_match = path
 
         return best_match
 
     @staticmethod
-    def _flatten_schema(properties: Dict[str, Any], prefix: str = "") -> Dict[str, str]:
+    def _flatten_schema(properties: dict[str, Any], prefix: str = "") -> dict[str, str]:
         """Flatten a nested schema into a dictionary of property paths.
 
         Args:
@@ -411,9 +395,7 @@ class OutputMappingValidator:
 
             # Handle nested objects
             if prop_schema.get("type") == "object" and "properties" in prop_schema:
-                nested = OutputMappingValidator._flatten_schema(
-                    prop_schema["properties"], path
-                )
+                nested = OutputMappingValidator._flatten_schema(prop_schema["properties"], path)
                 result.update(nested)
 
             # Handle arrays with object items
@@ -422,9 +404,7 @@ class OutputMappingValidator:
                 if items.get("type") == "object" and "properties" in items:
                     # For array items, append /0 to indicate first array element using JSON Pointer syntax
                     array_path = f"{path}/0"
-                    nested = OutputMappingValidator._flatten_schema(
-                        items["properties"], array_path
-                    )
+                    nested = OutputMappingValidator._flatten_schema(items["properties"], array_path)
                     result.update(nested)
 
         return result

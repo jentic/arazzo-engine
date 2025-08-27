@@ -1,4 +1,5 @@
 from unittest.mock import patch
+
 from arazzo_generator.llm.litellm_service import LiteLLMService
 
 
@@ -32,7 +33,9 @@ class TestParsingandFormatting:
         mock_logger.error.assert_called()
 
         # Test case 2: Invalid field types
-        malformed_response = '{"workflows": [{"name": 123, "description": true, "operations": "not-an-array"}]}'
+        malformed_response = (
+            '{"workflows": [{"name": 123, "description": true, "operations": "not-an-array"}]}'
+        )
         workflows = svc._parse_workflow_response(malformed_response)
         assert isinstance(workflows, list)
         assert len(workflows) == 0
@@ -66,9 +69,7 @@ class TestParsingandFormatting:
         assert "{formatted_descriptions}" not in formatted
 
     # Tests the formatting of the user workflow section when the template file is not found
-    def test_format_user_workflow_section_file_not_found_error(
-        self, monkeypatch, caplog
-    ):
+    def test_format_user_workflow_section_file_not_found_error(self, monkeypatch, caplog):
         svc = LiteLLMService(api_key="test-key")
         user_workflow_descriptions = ["desc1", "desc2"]
         formatted_descriptions_list = "- desc1\n- desc2"

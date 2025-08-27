@@ -1,6 +1,6 @@
 """Arazzo specification generator module."""
 
-from typing import Any, Dict, List
+from typing import Any
 
 from arazzo_generator.utils.logging import get_logger
 from arazzo_generator.utils.serializer import ArazzoSerializer
@@ -22,10 +22,10 @@ class ArazzoGenerator:
 
     def __init__(
         self,
-        workflows: List[Dict[str, Any]],
+        workflows: list[dict[str, Any]],
         openapi_spec_url: str,
-        endpoints: Dict[str, Dict[str, Any]],
-        openapi_spec: Dict[str, Any] = None,
+        endpoints: dict[str, dict[str, Any]],
+        openapi_spec: dict[str, Any] = None,
     ):
         """Initialize the Arazzo generator.
 
@@ -41,7 +41,7 @@ class ArazzoGenerator:
         self.openapi_spec = openapi_spec
         self.arazzo_spec = {}
 
-    def generate(self) -> Dict[str, Any]:
+    def generate(self) -> dict[str, Any]:
         """Generate an Arazzo specification from the identified workflows.
 
         Returns:
@@ -50,9 +50,7 @@ class ArazzoGenerator:
         """
         # Check if there are any workflows to process
         if not self.workflows:
-            logger.warning(
-                "No workflows provided. Cannot generate Arazzo specification."
-            )
+            logger.warning("No workflows provided. Cannot generate Arazzo specification.")
             return None
 
         self._init_arazzo_spec()
@@ -61,9 +59,7 @@ class ArazzoGenerator:
 
         # Check if any workflows were successfully created
         if not self.arazzo_spec["workflows"]:
-            logger.warning(
-                "No valid workflows were created. Cannot generate Arazzo specification."
-            )
+            logger.warning("No valid workflows were created. Cannot generate Arazzo specification.")
             return None
 
         self._add_components()
@@ -136,9 +132,7 @@ class ArazzoGenerator:
                         f"Validating step references for workflow: {arazzo_workflow.get('workflowId', 'unknown')}"
                     )
                     validator = ReferenceValidator()
-                    arazzo_workflow = validator.validate_step_references(
-                        arazzo_workflow
-                    )
+                    arazzo_workflow = validator.validate_step_references(arazzo_workflow)
 
                     # Validate and fix output mappings
                     logger.debug(

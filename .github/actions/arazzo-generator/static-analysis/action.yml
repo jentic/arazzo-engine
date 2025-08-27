@@ -1,0 +1,30 @@
+name: Arazzo Runner Static Analysis
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+
+    - name: Install PDM
+      shell: bash
+      run: pip install pdm
+      working-directory: ./generator
+
+    - name: Install dependencies
+      shell: bash
+      run: pdm install
+      working-directory: ./generator
+
+    - name: Lint code
+      shell: bash
+      run: pdm run lint
+      working-directory: ./generator
+
+    - name: Typecheck code
+      shell: bash
+      run: pdm run typecheck
+      working-directory: ./runner
+      continue-on-error: true
