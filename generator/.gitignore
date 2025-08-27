@@ -65,8 +65,8 @@ yarn-error.log*
 
 # Environment variables
 .env
-!.env.example
 .env.*
+!.env.example
 
 # Jupyter notebooks
 .ipynb_checkpoints/
