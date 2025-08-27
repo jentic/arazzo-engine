@@ -454,7 +454,7 @@ def test_execute_request_binary_response(http_client: HTTPExecutor):
         )
 
         # Binary content should be returned as raw bytes; blob storage is handled by the workflow layer
-        assert isinstance(response["body"], (bytes, bytearray))
+        assert isinstance(response["body"], bytes | bytearray)
         assert response["body"] == b"imagedata"
 
 
@@ -781,7 +781,7 @@ def test_execute_request_large_binary_response(http_client: HTTPExecutor):
         )
 
         # Large binary content is returned as raw bytes; blob storage is handled by the workflow layer
-        assert isinstance(response["body"], (bytes, bytearray))
+        assert isinstance(response["body"], bytes | bytearray)
         assert len(response["body"]) == 1008
         assert response["body"] == large_binary_data
 

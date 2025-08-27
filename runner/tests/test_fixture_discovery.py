@@ -1080,8 +1080,8 @@ def create_test_class(fixture: dict[str, Any], mode: str = "mock") -> type:
                                     continue
 
                             # If they don't match, let the assertEqual below handle it properly
-                        elif isinstance(actual_value, (int, float)) and isinstance(
-                            expected_value, (int, float)
+                        elif isinstance(actual_value, int | float) and isinstance(
+                            expected_value, int | float
                         ):
                             # For numeric values, check if they're close
                             if (

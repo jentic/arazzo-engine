@@ -185,7 +185,7 @@ def _resolve_schema_refs(
     memo = cache if cache is not None else {}
 
     # Primitives pass through
-    if not isinstance(schema_part, (dict, list)):
+    if not isinstance(schema_part, dict | list):
         return schema_part
 
     if isinstance(schema_part, dict):
@@ -202,7 +202,7 @@ def _resolve_schema_refs(
                 stack.add(ref)
                 try:
                     target = jsonpointer.resolve_pointer(full_spec, ref[1:])
-                    if not isinstance(target, (dict, list)):
+                    if not isinstance(target, dict | list):
                         logger.warning(
                             f"Resolved $ref '{ref}' is not a dict/list. Returning empty dict."
                         )
@@ -535,12 +535,12 @@ def extract_operation_io(
 
     # --- Limit output depth (conditionally) ---
     if input_max_depth is not None:
-        if isinstance(extracted_details.get("inputs"), (dict, list)):
+        if isinstance(extracted_details.get("inputs"), dict | list):
             extracted_details["inputs"] = _limit_dict_depth(
                 extracted_details["inputs"], input_max_depth
             )
     if output_max_depth is not None:
-        if isinstance(extracted_details.get("outputs"), (dict, list)):
+        if isinstance(extracted_details.get("outputs"), dict | list):
             extracted_details["outputs"] = _limit_dict_depth(
                 extracted_details["outputs"], output_max_depth
             )
