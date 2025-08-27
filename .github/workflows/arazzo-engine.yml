@@ -54,7 +54,6 @@ jobs:
     needs: detect-changes
     strategy:
       matrix:
-        include:
         python-version: [ "3.11", "3.12", "3.13" ]
     steps:
       # Always run at least one step so the job posts a success check
