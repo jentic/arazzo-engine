@@ -44,7 +44,7 @@ jobs:
 
       - name: Test generator
         if: ${{ needs.detect-changes.outputs.generator == 'true' }}
-        uses: ./.github/actions/arazzo-generator/test/action.yml
+        uses: ./.github/actions/arazzo-generator/test
         with:
           python-version: ${{ matrix.python-version }}
 
