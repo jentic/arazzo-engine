@@ -18,7 +18,7 @@ jobs:
       generator: ${{ steps.filter.outputs.generator }}
       runner:    ${{ steps.filter.outputs.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: filter
         uses: dorny/paths-filter@v3
         with:
@@ -40,7 +40,7 @@ jobs:
       - name: sentinel
         run: echo "generator check"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Test generator
         if: ${{ needs.detect-changes.outputs.generator == 'true' }}
@@ -60,7 +60,7 @@ jobs:
       - name: sentinel
         run: echo "runner check"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Test runner
         if: ${{ needs.detect-changes.outputs.runner == 'true' }}
