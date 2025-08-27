@@ -12,7 +12,7 @@ dependencies = [
     "jsonpath-ng>=1.5.0",
     "jsonpointer>=3.0.0",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.11,<4.0"
 readme = "./README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
@@ -62,7 +62,7 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "W", "I", "N", "UP", "YTT", "S"]
-ignore = ["UP038"]
+ignore = []
 extend-ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
@@ -76,3 +76,8 @@ dev = [
     "ruff>=0.0.289",
     "isort>=5.12.0"
 ]
+
+[project.urls]
+Homepage = "https://github.com/jentic/arazzo-engine"
+Documentation = "https://github.com/jentic/arazzo-engine#readme"
+Issues = "https://github.com/jentic/arazzo-engine/issues"

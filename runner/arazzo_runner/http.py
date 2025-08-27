@@ -195,7 +195,7 @@ class HTTPExecutor:
                         file_type = value.get("contentType", "application/octet-stream")
                         files[key] = (file_name, file_content, file_type)
                         logger.debug(f"Preparing file '{file_name}' for upload.")
-                    elif isinstance(value, (bytes, bytearray)):
+                    elif isinstance(value, bytes | bytearray):
                         # Fallback: treat raw bytes as a file with a generic name
                         files[key] = ("attachment", value, "application/octet-stream")
                         logger.debug(f"Preparing raw-bytes payload as file for key '{key}'.")
@@ -222,7 +222,7 @@ class HTTPExecutor:
             elif content_category == "raw":
                 # Path 4: Other explicit content types (raw data)
                 headers["Content-Type"] = content_type
-                if isinstance(payload, (str, bytes)):
+                if isinstance(payload, str | bytes):
                     data = payload
                 else:
                     # Attempt to serialize other types? Or raise error? Let's log and convert to string for now.
@@ -239,7 +239,7 @@ class HTTPExecutor:
                     logger.debug(
                         "No content type specified, inferring application/json for dict payload"
                     )
-                elif isinstance(payload, (bytes, bytearray)):
+                elif isinstance(payload, bytes | bytearray):
                     data = payload
                     logger.debug("No content type specified, sending raw bytes")
                 elif isinstance(payload, str):
