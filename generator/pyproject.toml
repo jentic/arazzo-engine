@@ -73,8 +73,8 @@ disallow_untyped_decorators = true
 no_implicit_optional = true
 strict_optional = true
 warn_redundant_casts = true
-warn_return_any = true
 warn_unused_ignores = true
+warn_return_any = true
 
 [tool.ruff]
 line-length = 100
