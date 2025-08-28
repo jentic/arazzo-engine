@@ -12,6 +12,8 @@ from typing import Any
 import jsonpointer
 
 from arazzo_runner.auth.models import SecurityOption, SecurityRequirement
+from arazzo_runner.evaluator import ExpressionEvaluator
+from arazzo_runner.models import ExecutionState
 
 # Configure logging
 logger = logging.getLogger("arazzo-runner.executor")
@@ -808,44 +810,24 @@ class OperationFinder:
                 else:
                     left, json_pointer = op_path, ""
 
-                def _evaluate_runtime_expressions(s: str) -> str:
-                    """Evaluate simple runtime expressions wrapped in { }.
-
-                    Supported forms:
-                      - $sourceDescriptions.<name>
-                      - $sourceDescriptions.<name>.url
-                    Any other expression is left as-is.
-                    """
-                    out = s
-                    while "{" in out and "}" in out:
-                        i = out.find("{")
-                        j = out.find("}", i)
-                        if j == -1:
-                            break
-                        expr = out[i + 1 : j].strip()
-                        val = None
-                        if expr.startswith("$sourceDescriptions."):
-                            parts = expr.split(".")
-                            if len(parts) >= 2:
-                                src_name = parts[1]
-                                src = self.source_descriptions.get(src_name)
-                                if src:
-                                    # support .$url attribute to return the url string
-                                    if len(parts) >= 3 and parts[2] == "url":
-                                        val = src.get("url")
-                                    else:
-                                        # default to the source name if no attribute requested
-                                        val = src_name
-                        # If we couldn't evaluate, keep the original expr text
-                        if val is None:
-                            val = expr
-                        out = out[:i] + str(val) + out[j + 1 :]
-                    return out
-
-                # If left contains a braced expression, evaluate it into a string
+                # If left contains a braced expression, evaluate it using the shared ExpressionEvaluator
                 resolved_left = left.strip()
                 if "{" in resolved_left and "}" in resolved_left:
-                    resolved_left = _evaluate_runtime_expressions(resolved_left)
+                    # Use a minimal ExecutionState for expression evaluation (only sourceDescriptions are needed here)
+                    eval_state = ExecutionState(workflow_id="__internal__")
+
+                    def _replace_braced(match: re.Match) -> str:
+                        expr = match.group(1)
+                        try:
+                            val = ExpressionEvaluator.evaluate_expression(
+                                expr, eval_state, self.source_descriptions
+                            )
+                        except Exception:
+                            val = None
+                        # Coerce to string for embedding into operationPath; keep 'None' as empty
+                        return "" if val is None else str(val)
+
+                    resolved_left = re.sub(r"\{(\$[^}]+)\}", _replace_braced, resolved_left)
 
                 # If the resolved left still starts with $sourceDescriptions.<name>, parse as before
                 if resolved_left.startswith("$sourceDescriptions."):
