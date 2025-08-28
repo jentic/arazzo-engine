@@ -6,16 +6,14 @@ If you believe you've found an exploitable security issue in arazzo-engine,
 ## Supported versions
 
 ### Arazzo Runner
-This is the list of versions of `arazzo_runner` which are
-currently being supported with security updates.
+This is the list of versions which are currently being supported with security updates.
 
 | Version    | Supported          | Notes                           |
 |------------|--------------------|---------------------------------|
 | &gt;=0.8.x | :white_check_mark: | Active LTS                      |
 
 ### Arazzo Generator
-This is the list of versions of `arazzo_generator` which are
-currently being supported with security updates.
+This is the list of versions which are currently being supported with security updates.
 
 | Version    | Supported          | Notes                           |
 |------------|--------------------|---------------------------------|
