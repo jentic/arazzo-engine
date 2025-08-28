@@ -371,5 +371,49 @@ def test_get_security_requirements_for_openapi_operation_basic():
     ]
 
 
+def test_find_by_id_with_source_descriptions_reference():
+    """Ensure operationId references using $sourceDescriptions.<name>.<op> resolve to the correct source."""
+    source_descriptions = {
+        "pet-coupons": {
+            "servers": [{"url": "http://pet.example"}],
+            "paths": {
+                "/pet/{petId}/coupons": {
+                    "get": {"operationId": "findPetsByTags", "summary": "Find pets"}
+                }
+            },
+        },
+        "other": {
+            "servers": [{"url": "http://other.example"}],
+            "paths": {"/items": {"get": {"operationId": "listItems"}}},
+        },
+    }
+
+    finder = OperationFinder(source_descriptions)
+
+    op_ref = "$sourceDescriptions.pet-coupons.findPetsByTags"
+    op_info = finder.find_by_id(op_ref)
+    assert op_info is not None
+    assert op_info["source"] == "pet-coupons"
+    assert op_info["path"] == "/pet/{petId}/coupons"
+    assert op_info["method"] == "get"
+
+
+def test_find_by_id_with_missing_source_falls_back():
+    """If the referenced source doesn't exist, find_by_id should fall back to global search or return None."""
+    source_descriptions = {
+        "api": {
+            "servers": [{"url": "http://localhost"}],
+            "paths": {"/foo": {"get": {"operationId": "op1"}}},
+        }
+    }
+
+    finder = OperationFinder(source_descriptions)
+
+    # Reference a non-existent source; should not raise, and should try global search (no match -> None)
+    op_ref = "$sourceDescriptions.nonexistent.op1"
+    op_info = finder.find_by_id(op_ref)
+    assert op_info is None
+
+
 if __name__ == "__main__":
     unittest.main()

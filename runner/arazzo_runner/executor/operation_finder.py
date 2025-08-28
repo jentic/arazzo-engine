@@ -39,6 +39,47 @@ class OperationFinder:
         Returns:
             Dictionary with operation details or None if not found
         """
+        # Special handling: support references in Arazzo specs like
+        # $sourceDescriptions.<source_name>.<operationId>
+        if isinstance(operation_id, str) and operation_id.startswith("$sourceDescriptions."):
+            # parse into three parts: prefix, source_name, operation_name
+            parts = operation_id.split(".", 2)
+            if len(parts) == 3:
+                _, source_name, target_op = parts
+                source_desc = self.source_descriptions.get(source_name)
+                if source_desc:
+                    paths = source_desc.get("paths", {})
+                    for path, path_item in paths.items():
+                        for method, operation in path_item.items():
+                            if (
+                                method in ["get", "post", "put", "delete", "patch"]
+                                and operation.get("operationId") == target_op
+                            ):
+                                try:
+                                    servers = source_desc.get("servers")
+                                    if not servers or not isinstance(servers, list):
+                                        raise ValueError(
+                                            "Missing or invalid 'servers' list in OpenAPI spec."
+                                        )
+                                    base_url = servers[0].get("url")
+                                    if not base_url or not isinstance(base_url, str):
+                                        raise ValueError(
+                                            "Missing or invalid 'url' in the first server object."
+                                        )
+                                except (IndexError, ValueError) as e:
+                                    raise ValueError(
+                                        f"Could not determine base URL from OpenAPI spec servers: {e}"
+                                    ) from e
+
+                                return {
+                                    "source": source_name,
+                                    "path": path,
+                                    "method": method,
+                                    "url": base_url + path,
+                                    "operation": operation,
+                                }
+
+        # Default: search all source descriptions for an operation with matching operationId
         for source_name, source_desc in self.source_descriptions.items():
             # Search through paths and operations
             paths = source_desc.get("paths", {})
