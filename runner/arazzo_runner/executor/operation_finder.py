@@ -807,12 +807,11 @@ class OperationFinder:
                 left, json_pointer = (op_path.split("#", 1) + [""])[0:2]
                 resolved_left = left.strip()
 
-                # Evaluate any embedded braced runtime expressions with the
-                # project's ExpressionEvaluator to preserve semantics.
+                # Evaluate embedded braced runtime expressions using central evaluator
                 if "{" in resolved_left and "}" in resolved_left:
                     eval_state = ExecutionState(workflow_id="__internal__")
 
-                    def _repl(m: re.Match) -> str:
+                    def _eval_braced(m: re.Match) -> str:
                         expr = m.group(1)
                         try:
                             val = ExpressionEvaluator.evaluate_expression(
@@ -822,37 +821,32 @@ class OperationFinder:
                             val = None
                         return "" if val is None else str(val)
 
-                    resolved_left = re.sub(r"\{(\$[^}]+)\}", _repl, resolved_left)
+                    resolved_left = re.sub(r"\{(\$[^}]+)\}", _eval_braced, resolved_left)
 
+                # Resolve a source name: prefer explicit $sourceDescriptions.<name>,
+                # otherwise match by declared url or exact name
                 source_name = None
-                # Direct $sourceDescriptions.<name> reference
                 if resolved_left.startswith("$sourceDescriptions."):
                     parts = resolved_left.split(".", 2)
-                    if len(parts) >= 2:
-                        source_name = parts[1]
+                    source_name = parts[1] if len(parts) >= 2 else None
                 else:
-                    # Try to match by declared url or by exact name
-                    for name, desc in self.source_descriptions.items():
-                        src_url = desc.get("url")
-                        if src_url and (
-                            src_url == resolved_left
-                            or resolved_left.endswith(src_url)
-                            or src_url in resolved_left
-                            or resolved_left in src_url
-                        ):
-                            source_name = name
-                            break
+                    source_name = next(
+                        (
+                            name
+                            for name, desc in self.source_descriptions.items()
+                            if desc.get("url") and (
+                                desc.get("url") == resolved_left
+                                or resolved_left.endswith(desc.get("url"))
+                                or desc.get("url") in resolved_left
+                                or resolved_left in desc.get("url")
+                            )
+                        ),
+                        None,
+                    )
                     if source_name is None and resolved_left in self.source_descriptions:
                         source_name = resolved_left
 
-                # Prefer using the resolved source_name, otherwise fall back to
-                # using the resolved_left directly (it may be a URL or identifier).
-                op_info = None
-                if source_name:
-                    op_info = self.find_by_path(source_name, json_pointer)
-                else:
-                    op_info = self.find_by_path(resolved_left, json_pointer)
-
+                op_info = self.find_by_path(source_name or resolved_left, json_pointer)
                 if op_info:
                     operations.append(op_info)
         return operations
