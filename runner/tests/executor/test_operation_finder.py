@@ -415,5 +415,63 @@ def test_find_by_id_with_missing_source_falls_back():
     assert op_info is None
 
 
+def test_get_operations_for_workflow_with_operationPath_runtime_expression():
+    """Ensure get_operations_for_workflow handles operationPath runtime expressions
+    that reference a sourceDescriptions entry combined with a JSON Pointer.
+    """
+    source_descriptions = {
+        "pet-coupons": {
+            "servers": [{"url": "http://pet.example"}],
+            "paths": {
+                "/pet/findByTags": {
+                    "get": {"operationId": "findPetsByTags", "summary": "Find pets"}
+                }
+            },
+        }
+    }
+
+    finder = OperationFinder(source_descriptions)
+
+    wf = {"steps": [{"operationPath": "$sourceDescriptions.pet-coupons#/paths/~1pet~1findByTags/get"}]}
+
+    ops = finder.get_operations_for_workflow(wf)
+    assert isinstance(ops, list)
+    assert len(ops) == 1
+    op = ops[0]
+    assert op["source"] == "pet-coupons"
+    assert op["path"] == "/pet/findByTags"
+    assert op["method"] == "get"
+
+
+def test_get_operations_for_workflow_with_braced_runtime_expression():
+    """Ensure get_operations_for_workflow evaluates braced runtime expressions
+    embedded in operationPath, e.g. '{$sourceDescriptions.pet-coupons.url}#/paths/~1pet~1findByTags/get'
+    """
+    source_descriptions = {
+        "pet-coupons": {
+            "url": "pet.example",  # using a simple url attribute to exercise .url evaluation
+            "servers": [{"url": "http://pet.example"}],
+            "paths": {
+                "/pet/findByTags": {
+                    "get": {"operationId": "findPetsByTags", "summary": "Find pets"}
+                }
+            },
+        }
+    }
+
+    finder = OperationFinder(source_descriptions)
+
+    # Example operationPath with braced runtime expression referencing the sourceDescriptions url
+    wf = {"steps": [{"operationPath": "{$sourceDescriptions.pet-coupons.url}#/paths/~1pet~1findByTags/get"}]}
+
+    ops = finder.get_operations_for_workflow(wf)
+    assert isinstance(ops, list)
+    assert len(ops) == 1
+    op = ops[0]
+    assert op["source"] == "pet-coupons"
+    assert op["path"] == "/pet/findByTags"
+    assert op["method"] == "get"
+
+
 if __name__ == "__main__":
     unittest.main()

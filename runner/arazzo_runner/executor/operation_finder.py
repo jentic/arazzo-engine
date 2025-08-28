@@ -352,6 +352,9 @@ class OperationFinder:
 
                 # Decode the path (replace ~1 with / and ~0 with ~)
                 decoded_path = encoded_path.replace("~1", "/").replace("~0", "~")
+                # Normalize leading slashes: decoded_path may start with multiple slashes
+                # because encoded_path often begins with a leading '/'. Ensure a single leading slash.
+                decoded_path = "/" + decoded_path.lstrip("/")
                 logger.debug(f"Decoded path: {decoded_path}")
 
                 # Try to find the operation in the source description
@@ -790,11 +793,98 @@ class OperationFinder:
                 if op_info:
                     operations.append(op_info)
             elif "operationPath" in step:
-                # operationPath format: <source>#<json_pointer>
-                match = re.match(r"([^#]+)#(.+)", step["operationPath"])
-                if match:
-                    source_url, json_pointer = match.groups()
-                    op_info = self.find_by_path(source_url, json_pointer)
+                # operationPath may be either <source>#<json_pointer> or a runtime
+                # expression referencing a sourceDescription. Examples:
+                #   $sourceDescriptions.<name>#/paths/~1pet~1{petId}/get
+                #   '{$sourceDescriptions.petstoreDescription.url}#/paths/~1pet~1findByStatus/get'
+                op_path = step["operationPath"]
+
+                if not isinstance(op_path, str):
+                    continue
+
+                # Split into left and json pointer parts if '#' present
+                if "#" in op_path:
+                    left, json_pointer = op_path.split("#", 1)
+                else:
+                    left, json_pointer = op_path, ""
+
+                def _evaluate_runtime_expressions(s: str) -> str:
+                    """Evaluate simple runtime expressions wrapped in { }.
+
+                    Supported forms:
+                      - $sourceDescriptions.<name>
+                      - $sourceDescriptions.<name>.url
+                    Any other expression is left as-is.
+                    """
+                    out = s
+                    while "{" in out and "}" in out:
+                        i = out.find("{")
+                        j = out.find("}", i)
+                        if j == -1:
+                            break
+                        expr = out[i + 1 : j].strip()
+                        val = None
+                        if expr.startswith("$sourceDescriptions."):
+                            parts = expr.split(".")
+                            if len(parts) >= 2:
+                                src_name = parts[1]
+                                src = self.source_descriptions.get(src_name)
+                                if src:
+                                    # support .$url attribute to return the url string
+                                    if len(parts) >= 3 and parts[2] == "url":
+                                        val = src.get("url")
+                                    else:
+                                        # default to the source name if no attribute requested
+                                        val = src_name
+                        # If we couldn't evaluate, keep the original expr text
+                        if val is None:
+                            val = expr
+                        out = out[:i] + str(val) + out[j + 1 :]
+                    return out
+
+                # If left contains a braced expression, evaluate it into a string
+                resolved_left = left.strip()
+                if "{" in resolved_left and "}" in resolved_left:
+                    resolved_left = _evaluate_runtime_expressions(resolved_left)
+
+                # If the resolved left still starts with $sourceDescriptions.<name>, parse as before
+                if resolved_left.startswith("$sourceDescriptions."):
+                    parts = resolved_left.split(".", 2)
+                    if len(parts) >= 2:
+                        source_name = parts[1]
+                        op_info = self.find_by_path(source_name, json_pointer)
+                        if op_info:
+                            operations.append(op_info)
+                            continue
+
+                # Otherwise, try to map the resolved_left (which may be a URL or file path)
+                # back to a source description name by comparing against each source's
+                # declared `url` attribute. If that fails, fall back to treating
+                # resolved_left as a source identifier.
+                source_candidate = None
+                for name, desc in self.source_descriptions.items():
+                    src_url = desc.get("url")
+                    if not src_url:
+                        continue
+                    try:
+                        if src_url == resolved_left or resolved_left.endswith(src_url) or src_url in resolved_left or resolved_left in src_url:
+                            source_candidate = name
+                            break
+                    except Exception:
+                        continue
+
+                if source_candidate:
+                    op_info = self.find_by_path(source_candidate, json_pointer)
                     if op_info:
                         operations.append(op_info)
+                else:
+                    # Fallback: treat resolved_left as a source identifier or URL
+                    match = re.match(r"([^#]+)#?(.+)?", resolved_left)
+                    if match:
+                        source_url = match.group(1)
+                        # prefer json_pointer from the original op_path split if present
+                        ptr = json_pointer
+                        op_info = self.find_by_path(source_url, ptr)
+                        if op_info:
+                            operations.append(op_info)
         return operations
