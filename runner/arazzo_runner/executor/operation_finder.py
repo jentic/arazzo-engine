@@ -795,78 +795,64 @@ class OperationFinder:
                 if op_info:
                     operations.append(op_info)
             elif "operationPath" in step:
-                # operationPath may be either <source>#<json_pointer> or a runtime
-                # expression referencing a sourceDescription. Examples:
-                #   $sourceDescriptions.<name>#/paths/~1pet~1{petId}/get
-                #   '{$sourceDescriptions.petstoreDescription.url}#/paths/~1pet~1findByStatus/get'
+                # operationPath may be <source>#<json_pointer> or a runtime expression
+                # referencing a sourceDescription. We evaluate any braced expressions
+                # using the shared ExpressionEvaluator and then map the resolved
+                # left-hand value to a source name (by name or by matching the
+                # source's declared `url`) before delegating to find_by_path.
                 op_path = step["operationPath"]
-
                 if not isinstance(op_path, str):
                     continue
 
-                # Split into left and json pointer parts if '#' present
-                if "#" in op_path:
-                    left, json_pointer = op_path.split("#", 1)
-                else:
-                    left, json_pointer = op_path, ""
-
-                # If left contains a braced expression, evaluate it using the shared ExpressionEvaluator
+                left, json_pointer = (op_path.split("#", 1) + [""])[0:2]
                 resolved_left = left.strip()
+
+                # Evaluate any embedded braced runtime expressions with the
+                # project's ExpressionEvaluator to preserve semantics.
                 if "{" in resolved_left and "}" in resolved_left:
-                    # Use a minimal ExecutionState for expression evaluation (only sourceDescriptions are needed here)
                     eval_state = ExecutionState(workflow_id="__internal__")
 
-                    def _replace_braced(match: re.Match) -> str:
-                        expr = match.group(1)
+                    def _repl(m: re.Match) -> str:
+                        expr = m.group(1)
                         try:
                             val = ExpressionEvaluator.evaluate_expression(
                                 expr, eval_state, self.source_descriptions
                             )
                         except Exception:
                             val = None
-                        # Coerce to string for embedding into operationPath; keep 'None' as empty
                         return "" if val is None else str(val)
 
-                    resolved_left = re.sub(r"\{(\$[^}]+)\}", _replace_braced, resolved_left)
+                    resolved_left = re.sub(r"\{(\$[^}]+)\}", _repl, resolved_left)
 
-                # If the resolved left still starts with $sourceDescriptions.<name>, parse as before
+                source_name = None
+                # Direct $sourceDescriptions.<name> reference
                 if resolved_left.startswith("$sourceDescriptions."):
                     parts = resolved_left.split(".", 2)
                     if len(parts) >= 2:
                         source_name = parts[1]
-                        op_info = self.find_by_path(source_name, json_pointer)
-                        if op_info:
-                            operations.append(op_info)
-                            continue
-
-                # Otherwise, try to map the resolved_left (which may be a URL or file path)
-                # back to a source description name by comparing against each source's
-                # declared `url` attribute. If that fails, fall back to treating
-                # resolved_left as a source identifier.
-                source_candidate = None
-                for name, desc in self.source_descriptions.items():
-                    src_url = desc.get("url")
-                    if not src_url:
-                        continue
-                    try:
-                        if src_url == resolved_left or resolved_left.endswith(src_url) or src_url in resolved_left or resolved_left in src_url:
-                            source_candidate = name
-                            break
-                    except Exception:
-                        continue
-
-                if source_candidate:
-                    op_info = self.find_by_path(source_candidate, json_pointer)
-                    if op_info:
-                        operations.append(op_info)
                 else:
-                    # Fallback: treat resolved_left as a source identifier or URL
-                    match = re.match(r"([^#]+)#?(.+)?", resolved_left)
-                    if match:
-                        source_url = match.group(1)
-                        # prefer json_pointer from the original op_path split if present
-                        ptr = json_pointer
-                        op_info = self.find_by_path(source_url, ptr)
-                        if op_info:
-                            operations.append(op_info)
+                    # Try to match by declared url or by exact name
+                    for name, desc in self.source_descriptions.items():
+                        src_url = desc.get("url")
+                        if src_url and (
+                            src_url == resolved_left
+                            or resolved_left.endswith(src_url)
+                            or src_url in resolved_left
+                            or resolved_left in src_url
+                        ):
+                            source_name = name
+                            break
+                    if source_name is None and resolved_left in self.source_descriptions:
+                        source_name = resolved_left
+
+                # Prefer using the resolved source_name, otherwise fall back to
+                # using the resolved_left directly (it may be a URL or identifier).
+                op_info = None
+                if source_name:
+                    op_info = self.find_by_path(source_name, json_pointer)
+                else:
+                    op_info = self.find_by_path(resolved_left, json_pointer)
+
+                if op_info:
+                    operations.append(op_info)
         return operations
