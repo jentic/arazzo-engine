@@ -1,6 +1,6 @@
 # This workflow is triggered on push events but only for the runner directory.
-# It builds and publishes the arazzo-runner to PyPI and TestPyPI.
-name: Publish Python distribution of the arazzo-runner to PyPI and TestPyPI
+# It builds and publishes the arazzo-runner to PyPI.
+name: Publish Python distribution of the arazzo-runner to PyPI
 
 on: 
   push:
@@ -94,31 +94,3 @@ jobs:
         path: dist/
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
-
-  publish-to-testpypi:
-    name: Publish Python 🐍 distribution 📦 to TestPyPI
-    needs:
-    - build
-    - check-version
-    if: needs.check-version.outputs.version_changed == 'true'
-    runs-on: ubuntu-latest
-
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/arazzo-runner
-
-    permissions:
-      actions: read
-      contents: none
-      id-token: write  # IMPORTANT: mandatory for trusted publishing
-
-    steps:
-    - name: Download all the dists
-      uses: actions/download-artifact@v5
-      with:
-        name: python-package-distributions
-        path: dist/
-    - name: Publish distribution 📦 to TestPyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        repository-url: https://test.pypi.org/legacy/
