@@ -19,15 +19,15 @@ Arazzo is a workflow specification that describes sequences of API calls and the
 Assuming that you have a supported version of Python installed, you can first set up your environment with:
 
 ```bash
-$ python -m venv .venv
+python -m venv .venv
 ...
-$ . .venv/bin/activate
+source .venv/bin/activate
 ```
 
 Then, you can install arazzo-generator from PyPI with:
 
 ```bash
-$ python -m pip install arazzo-generator
+python -m pip install arazzo-generator
 ```
 
 ## Key Features
@@ -85,19 +85,19 @@ All following sections assume that you're inside the `./generator` directory of 
 1. Install PDM if you haven't already:
    ```bash
    # Install PDM
-   $ curl -sSL https://pdm.fming.dev/install-pdm.py | python3 -
+   curl -sSL https://pdm.fming.dev/install-pdm.py | python3 -
    
    # Or with Homebrew (macOS/Linux)
-   $ brew install pdm
+   brew install pdm
    
    # Or with pip
-   $ pip install pdm
+   pip install pdm
    ```
 
 2. Install project dependencies:
    ```bash
    # Install dependencies
-   $ pdm install
+   pdm install
    ```
 
 ### Configuration
@@ -106,7 +106,7 @@ All following sections assume that you're inside the `./generator` directory of 
 
 1. Copy the example environment file:
    ```bash
-   $ cp .env.example .env
+   cp .env.example .env
    ```
 
 2. Edit the `.env` file with your preferred text editor and add your API keys:
@@ -123,9 +123,9 @@ You can set the API keys directly in your shell session:
 
 ```bash
 # For current session only
-$ export GEMINI_API_KEY=your_gemini_key_here
-$ export ANTHROPIC_API_KEY=your_anthropic_key_here
-$ export OPENAI_API_KEY=your_openai_key_here
+export GEMINI_API_KEY=your_gemini_key_here
+export ANTHROPIC_API_KEY=your_anthropic_key_here
+export OPENAI_API_KEY=your_openai_key_here
 ```
 
 ### Usage
@@ -135,22 +135,22 @@ $ export OPENAI_API_KEY=your_openai_key_here
 To generate an Arazzo workflow specification from an OpenAPI file using LLM-based analysis:
 
 ```bash
-$ pdm run generate <openapi_file_path> -o <output_file_path>
+pdm run generate <openapi_file_path> -o <output_file_path>
 ```
 
 Example:
 ```bash
-$ pdm run generate /path/to/openapi.yaml -o ./output.yaml --format yaml
+pdm run generate /path/to/openapi.yaml -o ./output.yaml --format yaml
 ```
 
 You can also generate output in JSON format (default):
 ```bash
-$ pdm run generate /path/to/openapi.yaml -o ./output.json --format json
+pdm run generate /path/to/openapi.yaml -o ./output.json --format json
 ```
 
 Or use the shorter option flag:
 ```bash
-$ pdm run generate /path/to/openapi.yaml -o ./output.json -f json
+pdm run generate /path/to/openapi.yaml -o ./output.json -f json
 ```
 
 #### Validation
@@ -158,9 +158,9 @@ $ pdm run generate /path/to/openapi.yaml -o ./output.json -f json
 To validate an existing Arazzo specification in either YAML or JSON format:
 
 ```bash
-$ pdm run validate /path/to/arazzo.yaml
+pdm run validate /path/to/arazzo.yaml
 # OR
-$ pdm run validate /path/to/arazzo.json
+pdm run validate /path/to/arazzo.json
 ```
 
 The validator automatically detects the format based on the file extension.
@@ -173,22 +173,22 @@ The project includes Docker configurations for both the API server and CLI tool 
 
 ```bash
 # Build the Docker image
-$ docker build -t arazzo-generator -f docker/Dockerfile .
+docker build -t arazzo-generator -f docker/Dockerfile .
 
 # Run the API server
-$ docker run -p 8000:8000 \
-  -e ANTHROPIC_API_KEY=your_api_key \
-  -e OPENAI_API_KEY=your_api_key \
-  -e GEMINI_API_KEY=your_api_key \
-  arazzo-generator
+docker run -p 8000:8000 \
+ -e ANTHROPIC_API_KEY=your_api_key \
+ -e OPENAI_API_KEY=your_api_key \
+ -e GEMINI_API_KEY=your_api_key \
+ arazzo-generator
 
 # Run the CLI tool
-$ docker run --rm \
-  -e ANTHROPIC_API_KEY=your_api_key \
-  -e OPENAI_API_KEY=your_api_key \
-  -e GEMINI_API_KEY=your_api_key \
-  -v $(pwd)/output:/app/output \
-  arazzo-generator pdm run generate <url> --output /app/output/result.yaml
+docker run --rm \
+ -e ANTHROPIC_API_KEY=your_api_key \
+ -e OPENAI_API_KEY=your_api_key \
+ -e GEMINI_API_KEY=your_api_key \
+ -v $(pwd)/output:/app/output \
+ arazzo-generator pdm run generate <url> --output /app/output/result.yaml
 ```
 
 For detailed Docker instructions including AWS ECS deployment, see the [Docker README](https://github.com/jentic/arazzo-engine/blob/main/generator/docker/README.md).
@@ -197,31 +197,31 @@ For detailed Docker instructions including AWS ECS deployment, see the [Docker R
 
 ```bash
 # Run the API server
-$ pdm run uvicorn arazzo_generator.api.app:app --host 0.0.0.0 --port 8000
+pdm run uvicorn arazzo_generator.api.app:app --host 0.0.0.0 --port 8000
 ```
 
 Issue a POST request to the `/generate` endpoint with the following payload:
 
 ```bash
-$ curl -s -X POST "http://localhost:8000/generate" \
-    -H "Content-Type: application/json" \
-    -d '{
-    "url": "https://raw.githubusercontent.com/jentic/jentic-public-apis/refs/heads/main/apis/openapi/yelp.com/main/1.0.0/openapi.json",
-    "format": "json",
-    "validate_spec": true,
-    "enable_llm": true,
-    "llm_provider": "gemini" 
-    }' | jq -r '.arazzo_spec' | jq '.' > arazzo_spec.json
+curl -s -X POST "http://localhost:8000/generate" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "url": "https://raw.githubusercontent.com/jentic/jentic-public-apis/refs/heads/main/apis/openapi/yelp.com/main/1.0.0/openapi.json",
+  "format": "json",
+  "validate_spec": true,
+  "enable_llm": true,
+  "llm_provider": "gemini" 
+  }' | jq -r '.arazzo_spec' | jq '.' > arazzo_spec.json
 ```
 
 #### Running Tests
 
 ```bash
 # Run all tests
-$ pdm run test
+pdm run test
 
 # Run a specific test file
-$ pdm run test tests/test_parser.py
+pdm run test tests/test_parser.py
 ```
 
 #### Code Formatting & Linting
@@ -230,10 +230,10 @@ The project uses [black](https://github.com/psf/black), [isort](https://github.c
 
 ```bash
 # Check formatting & linting without making changes
-$ pdm run lint
+pdm run lint
 
 # Format & lint code 
-$ pdm run lint:fix
+pdm run lint:fix
 ```
 
 #### Available PDM Scripts
