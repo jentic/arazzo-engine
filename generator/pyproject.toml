@@ -49,9 +49,8 @@ generate = "python -m arazzo_generator.cli.run generate"
 batch = "python -m arazzo_generator.cli.run batch"
 api = "python -m arazzo_generator.api.run"
 test = "pytest"
-format = {cmd = "bash -c 'black arazzo_generator/ tests/ && isort arazzo_generator/ tests/'"}
-check-format = {cmd = "bash -c 'black --check arazzo_generator/ tests/ && isort --check-only arazzo_generator/ tests/ || exit 0'"}
-lint = {composite = ["black .", "isort .", "ruff check ."]}
+lint = {composite = ["black --check .", "isort --check-only .", "ruff check ."]}
+"lint:fix" = {composite = ["ruff check . --fix", "black .", "isort ."]}
 typecheck = "mypy ."
 
 [tool.setuptools.packages.find]
