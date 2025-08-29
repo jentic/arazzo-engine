@@ -58,7 +58,7 @@ Or use the shorter option flag:
 arazzo-generator generate /path/to/openapi.yaml -o ./output.json -f json
 ```
 
-Run `arazzo-generator generate --help` for more options. 
+Run `arazzo-generator generate --help` for more options.
 
 Generating files in batches is possible using the [batch](https://github.com/jentic/arazzo-engine/blob/main/generator/arazzo_generator/batch/README.md) command. Run `arazzo-generator batch --help` for more options.
 
