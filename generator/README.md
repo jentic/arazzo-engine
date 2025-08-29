@@ -37,8 +37,6 @@ Make sure you have the Arazzo Generator installed and activated in your virtual 
 
 #### Generate an Arazzo Workflow
 
-#### Basic Usage
-
 To generate an Arazzo workflow specification from an OpenAPI file using LLM-based analysis:
 
 ```bash
