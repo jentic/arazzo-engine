@@ -46,7 +46,7 @@ $ python -m pip install arazzo-generator
 
 #### 1. OpenAPI Parser (`openapi_parser.py`)
 - Fetches and parses OpenAPI specifications from URLs or local files (OpenAPI v3.0 and v3.1)
-- Utilises prance for parsing and validation (https://pypi.org/project/prance/)
+- Uses prance for parsing and validation (https://pypi.org/project/prance/)
 - Provides robust error handling for imperfect real-world specifications
 - Extracts endpoints, schemas, and metadata for further analysis
 
@@ -218,10 +218,10 @@ $ curl -s -X POST "http://localhost:8000/generate" \
 
 ```bash
 # Run all tests
-pdm run test
+$ pdm run test
 
 # Run a specific test file
-pdm run test tests/test_parser.py
+$ pdm run test tests/test_parser.py
 ```
 
 #### Code Formatting & Linting
