@@ -26,7 +26,8 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 [tool.pdm.scripts]
-lint = {composite = ["black .", "isort .", "ruff check ."]}
+lint = {composite = ["black --check .", "isort --check-only .", "ruff check ."]}
+"lint:fix" = {composite = [ "ruff check . --fix", "black .", "isort ."]}
 typecheck = "mypy ."
 test = "pytest"
 test-real = "python -m tests.run_real_tests"
