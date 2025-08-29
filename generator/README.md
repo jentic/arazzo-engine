@@ -1,4 +1,4 @@
-# Jentic Arazzo Generator [Beta]
+# Arazzo Generator [Beta]
 
 [![Discord](https://img.shields.io/badge/JOIN%20OUR%20DISCORD-COMMUNITY-7289DA?style=plastic&logo=discord&logoColor=white)](https://discord.gg/yrxmDZWMqB)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-3.0-40c463.svg)](https://github.com/jentic/arazzo-engine/blob/HEAD/CODE_OF_CONDUCT.md)
@@ -14,6 +14,22 @@ Arazzo is a workflow specification that describes sequences of API calls and the
 
 > **Join our community!** Connect with contributors and users on [Discord](https://discord.gg/yrxmDZWMqB) to discuss ideas, ask questions, and collaborate on the Jentic Arazzo Generator repository.
 
+## Getting started
+
+Assuming that you have a supported version of Python installed, you can first set up your environment with:
+
+```bash
+python -m venv .venv
+...
+source .venv/bin/activate
+```
+
+Then, you can install arazzo-generator from PyPI with:
+
+```bash
+python -m pip install arazzo-generator
+```
+
 ## Key Features
 
 - **OpenAPI Parser**: Robust parsing of OpenAPI v3.0 and v3.1 specifications with extensive error handling
@@ -24,98 +40,13 @@ Arazzo is a workflow specification that describes sequences of API calls and the
 - **Arazzo Generator**: Creates compliant Arazzo specifications from identified workflows
 - **Arazzo Validator**: Ensures generated specifications adhere to the Arazzo schema
 
-## Installation
-
-1. Install PDM if you haven't already:
-   ```bash
-   # Install PDM
-   curl -sSL https://pdm.fming.dev/install-pdm.py | python3 -
-   
-   # Or with Homebrew (macOS/Linux)
-   brew install pdm
-   
-   # Or with pip
-   pip install pdm
-   ```
-
-2. Install project dependencies:
-   ```bash
-   # Install dependencies
-   pdm install
-   ```
-
-## Configuration
-
-### Method 1: Using Environment File (Recommended)
-
-1. Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Edit the `.env` file with your preferred text editor and add your API keys:
-   ```bash
-   # Example .env file
-   GEMINI_API_KEY=your_gemini_key_here
-   ANTHROPIC_API_KEY=your_anthropic_key_here
-   OPENAI_API_KEY=your_openai_key_here
-   ```
-
-### Method 2: Using Shell Environment Variables
-
-You can set the API keys directly in your shell session:
-
-```bash
-# For current session only
-export GEMINI_API_KEY=your_gemini_key_here
-export ANTHROPIC_API_KEY=your_anthropic_key_here
-export OPENAI_API_KEY=your_openai_key_here
-```
-
-## Usage
-
-### Basic Usage
-
-To generate an Arazzo workflow specification from an OpenAPI file using LLM-based analysis:
-
-```bash
-pdm run generate <openapi_file_path> -o <output_file_path>
-```
-
-Example:
-```bash
-pdm run generate /path/to/openapi.yaml -o ./output.yaml
-```
-
-You can also generate output in JSON format:
-```bash
-pdm run generate /path/to/openapi.yaml -o ./output.json --format json
-```
-
-Or use the shorter option flag:
-```bash
-pdm run generate /path/to/openapi.yaml -o ./output.json -f json
-```
-
-### Validation
-
-To validate an existing Arazzo specification in either YAML or JSON format:
-
-```bash
-pdm run validate /path/to/arazzo.yaml
-# OR
-pdm run validate /path/to/arazzo.json
-```
-
-The validator automatically detects the format based on the file extension.
-
 ## Architecture
 
 ### Core Components
 
 #### 1. OpenAPI Parser (`openapi_parser.py`)
 - Fetches and parses OpenAPI specifications from URLs or local files (OpenAPI v3.0 and v3.1)
-- Utilises prance for parsing and validation (https://pypi.org/project/prance/)
+- Uses prance for parsing and validation (https://pypi.org/project/prance/)
 - Provides robust error handling for imperfect real-world specifications
 - Extracts endpoints, schemas, and metadata for further analysis
 
@@ -145,89 +76,176 @@ The validator automatically detects the format based on the file extension.
 - Supports customization of LLM settings and output formats
 - Includes comprehensive logging for visibility into the process
 
-## Docker
+## Development
+
+All following sections assume that you're inside the `./generator` directory of the `arazzo-engine` monorepo.
+
+### Installation
+
+1. Install PDM if you haven't already:
+   ```bash
+   # Install PDM
+   curl -sSL https://pdm.fming.dev/install-pdm.py | python3 -
+   
+   # Or with Homebrew (macOS/Linux)
+   brew install pdm
+   
+   # Or with pip
+   pip install pdm
+   ```
+
+2. Install project dependencies:
+   ```bash
+   # Install dependencies
+   pdm install
+   ```
+
+### Configuration
+
+#### Method 1: Using Environment File (Recommended)
+
+1. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit the `.env` file with your preferred text editor and add your API keys:
+   ```bash
+   # Example .env file
+   GEMINI_API_KEY=your_gemini_key_here
+   ANTHROPIC_API_KEY=your_anthropic_key_here
+   OPENAI_API_KEY=your_openai_key_here
+   ```
+
+#### Method 2: Using Shell Environment Variables
+
+You can set the API keys directly in your shell session:
+
+```bash
+# For current session only
+export GEMINI_API_KEY=your_gemini_key_here
+export ANTHROPIC_API_KEY=your_anthropic_key_here
+export OPENAI_API_KEY=your_openai_key_here
+```
+
+### Usage
+
+#### Basic Usage
+
+To generate an Arazzo workflow specification from an OpenAPI file using LLM-based analysis:
+
+```bash
+pdm run generate <openapi_file_path> -o <output_file_path>
+```
+
+Example:
+```bash
+pdm run generate /path/to/openapi.yaml -o ./output.yaml --format yaml
+```
+
+You can also generate output in JSON format (default):
+```bash
+pdm run generate /path/to/openapi.yaml -o ./output.json --format json
+```
+
+Or use the shorter option flag:
+```bash
+pdm run generate /path/to/openapi.yaml -o ./output.json -f json
+```
+
+#### Validation
+
+To validate an existing Arazzo specification in either YAML or JSON format:
+
+```bash
+pdm run validate /path/to/arazzo.yaml
+# OR
+pdm run validate /path/to/arazzo.json
+```
+
+The validator automatically detects the format based on the file extension.
+
+### Docker
 
 The project includes Docker configurations for both the API server and CLI tool modes, making it easy to deploy to environments like AWS ECS.
 
-### Quick Start with Docker
+#### Quick Start with Docker
 
 ```bash
 # Build the Docker image
-docker build -t jentic-arazzo-generator -f docker/Dockerfile .
+docker build -t arazzo-generator -f docker/Dockerfile .
 
 # Run the API server
 docker run -p 8000:8000 \
-  -e ANTHROPIC_API_KEY=your_api_key \
-  -e OPENAI_API_KEY=your_api_key \
-  -e GEMINI_API_KEY=your_api_key \
-  jentic-arazzo-generator
+ -e ANTHROPIC_API_KEY=your_api_key \
+ -e OPENAI_API_KEY=your_api_key \
+ -e GEMINI_API_KEY=your_api_key \
+ arazzo-generator
 
 # Run the CLI tool
 docker run --rm \
-  -e ANTHROPIC_API_KEY=your_api_key \
-  -e OPENAI_API_KEY=your_api_key \
-  -e GEMINI_API_KEY=your_api_key \
-  -v $(pwd)/output:/app/output \
-  jentic-arazzo-generator pdm run generate <url> --output /app/output/result.yaml
+ -e ANTHROPIC_API_KEY=your_api_key \
+ -e OPENAI_API_KEY=your_api_key \
+ -e GEMINI_API_KEY=your_api_key \
+ -v $(pwd)/output:/app/output \
+ arazzo-generator pdm run generate <url> --output /app/output/result.yaml
 ```
 
-For detailed Docker instructions including AWS ECS deployment, see the [Docker README](docker/README.md).
+For detailed Docker instructions including AWS ECS deployment, see the [Docker README](https://github.com/jentic/arazzo-engine/blob/main/generator/docker/README.md).
 
-### Running the API Server locally
+#### Running the API Server locally
 
 ```bash
 # Run the API server
 pdm run uvicorn arazzo_generator.api.app:app --host 0.0.0.0 --port 8000
 ```
 
+Issue a POST request to the `/generate` endpoint with the following payload:
+
 ```bash
 curl -s -X POST "http://localhost:8000/generate" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://raw.githubusercontent.com/jentic/jentic-public-apis/refs/heads/main/apis/openapi/yelp.com/main/1.0.0/openapi.json",
-    "format": "json",
-    "validate_spec": true,
-    "enable_llm": true,
-    "llm_provider": "gemini" 
+  "url": "https://raw.githubusercontent.com/jentic/jentic-public-apis/refs/heads/main/apis/openapi/yelp.com/main/1.0.0/openapi.json",
+  "format": "json",
+  "validate_spec": true,
+  "enable_llm": true,
+  "llm_provider": "gemini" 
   }' | jq -r '.arazzo_spec' | jq '.' > arazzo_spec.json
 ```
 
-
-## Development
-
-### Running Tests
+#### Running Tests
 
 ```bash
 # Run all tests
 pdm run test
 
 # Run a specific test file
-pdm run test tests/test_parser.py
+pdm run test tests/parser/test_openapi_parser.py
 ```
 
-### Code Formatting
+#### Code Formatting & Linting
+
+The project uses [black](https://github.com/psf/black), [isort](https://github.com/PyCQA/isort) and [ruff](https://docs.astral.sh/ruff/) for code formatting.
 
 ```bash
-# Check formatting without making changes
-pdm run check-format
+# Check formatting & linting without making changes
+pdm run lint
 
-# Format code with black and isort
-pdm run format
-
+# Format & lint code 
+pdm run lint:fix
 ```
 
-### Available PDM Scripts
+#### Available PDM Scripts
 
 - `pdm run generate` - Generate Arazzo workflows from OpenAPI specs
 - `pdm run validate` - Validate Arazzo workflow files
-- `pdm run batch` - Batch process multiple OpenAPI specs to generate Arazzo workflows
+- `pdm run batch` - Batch processes multiple OpenAPI specs to generate Arazzo workflows
 - `pdm run test` - Run all tests
-- `pdm run format` - Format code with black and isort
-- `pdm run check-format` - Check code formatting without making changes
-- `pdm run lint` - Run static type checking and linting
+- `pdm run lint` - Check formatting & linting without making changes
+- `pdm run lint:fix` - Format & lint code
 
-
-### LLM Configuration
+#### LLM Configuration
 
 You can configure the LLM provider and model in the `config.toml` file:
 
@@ -240,11 +258,11 @@ llm_provider = "gemini"
 llm_model = "gemini/gemini-2.0-flash"
 ```
 
-### Logging Configuration
+#### Logging Configuration
 
 The application uses a centralized logging system configured via the `config.toml` file in the project root. This system handles both application logs and LLM interaction logs (prompts and responses).
 
-#### Configurable Options
+##### Configurable Options
 
 You can customize the following logging settings in `config.toml`:
 
@@ -265,7 +283,7 @@ log_dir = "logs"  # Directory for log files
 filename = "jentic.log"  # Application log filename
 ```
 
-#### Log Directory Structure
+##### Log Directory Structure
 
 Logs are stored in timestamped directories under the `logs` folder:
 
@@ -279,14 +297,11 @@ logs/
 
 This unified structure ensures all logs from a single execution (both application logs and LLM interactions) are stored together in the same directory.
 
-### Project Structure
-See [STRUCTURE.md](STRUCTURE.md) for a detailed description of the project structure.
-
 ### Integration with jentic-public-apis
 This Arazzo Generator powers the automated workflow generation in the [jentic-public-apis](https://github.com/jentic/jentic-public-apis) repository. To generate an Arazzo specification from an OpenAPI spec:
 
 1. Create a new 'Generate Arazzo Specification...' issue in the [jentic-public-apis](https://github.com/jentic/jentic-public-apis) repository
-2. Include the URL to your OpenAPI specification (must be publicly accessible)
+2. Include the URL pointing to your OpenAPI specification (must be publicly accessible)
 3. Optionally, specify any specific workflows you'd like to generate
 
 The system will automatically process your request and generate the corresponding Arazzo specification. You'll be notified when the generation is complete.
