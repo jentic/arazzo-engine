@@ -221,7 +221,7 @@ curl -s -X POST "http://localhost:8000/generate" \
 pdm run test
 
 # Run a specific test file
-pdm run test tests/test_parser.py
+pdm run test tests/parser/test_openapi_parser.py
 ```
 
 #### Code Formatting & Linting
