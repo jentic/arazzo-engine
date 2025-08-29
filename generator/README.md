@@ -226,7 +226,7 @@ $ pdm run test tests/test_parser.py
 
 #### Code Formatting & Linting
 
-The project uses [black](https://github.com/psf/black), [isort](https://github.com/PyCQA/isort) and [ruff])(https://docs.astral.sh/ruff/) for code formatting.
+The project uses [black](https://github.com/psf/black), [isort](https://github.com/PyCQA/isort) and [ruff](https://docs.astral.sh/ruff/) for code formatting.
 
 ```bash
 # Check formatting & linting without making changes
