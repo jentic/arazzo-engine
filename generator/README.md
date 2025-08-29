@@ -30,6 +30,51 @@ Then, you can install arazzo-generator from PyPI with:
 python -m pip install arazzo-generator
 ```
 
+### Command Line Usage
+
+Make sure you have the Arazzo Generator installed and activated in your virtual environment.
+`arazzo-generator` command will be available after installation.
+
+#### Generate an Arazzo Workflow
+
+To generate an Arazzo workflow specification from an OpenAPI file using LLM-based analysis:
+
+```bash
+arazzo-generator generate <openapi_file_path> -o <output_file_path>
+```
+
+Example:
+```bash
+arazzo-generator generate /path/to/openapi.yaml -o ./output.yaml --format yaml
+```
+
+You can also generate output in JSON format (default):
+```bash
+arazzo-generator generate /path/to/openapi.yaml -o ./output.json --format json
+```
+
+Or use the shorter option flag:
+```bash
+arazzo-generator generate /path/to/openapi.yaml -o ./output.json -f json
+```
+
+Run `arazzo-generator generate --help` for more options.
+
+Generating files in batches is possible using the [batch](https://github.com/jentic/arazzo-engine/blob/main/generator/arazzo_generator/batch/README.md) command. Run `arazzo-generator batch --help` for more options.
+
+#### Validate an Arazzo Workflow
+
+To validate an existing Arazzo specification in either YAML or JSON format:
+
+```bash
+arazzo-generator validate /path/to/arazzo.yaml
+# OR
+arazzo-generator validate /path/to/arazzo.json
+```
+
+The validator automatically detects the format based on the file extension.
+
+
 ## Key Features
 
 - **OpenAPI Parser**: Robust parsing of OpenAPI v3.0 and v3.1 specifications with extensive error handling
