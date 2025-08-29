@@ -228,12 +228,13 @@ docker run -p 8000:8000 \
  arazzo-generator
 
 # Run the CLI tool
+mkdir output
 docker run --rm \
  -e ANTHROPIC_API_KEY=your_api_key \
  -e OPENAI_API_KEY=your_api_key \
  -e GEMINI_API_KEY=your_api_key \
  -v $(pwd)/output:/app/output \
- arazzo-generator pdm run generate <url> --output /app/output/result.yaml
+ arazzo-generator python -m arazzo_generator generate <url> --output /app/output/result.yaml
 ```
 
 For detailed Docker instructions including AWS ECS deployment, see the [Docker README](https://github.com/jentic/arazzo-engine/blob/main/generator/docker/README.md).
