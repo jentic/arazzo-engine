@@ -16,7 +16,7 @@ The batch module integrates with the core components of the Jentic Arazzo Genera
 The batch module can be used via the command-line interface:
 
 ```bash
-# Process all specifications in the working repository
+# Process all specifications in the working directory
 pdm run batch --all
 
 # Process specifications listed in a .txt file
