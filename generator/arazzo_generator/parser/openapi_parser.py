@@ -94,7 +94,7 @@ class OpenAPIParser:
 
         try:
             # Get the content depending on whether it's a file or URL
-            if self.url_parsed.schema == "file":
+            if self.url_parsed.scheme == "file":
                 logger.debug(f"Reading local file '{self.url}'")
                 try:
                     with open(self.url, "rb") as f:
