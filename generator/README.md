@@ -74,6 +74,35 @@ arazzo-generator validate /path/to/arazzo.json
 
 The validator automatically detects the format based on the file extension.
 
+### Docker usage
+
+Pull the latest image from GitHub Container Registry. The following image tags are available:
+
+- unstable (reflects `main` branch)
+
+```bash
+docker pull ghcr.io/jentic/arazzo-generator:unstable
+```
+
+```bash
+# Run the API server
+docker run -p 8000:8000 \
+ -e ANTHROPIC_API_KEY=your_api_key \
+ -e OPENAI_API_KEY=your_api_key \
+ -e GEMINI_API_KEY=your_api_key \
+ ghcr.io/jentic/arazzo-generator:unstable
+
+# Run the CLI tool
+mkdir output
+docker run --rm \
+ -e ANTHROPIC_API_KEY=your_api_key \
+ -e OPENAI_API_KEY=your_api_key \
+ -e GEMINI_API_KEY=your_api_key \
+ -v $(pwd)/output:/app/output \
+ ghcr.io/jentic/arazzo-generator:unstable python -m arazzo_generator generate <url> --output /app/output/result.yaml
+```
+
+
 
 ## Key Features
 
