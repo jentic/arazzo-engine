@@ -25,6 +25,8 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [tool.pdm]
+[tool.pdm.build]
+excludes = ["tests/**"]
 [tool.pdm.scripts]
 lint = {composite = ["black --check .", "isort --check-only .", "ruff check ."]}
 "lint:fix" = {composite = [ "ruff check . --fix", "black .", "isort ."]}
