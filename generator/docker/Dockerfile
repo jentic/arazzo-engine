@@ -1,6 +1,6 @@
 FROM python:3.13-slim AS base
 
-LABEL maintainer="sophie@jentic.com" \
+LABEL maintainer="vladimir@jentic.com" \
       org.opencontainers.image.authors="sophie@jentic.com" \
       org.opencontainers.image.url="https://ghcr.io/jentic/arazzo-generator" \
       org.opencontainers.image.source="https://github.com/jentic/arazzo-engine/tree/main/generator/docker" \

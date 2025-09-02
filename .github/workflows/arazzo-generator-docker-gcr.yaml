@@ -51,4 +51,3 @@ jobs:
           owner: jentic
           repository: arazzo-engine
           package: arazzo-generator
-          dry-run: true
