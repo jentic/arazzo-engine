@@ -43,4 +43,9 @@ jobs:
           push: true
           provenance: false
           tags: |
-            ghcr.io/jentic/arazzo-generator:unstable        
+            ghcr.io/jentic/arazzo-generator:unstable
+
+      - name: ghcr.io cleanup
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          dry-run: true
