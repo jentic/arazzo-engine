@@ -1,4 +1,4 @@
-name: Arazzo Generator Docker build & push (GitHub Container Registry)
+name: Arazzo Generator Docker build & push (GCR)
 
 permissions:
   contents: read
@@ -41,7 +41,6 @@ jobs:
           context: ./generator
           file: ./generator/docker/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/386,linux/ppc64le
           provenance: false
           tags: |
             ghcr.io/jentic/arazzo-generator:unstable        
