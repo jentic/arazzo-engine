@@ -41,6 +41,6 @@ jobs:
           context: ./generator
           file: ./generator/docker/Dockerfile
           push: true
-          provenance: true
+          provenance: false
           tags: |
             ghcr.io/jentic/arazzo-generator:unstable        
