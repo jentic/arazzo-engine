@@ -42,6 +42,9 @@ dev = [
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
+[tool.pdm]
+[tool.pdm.build]
+excludes = ["tests/**"]
 [tool.pdm.scripts]
 arazzo = "python -m arazzo_generator.cli.run"
 validate = "python -m arazzo_generator.cli.run validate"
