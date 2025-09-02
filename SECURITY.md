@@ -10,7 +10,7 @@ This is the list of versions which are currently being supported with security u
 
 | Version    | Supported          | Notes                           |
 |------------|--------------------|---------------------------------|
-| &gt;=0.8.x | :white_check_mark: | Active LTS                      |
+| &gt;=0.9.x | :white_check_mark: | Active LTS                      |
 
 ### Arazzo Generator
 This is the list of versions which are currently being supported with security updates.
