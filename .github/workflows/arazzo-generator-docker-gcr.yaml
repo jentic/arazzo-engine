@@ -45,7 +45,10 @@ jobs:
           tags: |
             ghcr.io/jentic/arazzo-generator:unstable
 
-      - name: ghcr.io cleanup
+      - name: Delete untagged images
         uses: dataaxiom/ghcr-cleanup-action@v1
         with:
+          owner: jentic
+          repository: arazzo-engine
+          package: arazzo-generator
           dry-run: true
