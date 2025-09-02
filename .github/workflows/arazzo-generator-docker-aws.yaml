@@ -1,4 +1,4 @@
-name: Arazzo Generator Docker build & push
+name: Arazzo Generator Docker build & push (AWS)
 
 permissions:
   contents: read
@@ -18,7 +18,7 @@ env:
   ECR_REPOSITORY: arazzo-runner             # set this to your Amazon ECR repository name
 
 jobs:
-  build:
+  build-push:
     # Runs for pushes and same-repo PRs, but never for forks or Dependabot
     if: ${{ (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) && github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
