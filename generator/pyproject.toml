@@ -43,6 +43,9 @@ requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
 [tool.pdm]
+plugins = [
+    "pdm-bump"
+]
 [tool.pdm.build]
 excludes = ["tests/**"]
 [tool.pdm.scripts]

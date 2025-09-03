@@ -1,0 +1,146 @@
+name: Arazzo Engine Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: Select component to release
+        required: true
+        type: choice
+        options:
+          - Arazzo Generator
+          - Arazzo Runner
+        default: Arazzo Generator
+      bump:
+        description: Select version bump
+        required: true
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+        default: patch
+
+permissions:
+  contents: write
+
+env:
+  GIT_AUTHOR_NAME: github-actions[bot]
+  GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+  GIT_COMMITTER_NAME: github-actions[bot]
+  GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+
+jobs:
+  arazzo-runner-release:
+    name: Release Arazzo Runner
+    if: ${{ inputs.component == 'Arazzo Runner' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PDM
+        run: pip install pdm
+        working-directory: ./runner
+
+      - name: Install PDM plugins
+        run: pdm install --plugins
+        working-directory: ./runner
+
+      - name: Bump runner version
+        id: bump_runner_version
+        run: |
+          git config user.name "${GIT_AUTHOR_NAME}"
+          git config user.email "${GIT_AUTHOR_EMAIL}"
+          pdm bump ${{ inputs.bump }} -c -m "chore(release): cut the arazzo_runner v{to} release"
+          echo "version=$(pdm show --version)" >> "$GITHUB_OUTPUT"
+        working-directory: ./runner
+
+      - name: Create runner tag
+        id: tag_runner_version
+        run: |
+          TAG="arazzo_runner/v${{ steps.bump_runner_version.outputs.version }}"
+          git tag -a "$TAG" -m "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        working-directory: ./runner
+
+      - name: Push commit and tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag_runner_version.outputs.tag }}"
+          git push --atomic origin "refs/heads/${{ github.ref_name }}" "refs/tags/${TAG}"
+        working-directory: ./runner
+
+      - name: Create Arazzo Runner Draft GitHub release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag_runner_version.outputs.tag }}
+          name:  Arazzo Runner v${{ steps.bump_runner_version.outputs.version }}
+          draft: true
+          generate_release_notes: true
+
+  arazzo-generator-release:
+    name: Release Arazzo Generator
+    if: ${{ inputs.component == 'Arazzo Generator' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PDM plugins
+        run: pdm install --plugins
+        working-directory: ./generator
+
+      - name: Bump generator version
+        id: bump_generator_version
+        run: |
+          git config user.name "${GIT_AUTHOR_NAME}"
+          git config user.email "${GIT_AUTHOR_EMAIL}"
+          pdm bump ${{ inputs.bump }} -c -m "chore(release): cut the arazzo_generator v{to} release"
+          echo "version=$(pdm show --version)" >> "$GITHUB_OUTPUT"
+        working-directory: ./generator
+
+      - name: Create generator tag
+        id: tag_generator_version
+        run: |
+          TAG="arazzo_generator/v${{ steps.bump_generator_version.outputs.version }}"
+          git tag -a "$TAG" -m "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        working-directory: ./generator
+
+      - name: Push commit and tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag_generator_version.outputs.tag }}"
+          git push --atomic origin "refs/heads/${{ github.ref_name }}" "refs/tags/${TAG}"
+        working-directory: ./generator
+
+      - name: Create Arazzo Generator Draft GitHub release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag_generator_version.outputs.tag }}
+          name:  Arazzo Generator v${{ steps.bump_generator_version.outputs.version }}
+          draft: true
+          generate_release_notes: true
