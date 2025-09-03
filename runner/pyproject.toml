@@ -29,6 +29,7 @@ plugins = [
     "pdm-bump"
 ]
 [tool.pdm.version]
+source = "file"
 tag-prefix = "arazzo_runner/v"
 [tool.pdm.build]
 excludes = ["tests/**"]
