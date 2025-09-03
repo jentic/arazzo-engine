@@ -46,8 +46,6 @@ build-backend = "pdm.backend"
 plugins = [
     "pdm-bump"
 ]
-[tool.pdm.version]
-tag-prefix = "arazzo_generator/v"
 [tool.pdm.build]
 excludes = ["tests/**"]
 [tool.pdm.scripts]

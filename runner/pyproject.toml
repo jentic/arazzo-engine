@@ -1,6 +1,6 @@
 [project]
 name = "arazzo_runner"
-version = "0.9.1"
+version = "0.9.0"
 description = "Execution libraries and test tools for Arazzo workflows and Open API operations"
 authors = [
     {name = "Jentic", email = "hello@jentic.com"},
@@ -28,9 +28,6 @@ build-backend = "pdm.backend"
 plugins = [
     "pdm-bump"
 ]
-[tool.pdm.version]
-source = "file"
-tag-prefix = "arazzo_runner/v"
 [tool.pdm.build]
 excludes = ["tests/**"]
 [tool.pdm.scripts]
