@@ -39,8 +39,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -60,7 +58,7 @@ jobs:
         run: |
           git config user.name "${GIT_AUTHOR_NAME}"
           git config user.email "${GIT_AUTHOR_EMAIL}"
-          pdm bump ${{ inputs.bump }} -c -m "chore(release): cut the arazzo_runner v{to} release"
+          pdm bump ${{ inputs.bump }} -c -m "chore(release): cut the arazzo_runner v{to} release" -t
           echo "version=$(pdm show --version)" >> "$GITHUB_OUTPUT"
         working-directory: ./runner
 
@@ -108,7 +106,7 @@ jobs:
 
       - name: Install PDM
         run: pip install pdm
-        working-directory: ./runner
+        working-directory: ./generator
 
       - name: Install PDM plugins
         run: pdm install --plugins
