@@ -2,11 +2,13 @@ name: Arazzo Generator Docker build & push (GCR)
 
 permissions:
   contents: read
-  packages: write
+  packages: read
 
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'arazzo_generator/v*.*.*'
     paths:
       - 'generator/**'
 
@@ -15,8 +17,24 @@ jobs:
   build-push:
     runs-on: ubuntu-latest
 
+    permissions:
+      packages: write
+
     steps:
       - uses: actions/checkout@v5
+
+      - name: Determine image tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "main" ]]; then
+            echo "tag=unstable" >> "$GITHUB_OUTPUT"
+            echo "push_latest=false" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#arazzo_generator/v}"
+            echo "tag=${version}" >> "$GITHUB_OUTPUT"
+            echo "push_latest=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -39,7 +57,8 @@ jobs:
           push: true
           provenance: false
           tags: |
-            ghcr.io/jentic/arazzo-generator:unstable
+            ghcr.io/jentic/arazzo-generator:${{ steps.tag.outputs.tag }}
+            ${{ steps.tag.outputs.push_latest == 'true' && 'ghcr.io/jentic/arazzo-generator:latest' || '' }}
 
       - name: Delete untagged images
         uses: dataaxiom/ghcr-cleanup-action@v1
