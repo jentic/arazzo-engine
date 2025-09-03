@@ -1,5 +1,12 @@
 FROM python:3.13-slim AS base
 
+LABEL maintainer="vladimir@jentic.com" \
+      org.opencontainers.image.authors="sophie@jentic.com" \
+      org.opencontainers.image.url="https://ghcr.io/jentic/arazzo-generator" \
+      org.opencontainers.image.source="https://github.com/jentic/arazzo-engine/tree/main/generator/docker" \
+      org.opencontainers.image.description="Arazzo Generator Docker image"  \
+      org.opencontainers.image.licenses="Apache-2.0"
+
 WORKDIR /app
     
 # Set environment variables
