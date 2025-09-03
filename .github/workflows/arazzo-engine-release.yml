@@ -106,6 +106,10 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Install PDM
+        run: pip install pdm
+        working-directory: ./runner
+
       - name: Install PDM plugins
         run: pdm install --plugins
         working-directory: ./generator
