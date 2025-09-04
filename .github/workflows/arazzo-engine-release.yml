@@ -54,6 +54,11 @@ jobs:
         run: pip install pdm && pdm install --plugins
         working-directory: ./runner
 
+      - name: Configure git
+        run: |
+          git config user.name  "${{ steps.app-token.outputs.app-slug }}[bot]"
+          git config user.email "${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+
       - name: Bump runner version
         id: bump-runner-version
         run: |
