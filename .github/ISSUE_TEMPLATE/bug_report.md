@@ -35,6 +35,7 @@ If applicable, add screenshots to help explain your problem.
  - OS: [e.g. Mac, Windows, Linux]
  - Python Version: [e.g. 3.11.4]
  - Arazzo Runner Version: [e.g. 2.3.0]
+ - Arazzo Generator Version: [e.g. 2.3.0]
  - Other relevant dependencies: [list]
 
 ## Severity
