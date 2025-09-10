@@ -1,0 +1,272 @@
+# ==============================================================================
+# Root .gitignore for arazzo-engine monorepo
+# ==============================================================================
+
+# -------------------------
+# Python
+# -------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.python-version
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# -------------------------
+# Virtual Environments
+# -------------------------
+env/
+.env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+.pdm-python
+.pdm-build/
+__pypackages__/
+
+# -------------------------
+# Package Managers
+# -------------------------
+# PDM
+.pdm-python
+.pdm-build/
+.pdm.lock
+
+# Poetry
+poetry.lock
+
+# Pipenv
+Pipfile.lock
+
+# pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# -------------------------
+# Testing & Coverage
+# -------------------------
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# -------------------------
+# Documentation
+# -------------------------
+docs/_build/
+docs/build/
+site/
+
+# -------------------------
+# IDEs & Editors
+# -------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.vim/
+.emacs.d/
+
+# JetBrains
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+.vimrc
+.viminfo
+
+# -------------------------
+# Operating Systems
+# -------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# -------------------------
+# Logs & Databases
+# -------------------------
+*.log
+logs/
+log/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Databases
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# -------------------------
+# Environment Variables
+# -------------------------
+.env
+.env.*
+!.env.example
+!.env.template
+!.env.sample
+.envrc
+
+# -------------------------
+# Temporary Files
+# -------------------------
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# -------------------------
+# Project Specific
+# -------------------------
+# Arazzo Generator
+generator/batch_logs/
+generator/_transient-files/
+generator/extracted_json.txt
+
+# Arazzo Runner  
+runner/debug_output/
+runner/test_output/
+runner/.test_output/
+
+# LLM Interaction logs
+*_llm_interaction/
+
+# Generated specs and workflows
+*.arazzo.json
+*.arazzo.yaml
+generated/
+output/
+
+# -------------------------
+# Security & Secrets
+# -------------------------
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# -------------------------
+# CI/CD
+# -------------------------
+.github/workflows/cache/
+.circleci/
+.travis.yml
+.gitlab-ci.yml
+
+# -------------------------
+# Docker
+# -------------------------
+.dockerignore
+docker-compose.override.yml
+
+# -------------------------
+# Jupyter Notebooks
+# -------------------------
+.ipynb_checkpoints/
+*.ipynb
+
+# -------------------------
+# Archive & Compressed Files
+# -------------------------
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# -------------------------
+# Monitoring & Profiling
+# -------------------------
+.prof
+.pyprof
+.coverage
+profile_default/
+ipython_config.py

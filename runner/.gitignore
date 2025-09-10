@@ -1,54 +1,94 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-.env
-.venv/
-.ruff_cache/
+# ==============================================================================
+# Arazzo Runner - Project Specific .gitignore
+# ==============================================================================
+# This file extends the root .gitignore for runner-specific exclusions
 
-# PDM
-.pdm-python
-.pdm-build/
-__pypackages__/
-
-# Logs
-logs/
-*.log
-
-# Testing
-.coverage
-htmlcov/
-.pytest_cache/
-.mypy_cache/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Debug output
+# -------------------------
+# Runner Specific Outputs
+# -------------------------
+# Execution results and reports
+execution_results/
+run_reports/
+workflow_outputs/
 debug_output/
 test_output/
 .test_output/
+
+# -------------------------
+# Workflow Execution Data
+# -------------------------
+# Runtime data and state
+runtime_data/
+execution_state/
+workflow_state/
+step_outputs/
+
+# Variable and context files
+variables_*.json
+context_*.json
+runtime_context/
+
+# -------------------------
+# Debugging & Development
+# -------------------------
+# Debug logs and traces
+debug_*.log
+trace_*.log
+execution_trace/
+
+# Performance monitoring
+perf_*.json
+monitoring/
+metrics/
+
+# -------------------------
+# Test Data & Artifacts
+# -------------------------
+# Test execution outputs
+test_workflows/output/
+test_results/
+test_reports/
+
+# Mock data that shouldn't be committed
+mocks/generated/
+fixtures/runtime/
+
+# -------------------------
+# Configuration & Secrets
+# -------------------------
+# Runtime configuration overrides
+runtime_config.json
+execution_config.yaml
+
+# API keys and credentials for test environments
+test_credentials.json
+.credentials/
+
+# -------------------------
+# Temporary Execution Files
+# -------------------------
+# Temporary workflow files
+temp_workflows/
+.workflow_cache/
+workflow_temp/
+
+# HTTP request/response logs
+http_logs/
+request_*.log
+response_*.log
+
+# -------------------------
+# Plugin & Extension Data
+# -------------------------
+# Plugin outputs and cache
+plugins/cache/
+extensions/temp/
+.plugin_data/
+
+# -------------------------
+# Validation & Testing
+# -------------------------
+# Validation reports
+validation_reports/
+schema_validation/
+compliance_reports/
