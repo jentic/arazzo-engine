@@ -36,13 +36,13 @@ This repository is home to a growing collection of tools for the Arazzo ecosyste
 The Arazzo Runner is a command-line tool and Python library that executes Arazzo workflows.  
 It powers the execution of your Arazzo definitions, handling everything from authentication and parameter passing to conditional logic and error handling.
 
-👉 [**Learn more about the Arazzo Runner here.**](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md)
+ [**Learn more about the Arazzo Runner here.**](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md)
 
 ### [Arazzo Generator](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md)
 
 The Arazzo Generator is a command-line tool and Python library for analyzing OpenAPI specifications and generating meaningful Arazzo workflows by identifying logical API sequences and patterns.
 
-👉 [**Learn more about the Arazzo Generator here.**](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md)
+ [**Learn more about the Arazzo Generator here.**](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md)
 
 ---
 
