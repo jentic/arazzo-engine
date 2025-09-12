@@ -1,49 +1,275 @@
-[![Discord](https://img.shields.io/badge/JOIN%20OUR%20DISCORD-COMMUNITY-7289DA?style=plastic&logo=discord&logoColor=white)](https://discord.gg/TdbWXZsUSm)
-
 # Arazzo Engine
 
-Welcome to the Arazzo Engine repository! This project is dedicated to building a powerful suite of tools for the **[Arazzo Specification](https://www.openapis.org/arazzo-specification)**, a new open-source standard from the **OpenAPI Initiative** for describing and executing complex sequences of API calls.
+[![Discord](https://img.shields.io/badge/JOIN%20OUR%20DISCORD-COMMUNITY-7289DA?style=plastic&logo=discord&logoColor=white)](https://discord.gg/TdbWXZsUSm)
+[![Hacktoberfest](https://img.shields.io/badge/Hacktoberfest-2025-ff6b6b?style=plastic)](https://hacktoberfest.com/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=plastic)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=plastic&logo=python)](https://python.org)
+[![CI](https://img.shields.io/github/actions/workflow/status/jentic/arazzo-engine/ci.yml?branch=main&style=plastic&label=CI)](https://github.com/jentic/arazzo-engine/actions)
 
-As a community-driven specification under the Linux Foundation, Arazzo is poised to revolutionize how we orchestrate and automate API interactions. This repository provides a set of open-source tools to bring Arazzo workflows to life.
+A comprehensive, open-source toolkit for working with **[Arazzo Specification](https://www.openapis.org/arazzo-specification)** workflows - the new standard from the OpenAPI Initiative for describing and executing complex API orchestrations.
 
-> **Join our community!** Connect with contributors and users on [Discord](https://discord.gg/yrxmDZWMqB) to discuss ideas, ask questions, and collaborate on the Arazzo Engine.
+---
+
+## 🎃 Hacktoberfest 2025
+
+**We're participating in Hacktoberfest!** Join thousands of developers contributing to open source this October.
+
+- 🏷️ **20+ beginner-friendly issues** labeled `good first issue` and `hacktoberfest`
+- 📚 **Comprehensive contribution guide** with step-by-step instructions
+- 💬 **Active community support** on Discord
+- 🚀 **Meaningful impact** on the future of API orchestration
+
+**New to open source?** Check out our [Good First Issue Guide](good_first_issue.md) to get started!
+
+[**Find issues to work on →**](https://github.com/jentic/arazzo-engine/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22+label%3Ahacktoberfest)
+
+---
 
 ## What is Arazzo?
 
-Arazzo is an official specification from the OpenAPI Initiative, joining the well-known OpenAPI Specification (OAS) and the new Overlay Specification. While OAS excels at describing individual APIs, **Arazzo defines a standard, language-agnostic way to orchestrate calls across one or more APIs into a workflow.**
+Arazzo is an official specification from the **OpenAPI Initiative**, joining the well-known OpenAPI Specification (OAS) and the Overlay Specification. While OAS describes individual APIs, **Arazzo defines workflows that orchestrate calls across one or more APIs**.
 
-It makes API use cases human- and machine-readable, removing the guesswork and enabling powerful automation for:
-*   Interactive workflow documentation
-*   Code and SDK generation
-*   Automated testing
-*   Deterministic API invocation by AI agents
+### Why Arazzo Matters
 
-This project, the Arazzo Engine, provides tools to harness the power of this new standard.
+- **Standardized API Orchestration**: Language-agnostic workflow definitions
+- **Human & Machine Readable**: Clear documentation that tools can execute
+- **Ecosystem Ready**: Enables automation, testing, and AI-driven API interactions
 
-## What's in this Repository?
+### Real-World Applications
 
-This repository is home to a growing collection of tools for the Arazzo ecosystem, including the [Arazzo Runner](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md) and the [Arazzo Generator](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md).
+- Interactive workflow documentation
+- Automated testing and validation
+- Code and SDK generation
+- AI agent API interactions
+- DevOps automation pipelines
 
-### [Arazzo Runner](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md)
+---
 
-The Arazzo Runner is a command-line tool and Python library that can execute Arazzo workflows. It is the engine that powers the execution of your Arazzo definitions, handling everything from authentication and parameter passing to conditional logic and error handling.
+## Projects
 
-[**Learn more about the Arazzo Runner here.**](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md)
+This monorepo contains two complementary tools for the Arazzo ecosystem:
 
-### [Arazzo Generator](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md)
+### 🏃 [Arazzo Runner](./runner/)
 
-The Arazzo Generator is a command-line tool and Python library for analyzing OpenAPI specifications and generating meaningful Arazzo workflows by identifying logical API sequences and patterns.
+Execute Arazzo workflows with full specification compliance.
 
-[**Learn more about the Arazzo Generator here.**](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md)
+```bash
+# Execute a workflow
+arazzo-runner execute workflow.arazzo.yaml --input '{"userId": 123}'
+```
 
+**Features:**
+- Complete Arazzo 1.0 specification support
+- Authentication handling (OAuth2, API keys, etc.)
+- Conditional logic and error handling
+- Extensive validation and debugging
+- Python library and CLI tool
 
-## Join the Community!
-The Arazzo specification and the tools in this repository are open-source and community-driven. We believe that the best way to build a powerful and flexible workflow standard is to do it in the open, with the help of the entire OpenAPI community.
-Whether you're an API developer, a DevOps engineer, or just someone who is passionate about automation, we invite you to get involved. Here are a few ways you can contribute:
-*   **Try out the Arazzo Runner:** Use it to automate your own API workflows and give us feedback.
-*   **Contribute to the code:** Help us build new features, fix bugs, and improve the existing tools.
-*   **Improve the documentation:** Help us make the Arazzo specification and our tools easier to understand and use.
-*   **Spread the word:** Tell your friends and colleagues about Arazzo and the Arazzo Engine.
+[**Explore the Runner →**](./runner/)
 
-We're excited to have you on board. Let's build the future of API orchestration together!
+### ⚙️ [Arazzo Generator](./generator/)
 
+Generate Arazzo workflows from OpenAPI specifications using AI-powered analysis.
+
+```bash
+# Generate workflows from OpenAPI spec
+arazzo-generator generate https://api.example.com/openapi.json -o workflows.arazzo.yaml
+```
+
+**Features:**
+- LLM-powered workflow identification
+- OpenAPI 3.0 and 3.1 support
+- Multiple output formats (JSON/YAML)
+- Batch processing capabilities
+- FastAPI web interface
+
+[**Explore the Generator →**](./generator/)
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Python 3.11 or higher
+- [PDM](https://pdm.fming.dev/) (recommended) or pip
+
+### Installation
+
+Choose your preferred installation method:
+
+#### Option 1: Install from PyPI
+```bash
+# Install both tools
+pip install arazzo-runner arazzo-generator
+
+# Or install individually
+pip install arazzo-runner
+pip install arazzo-generator
+```
+
+#### Option 2: Development Setup
+```bash
+# Clone the repository
+git clone https://github.com/jentic/arazzo-engine.git
+cd arazzo-engine
+
+# Setup development environment
+./scripts/setup.sh
+
+# Or setup manually
+cd generator && pdm install && cd ..
+cd runner && pdm install && cd ..
+```
+
+### Your First Workflow
+
+1. **Generate a workflow from an OpenAPI spec:**
+   ```bash
+   arazzo-generator generate https://petstore.swagger.io/v2/swagger.json -o petstore.arazzo.yaml
+   ```
+
+2. **Execute the workflow:**
+   ```bash
+   arazzo-runner execute petstore.arazzo.yaml --input '{"status": "available"}'
+   ```
+
+3. **View results:**
+   ```bash
+   cat execution_results.json
+   ```
+
+---
+
+## Contributing
+
+We welcome contributions from developers of all skill levels! Whether you're fixing typos or implementing major features, your contributions help make API orchestration better for everyone.
+
+### 🎯 Quick Contribution Guide
+
+1. **Find an issue** labeled `good first issue` for beginners
+2. **Fork the repository** and create a feature branch
+3. **Make your changes** following our coding standards
+4. **Add tests** and ensure they pass
+5. **Submit a pull request** using our template
+
+### 🛠️ Development Workflow
+
+```bash
+# Run tests for all projects
+./scripts/test-all.sh
+
+# Lint all code
+./scripts/lint-all.sh
+
+# Run tests for specific project
+cd generator && pdm run test
+cd runner && pdm run test
+```
+
+### 📚 Resources
+
+- [Good First Issue Guide](good_first_issue.md) - Step-by-step contribution instructions
+- [Contributing Guidelines](CONTRIBUTING.md) - Detailed development process
+- [Code of Conduct](CODE_OF_CONDUCT.md) - Community standards
+- [Discord Community](https://discord.gg/TdbWXZsUSm) - Get help and connect
+
+---
+
+## Community & Support
+
+### 💬 Join the Conversation
+
+- **Discord**: [Join our community](https://discord.gg/TdbWXZsUSm) for real-time discussions
+- **GitHub Discussions**: Share ideas and ask questions
+- **Issues**: Report bugs or request features
+
+### 🤝 Ways to Contribute
+
+| Type | Examples | Difficulty |
+|------|----------|------------|
+| 📝 **Documentation** | Fix typos, improve guides, add examples | Beginner |
+| 🧪 **Testing** | Add test cases, improve coverage | Beginner |
+| 🐛 **Bug Fixes** | Fix reported issues, edge cases | Intermediate |
+| ✨ **Features** | New functionality, enhancements | Intermediate |
+| 🏗️ **Architecture** | Performance, design improvements | Advanced |
+
+### 🏆 Recognition
+
+All contributors are recognized in our:
+- [Contributors list](CONTRIBUTORS.md)
+- Release notes for significant contributions  
+- Social media highlights
+- Annual community awards
+
+---
+
+## Project Status
+
+### 🚀 Current Status
+
+- **Arazzo Runner**: ✅ Stable (v1.0+) - Production ready
+- **Arazzo Generator**: 🚧 Beta (v0.2+) - Active development
+- **Specification Compliance**: ✅ Arazzo 1.0.1 fully supported
+
+### 📋 Roadmap
+
+**Q4 2024:**
+- Enhanced error handling and debugging
+- Performance optimizations
+- Extended authentication support
+
+**Q1 2025:**
+- Visual workflow editor
+- Cloud execution platform
+- Enterprise features
+
+**Q2 2025:**
+- Multi-language SDKs
+- Advanced AI integrations
+- Workflow marketplace
+
+[**View detailed roadmap →**](https://github.com/jentic/arazzo-engine/projects)
+
+---
+
+## Related Projects
+
+### Official Arazzo Resources
+- [Arazzo Specification](https://github.com/OAI/Arazzo-Specification) - Official spec repository
+- [OpenAPI Initiative](https://www.openapis.org/) - Specification governance
+
+### Community Tools
+- [Arazzo Examples](https://github.com/jentic/arazzo-examples) - Sample workflows and use cases
+- [Arazzo Validator](https://github.com/jentic/arazzo-validator) - Standalone validation tool
+
+---
+
+## License & Legal
+
+This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
+
+### 📄 Third-Party Licenses
+
+This project uses several open-source libraries. See [NOTICE](NOTICE) for detailed attribution.
+
+### 🔒 Security
+
+For security concerns, please see our [Security Policy](SECURITY.md) or contact security@jentic.com.
+
+---
+
+## Metrics & Analytics
+
+![GitHub Stars](https://img.shields.io/github/stars/jentic/arazzo-engine?style=social)
+![GitHub Forks](https://img.shields.io/github/forks/jentic/arazzo-engine?style=social)
+![GitHub Issues](https://img.shields.io/github/issues/jentic/arazzo-engine)
+![GitHub Pull Requests](https://img.shields.io/github/issues-pr/jentic/arazzo-engine)
+
+**Monthly Downloads:** ![PyPI Downloads](https://img.shields.io/pypi/dm/arazzo-runner)
+
+---
+
+*Built with ❤️ by the Jentic team and amazing open-source contributors worldwide.*
+
+*Let's build the future of API orchestration together!*
