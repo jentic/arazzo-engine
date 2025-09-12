@@ -249,6 +249,80 @@ You can configure the blob storage threshold and directory via environment varia
 - Blob files are stored on disk and referenced by unique IDs
 - State persists between workflow executions
 
+## Development
+
+All following sections assume that you're inside the `./runner` directory of the `arazzo-engine` monorepo.
+
+### Installation
+
+1. Install PDM if you haven't already:
+   ```bash
+   # Install PDM
+   curl -sSL https://pdm.fming.dev/install-pdm.py | python3 -
+   
+   # Or with Homebrew (macOS/Linux)
+   brew install pdm
+   
+   # Or with pip
+   pip install pdm
+   ```
+
+2. Install project dependencies:
+   ```bash
+   # Install dependencies
+   pdm install
+   ```
+
+### Executing Runner CLI commands
+
+You can run the Arazzo Runner CLI commands using python's `-m` flag:
+
+```bash
+python -m arazzo_runner --help
+```
+
+This will display the help message for the Arazzo Runner CLI will all available commands.
+
+### Running Tests
+
+The Arazzo Runner includes a comprehensive testing framework for workflow validation:
+
+- Automated test fixtures for different workflow scenarios
+- Mock HTTP responses based on OpenAPI specs
+- Custom mock responses for specific endpoints
+- Validation of workflow outputs and API call counts
+
+For details on testing, see [Arazzo Runner Testing Framework](https://github.com/jentic/arazzo-engine/blob/main/runner/tests/README.md)
+
+```bash
+# Run all tests
+pdm run test
+# Run making actual API calls
+pdm run test-real 
+
+# Run a specific test file
+pdm run test tests/test_arazzo_runner.py
+```
+
+### Code Formatting & Linting
+
+The project uses [black](https://github.com/psf/black), [isort](https://github.com/PyCQA/isort) and [ruff](https://docs.astral.sh/ruff/) for code formatting.
+
+```bash
+# Check formatting & linting without making changes
+pdm run lint
+
+# Format & lint code 
+pdm run lint:fix
+```
+
+#### Available PDM Scripts
+
+- `pdm run test` - Run all tests
+- `pdm run test` - Run all tests making actual API calls
+- `pdm run lint` - Check formatting & linting without making changes
+- `pdm run lint:fix` - Format & lint code
+
 ## Overview
 
 Arazzo Runner orchestrates API workflows by:
@@ -261,18 +335,6 @@ Arazzo Runner orchestrates API workflows by:
 - Supporting nested workflow execution
 - Providing event callbacks for workflow lifecycle events
 - Managing authentication requirements across different APIs
-
-
-## Testing
-
-The Arazzo Runner includes a comprehensive testing framework for workflow validation:
-
-- Automated test fixtures for different workflow scenarios
-- Mock HTTP responses based on OpenAPI specs
-- Custom mock responses for specific endpoints
-- Validation of workflow outputs and API call counts
-
-For details on testing, see [Arazzo Runner Testing Framework](https://github.com/jentic/arazzo-engine/blob/main/runner/tests/README.md)
 
 ## Arazzo Format
 
