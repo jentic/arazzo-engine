@@ -253,6 +253,14 @@ You can configure the blob storage threshold and directory via environment varia
 
 All following sections assume that you're inside the `./runner` directory of the `arazzo-engine` monorepo.
 
+### Prerequisites
+
+Python 3.11 or higher is required. You can check your Python version with:
+
+```bash
+python --version
+```
+
 ### Installation
 
 1. Install PDM if you haven't already:
