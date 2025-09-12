@@ -17,7 +17,7 @@ This is the list of versions which are currently being supported with security u
 
 | Version    | Supported          | Notes                           |
 |------------|--------------------|---------------------------------|
-| &gt;=0.1.x | :white_check_mark: | Active LTS                      |
+| &gt;=0.2.x | :white_check_mark: | Active LTS                      |
 
 
 ## Reporting a vulnerability
