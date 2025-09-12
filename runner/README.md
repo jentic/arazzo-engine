@@ -281,7 +281,7 @@ You can run the Arazzo Runner CLI commands using python's `-m` flag:
 python -m arazzo_runner --help
 ```
 
-This will display the help message for the Arazzo Runner CLI will all available commands.
+This will display the help message for the Arazzo Runner CLI with all available commands.
 
 ### Running Tests
 
@@ -297,6 +297,7 @@ For details on testing, see [Arazzo Runner Testing Framework](https://github.com
 ```bash
 # Run all tests
 pdm run test
+
 # Run making actual API calls
 pdm run test-real 
 
