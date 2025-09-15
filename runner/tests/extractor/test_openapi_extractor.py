@@ -11,6 +11,7 @@ import pytest
 from arazzo_runner.extractor.openapi_extractor import (
     _limit_dict_depth,
     _resolve_schema_refs,
+    resolve_schema,
     extract_operation_io,
 )
 
@@ -560,7 +561,7 @@ def test_resolve_schema_refs_complex_circular_dependency():
     schema_diamond = {"$ref": "#/components/schemas/DiamondA"}
 
     # Direct self-reference through array items and allOf
-    resolved_self = _resolve_schema_refs(schema_self, circular_spec)
+    resolved_self = resolve_schema(schema_self, circular_spec)
     assert isinstance(resolved_self, dict)
     assert resolved_self.get("type") == "object"
     # children is an array and items keeps $ref to SelfReferential (cycle preserved)
@@ -582,7 +583,7 @@ def test_resolve_schema_refs_complex_circular_dependency():
     assert resolved_self["properties"]["tag"]["type"] == "string"
 
     # Indirect cycle with allOf on B
-    resolved_indirect = _resolve_schema_refs(schema_indirect, circular_spec)
+    resolved_indirect = resolve_schema(schema_indirect, circular_spec)
     assert isinstance(resolved_indirect, dict)
     assert resolved_indirect.get("type") == "object"
     link_to_b = resolved_indirect.get("properties", {}).get("link_to_b")
@@ -650,7 +651,7 @@ def test_resolve_schema_refs_allof_merging():
     }
 
     schema = {"$ref": "#/components/schemas/ExtendedSchema"}
-    resolved = _resolve_schema_refs(schema, spec)
+    resolved = resolve_schema(schema, spec)
 
     # allOf should be merged and removed
     assert "allOf" not in resolved
@@ -691,7 +692,7 @@ def test_resolve_schema_refs_allof_with_nested_refs():
     }
 
     schema = {"$ref": "#/components/schemas/AllOfWithNestedRef"}
-    resolved = _resolve_schema_refs(schema, spec)
+    resolved = resolve_schema(schema, spec)
 
     # allOf should be merged and removed
     assert "allOf" not in resolved
@@ -812,7 +813,7 @@ def test_resolve_schema_refs_allof_with_deep_circular_ref():
     }
 
     schema = {"$ref": "#/components/schemas/User"}
-    resolved = _resolve_schema_refs(schema, spec)
+    resolved = resolve_schema(schema, spec)
 
     # allOf should be merged and removed
     assert "allOf" not in resolved
@@ -897,7 +898,7 @@ def test_resolve_schema_refs_oneof_behavior():
     }
 
     schema = {"$ref": "#/components/schemas/SchemaWithOneOf"}
-    resolved = _resolve_schema_refs(schema, spec)
+    resolved = resolve_schema(schema, spec)
 
     # oneOf should be preserved structurally
     data_property = resolved.get("properties", {}).get("data", {})
@@ -947,3 +948,29 @@ def test_resolve_schema_refs_oneof_behavior():
     assert isinstance(nested_second, dict)
     assert "properties" in nested_second
     assert "other" in nested_second["properties"]
+
+
+def test_merge_json_schemas_boolean_schemas():
+    """Test that Boolean JSON Schemas (true/false) are handled correctly."""
+    from arazzo_runner.extractor.openapi_extractor import merge_json_schemas
+
+    # Test Boolean schemas
+    assert merge_json_schemas(True, {"type": "string"}) == True
+    assert merge_json_schemas(False, {"type": "string"}) == False
+    assert merge_json_schemas({"type": "string"}, True) == True
+    assert merge_json_schemas({"type": "string"}, False) == False
+    assert merge_json_schemas(True, True) == True
+    assert merge_json_schemas(False, False) == False
+    assert merge_json_schemas(True, False) == True  # Target takes precedence
+
+    # Test with allOf folding
+    schema_with_boolean = {
+        "allOf": [
+            True,  # Boolean schema
+            {"properties": {"field": {"type": "string"}}},
+        ]
+    }
+
+    resolved = resolve_schema(schema_with_boolean, {})
+    # Should return True since Boolean schemas take precedence
+    assert resolved == True

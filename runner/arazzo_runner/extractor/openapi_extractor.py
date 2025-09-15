@@ -154,61 +154,169 @@ def _resolve_ref(spec: dict[str, Any], ref: str) -> dict[str, Any]:
         raise
 
 
-def _merge_schema_dicts(
-    base_dict: dict[str, Any],
-    overlay_dict: dict[str, Any],
-    full_spec: dict[str, Any],
-    stack: set[str],
-    memo: dict[str, Any],
-    special_handling: dict[str, str] | None = None,
-) -> dict[str, Any]:
+def merge_json_schemas(target: dict[str, Any], source: dict[str, Any], config: dict[str, Any] | None = None) -> dict[str, Any]:
     """
-    Merge two schema dictionaries with special handling for properties and required fields.
-
+    Merge two JSON Schema objects following JSON Schema Draft 4/5 and 2020-12 specifications.
+    
+    This function handles the merging of two schema objects, including:
+    - Boolean JSON Schemas (true/false)
+    - Properties merging with recursive handling
+    - Required fields consolidation
+    - Type keyword merging
+    - Enum merging
+    - Items, contains, contentSchema merging
+    - Other schema keywords
+    
     Args:
-        base_dict: The base dictionary to merge into
-        overlay_dict: The dictionary to overlay onto base_dict
-        full_spec: The full OpenAPI specification
-        stack: The current resolution stack for cycle detection
-        memo: The memoization cache
-        special_handling: Optional dict mapping keys to special merge strategies
-                         (e.g., {"properties": "update", "required": "extend"})
-
+        target: The target schema object to merge into
+        source: The source schema object to merge from
+        config: Optional configuration for merging behavior
+        
     Returns:
-        The merged dictionary
+        The merged schema object
     """
-    if special_handling is None:
-        special_handling = {"properties": "update", "required": "extend"}
-
-    merged = dict(base_dict)
-
-    for key, value in overlay_dict.items():
-        if key in special_handling:
-            strategy = special_handling[key]
-            if strategy == "update" and isinstance(value, dict):
-                # For properties, merge the dictionaries
-                if key not in merged:
-                    merged[key] = {}
-                if isinstance(merged[key], dict):
-                    merged[key].update(value)
-            elif strategy == "extend" and isinstance(value, list):
-                # For required, extend the list
-                if key not in merged:
-                    merged[key] = []
-                if isinstance(merged[key], list):
-                    merged[key].extend(value)
-            else:
-                # Fallback to direct assignment
-                merged[key] = value
+    if config is None:
+        config = {}
+    
+    # Handle Boolean JSON Schemas
+    # If either is a boolean, return the target (which takes precedence)
+    if target is True or target is False:
+        return target
+    if source is True or source is False:
+        return source
+    
+    # Handle non-object types
+    if not isinstance(target, dict):
+        return source
+    if not isinstance(source, dict):
+        return target
+    
+    # Start with source, then overlay target (target takes precedence)
+    merged = {**source, **target}
+    
+    # Merge type keyword
+    if "type" in source and "type" in target:
+        source_type = source["type"]
+        target_type = target["type"]
+        
+        if isinstance(source_type, (str, list)) and isinstance(target_type, (str, list)):
+            # Convert to lists for easier handling
+            source_types = source_type if isinstance(source_type, list) else [source_type]
+            target_types = target_type if isinstance(target_type, list) else [target_type]
+            
+            # Combine and deduplicate
+            combined_types = list(set(source_types + target_types))
+            merged["type"] = combined_types[0] if len(combined_types) == 1 else combined_types
+    
+    # Merge required keyword
+    if "required" in source and "required" in target:
+        source_required = source["required"] if isinstance(source["required"], list) else []
+        target_required = target["required"] if isinstance(target["required"], list) else []
+        merged["required"] = list(set(source_required + target_required))
+    
+    # Merge properties keyword
+    if "properties" in source and "properties" in target:
+        source_props = source["properties"] if isinstance(source["properties"], dict) else {}
+        target_props = target["properties"] if isinstance(target["properties"], dict) else {}
+        
+        all_property_names = set(source_props.keys()) | set(target_props.keys())
+        merged["properties"] = {}
+        
+        for prop_name in all_property_names:
+            source_prop = source_props.get(prop_name, {})
+            target_prop = target_props.get(prop_name, {})
+            
+            # Merge properties recursively
+            merged["properties"][prop_name] = merge_json_schemas(target_prop, source_prop, config)
+    
+    # Merge items keyword
+    if "items" in source and "items" in target:
+        source_items = source["items"]
+        target_items = target["items"]
+        
+        if isinstance(source_items, dict) and isinstance(target_items, dict):
+            merged["items"] = merge_json_schemas(target_items, source_items, config)
         else:
-            # Resolve the value if it's a complex type, then assign
-            if isinstance(value, (dict | list)):
-                resolved_value = _resolve_schema_refs(value, full_spec, stack, memo)
-                merged[key] = resolved_value
-            else:
-                merged[key] = value
-
+            # If one is not a dict, use the target (which takes precedence)
+            merged["items"] = target_items
+    
+    # Merge contains keyword
+    if "contains" in source and "contains" in target:
+        source_contains = source["contains"]
+        target_contains = target["contains"]
+        
+        if isinstance(source_contains, dict) and isinstance(target_contains, dict):
+            merged["contains"] = merge_json_schemas(target_contains, source_contains, config)
+        else:
+            merged["contains"] = target_contains
+    
+    # Merge contentSchema keyword
+    if "contentSchema" in source and "contentSchema" in target:
+        source_content = source["contentSchema"]
+        target_content = target["contentSchema"]
+        
+        if isinstance(source_content, dict) and isinstance(target_content, dict):
+            merged["contentSchema"] = merge_json_schemas(target_content, source_content, config)
+        else:
+            merged["contentSchema"] = target_content
+    
+    # Merge enum keyword
+    if "enum" in source and "enum" in target:
+        source_enum = source["enum"] if isinstance(source["enum"], list) else []
+        target_enum = target["enum"] if isinstance(target["enum"], list) else []
+        merged["enum"] = list(set(source_enum + target_enum))
+    
     return merged
+
+
+def fold_all_of(schema: Any) -> Any:
+    """
+    Recursively fold allOf arrays into single schema objects by merging all allOf items.
+    
+    This function takes a schema that may contain allOf arrays and folds them
+    into single schemas without allOf keywords, using merge_json_schemas.
+    It processes the schema recursively to handle nested allOf arrays.
+    
+    Args:
+        schema: The schema object that may contain allOf arrays
+        
+    Returns:
+        The schema with allOf arrays folded into single objects
+    """
+    if isinstance(schema, dict):
+        # First, recursively process all values in the schema
+        processed_schema = {k: fold_all_of(v) for k, v in schema.items()}
+        
+        # If no allOf, return the processed schema
+        if "allOf" not in processed_schema:
+            return processed_schema
+        
+        all_of_items = processed_schema["allOf"]
+        if not isinstance(all_of_items, list) or not all_of_items:
+            return processed_schema
+        
+        # Start with an empty schema
+        merged_schema = {}
+        
+        # Merge all allOf items
+        for item in all_of_items:
+            if isinstance(item, dict):
+                merged_schema = merge_json_schemas(merged_schema, item)
+            elif item is True or item is False:
+                # Handle Boolean JSON Schemas
+                merged_schema = merge_json_schemas(merged_schema, item)
+        
+        # Remove the allOf keyword and merge with any other properties in the original schema
+        schema_without_allof = {k: v for k, v in processed_schema.items() if k != "allOf"}
+        result = merge_json_schemas(merged_schema, schema_without_allof)
+        
+        return result
+    elif isinstance(schema, list):
+        # Process each item in the list
+        return [fold_all_of(item) for item in schema]
+    else:
+        # Return primitive types as-is
+        return schema
 
 
 def _resolve_schema_refs(
@@ -218,29 +326,20 @@ def _resolve_schema_refs(
     cache: dict[str, Any] | None = None,
 ) -> Any:
     """
-    Recursively resolve ``$ref`` within a schema fragment with cycle safety and memoization.
-
-    Scope and behavior:
-    - Intended only for Schema Objects or schema-like fragments (dict/list trees).
-    - Walks dicts and lists recursively, expanding internal ``$ref`` where safe.
-    - Cycle-safe: uses a path-level stack to detect cycles and returns a placeholder
-      ``{"$ref": path}`` at the cycle boundary (prevents infinite recursion).
-    - Memoization cache avoids repeated expansions of the same component.
-    - Sibling merge: if a node has ``{"$ref": X, ...siblings}``, merge the referenced
-      target with sibling keys, where the referenced target takes precedence on conflicts
-      (i.e., siblings only fill in missing keys). This prioritizes structural fidelity
-      from the referenced schema over sibling metadata.
-    - allOf merging: if a node has ``{"allOf": [...]}``, recursively resolve all items
-      and merge their properties, required fields, and other schema properties. Later
-      items in the allOf array override earlier ones on conflicts. Properties are merged
-      by combining their dictionaries, and required fields are collected from all items.
-    - Other combinators (``oneOf``, ``anyOf``) are preserved structurally; this
-      function does not attempt JSON Schema evaluation or flattening—only ref expansion.
-
-    - This is a schema-aware tree walker with schema-specific semantics (sibling merge,
-      allOf merging), which would be incorrect for generic OpenAPI objects.
-    - Callers that need simple pointer dereference without transformation should use
-      ``_resolve_ref`` instead.
+    Resolve schema references without sibling merging.
+    
+    This function only handles reference resolution and cycle elimination,
+    without merging sibling properties. This allows for clean separation of
+    concerns where sibling merging can be handled in a separate pass.
+    
+    Args:
+        schema_part: The schema fragment to resolve
+        full_spec: The full OpenAPI specification
+        visited_refs: Set of visited references for cycle detection
+        cache: Memoization cache for resolved references
+        
+    Returns:
+        The schema with references resolved but siblings not merged
     """
     stack = visited_refs if visited_refs is not None else set()
     memo = cache if cache is not None else {}
@@ -279,106 +378,98 @@ def _resolve_schema_refs(
                 finally:
                     stack.discard(ref)
 
-            # Merge siblings (referenced target takes precedence) if any
-            siblings = {k: v for k, v in schema_part.items() if k != "$ref"}
-            if siblings and isinstance(result, dict):
-                # Resolve sibling values first
-                resolved_siblings: dict[str, Any] = {}
-                for k, v in siblings.items():
-                    resolved_siblings[k] = _resolve_schema_refs(v, full_spec, stack, memo)
-                # Start from siblings, then overlay result so result wins on conflicts
-                merged: dict[str, Any] = dict(resolved_siblings)
-                for k, v in result.items():
-                    merged[k] = v
-                return merged
+            # Return the resolved result without merging siblings
             return result
-
-        # Handle allOf merging
-        if "allOf" in schema_part:
-            all_of_items = schema_part["allOf"]
-            if not isinstance(all_of_items, list):
-                logger.warning("allOf must be an array, skipping allOf processing")
-                return {
-                    k: _resolve_schema_refs(v, full_spec, stack, memo)
-                    for k, v in schema_part.items()
-                }
-
-            # Resolve all allOf items first
-            resolved_items = []
-            for item in all_of_items:
-                resolved_item = _resolve_schema_refs(item, full_spec, stack, memo)
-                if isinstance(resolved_item, dict):
-                    # Include circular reference placeholders to maintain consistency
-                    # with the rest of the circular reference handling logic
-                    resolved_items.append(resolved_item)
-                else:
-                    logger.warning(
-                        f"allOf item resolved to non-dict: {type(resolved_item)}, skipping"
-                    )
-
-            if not resolved_items:
-                logger.warning("No valid allOf items found, returning original schema")
-                return {
-                    k: _resolve_schema_refs(v, full_spec, stack, memo)
-                    for k, v in schema_part.items()
-                }
-
-            # Merge all resolved items using the helper function
-            merged_schema: dict[str, Any] = {}
-            circular_refs = []
-
-            for item in resolved_items:
-                # Check if this is a circular reference placeholder
-                if "$ref" in item and len(item) == 1:
-                    circular_refs.append(item)
-                else:
-                    merged_schema = _merge_schema_dicts(
-                        merged_schema,
-                        item,
-                        full_spec,
-                        stack,
-                        memo,
-                        special_handling={"properties": "update", "required": "extend"},
-                    )
-
-            # If we have circular references, merge them as siblings to maintain consistency
-            # with the rest of the circular reference handling (same as regular $ref handling)
-            for circular_ref in circular_refs:
-                merged_schema.update(circular_ref)
-
-            # Remove duplicates from required fields while preserving order
-            if "required" in merged_schema and isinstance(merged_schema["required"], list):
-                seen = set()
-                merged_schema["required"] = [
-                    x for x in merged_schema["required"] if not (x in seen or seen.add(x))
-                ]
-
-            # Ensure type is set to object if we have properties
-            if "properties" in merged_schema and "type" not in merged_schema:
-                merged_schema["type"] = "object"
-
-            # Process any remaining non-allOf keys in the original schema
-            for key, value in schema_part.items():
-                if key != "allOf":
-                    resolved_value = _resolve_schema_refs(value, full_spec, stack, memo)
-                    # For properties, merge them instead of overwriting
-                    if (
-                        key == "properties"
-                        and isinstance(resolved_value, dict)
-                        and isinstance(merged_schema.get(key), dict)
-                    ):
-                        merged_schema[key].update(resolved_value)
-                    else:
-                        # Non-allOf keys take precedence over merged content
-                        merged_schema[key] = resolved_value
-
-            return merged_schema
 
         # Regular dict: resolve entries
         return {k: _resolve_schema_refs(v, full_spec, stack, memo) for k, v in schema_part.items()}
 
     # List: resolve items
     return [_resolve_schema_refs(item, full_spec, stack, memo) for item in schema_part]
+
+
+def merge_siblings(schema: Any, original_schema: Any) -> Any:
+    """
+    Merge sibling properties with resolved $ref schemas.
+    
+    This function handles the case where a schema object contains both a $ref
+    and additional properties at the same level. The referenced schema takes
+    precedence, and sibling properties only fill in missing keys.
+    
+    Args:
+        schema: The schema with resolved references
+        original_schema: The original schema before reference resolution
+        
+    Returns:
+        The schema with sibling properties merged
+    """
+    if isinstance(schema, dict) and isinstance(original_schema, dict):
+        # Check if the original had a $ref with siblings
+        if "$ref" in original_schema and len(original_schema) > 1:
+            # This was a $ref with siblings - merge them
+            siblings = {k: v for k, v in original_schema.items() if k != "$ref"}
+            
+            # Recursively process sibling values
+            processed_siblings = {k: merge_siblings(v, v) for k, v in siblings.items()}
+            
+            # Start from siblings, then overlay the resolved $ref result so $ref wins on conflicts
+            merged: dict[str, Any] = dict(processed_siblings)
+            for k, v in schema.items():
+                merged[k] = v
+            return merged
+        else:
+            # No $ref with siblings, just process recursively
+            # But if the original was just a $ref, return the resolved schema as-is
+            if "$ref" in original_schema and len(original_schema) == 1:
+                return schema
+            else:
+                return {k: merge_siblings(schema.get(k, v), v) for k, v in original_schema.items()}
+    elif isinstance(schema, list) and isinstance(original_schema, list):
+        # Process each item in the list
+        return [merge_siblings(schema[i] if i < len(schema) else item, item) for i, item in enumerate(original_schema)]
+    else:
+        # Return the resolved schema as-is
+        return schema
+
+
+def resolve_schema(
+    schema_part: Any,
+    full_spec: dict[str, Any],
+    visited_refs: set[str] | None = None,
+    cache: dict[str, Any] | None = None,
+) -> Any:
+    """
+    Three-pass schema resolution with complete separation of concerns:
+    1. Reference resolution with cycle elimination (without sibling merging)
+    2. Sibling merging (merge $ref with sibling properties)
+    3. allOf folding using merge_json_schemas
+    
+    This function implements the cleanest separation of concerns approach
+    where each pass handles a single responsibility. It replaces the original
+    mixed-approach implementation with a clean three-pass architecture.
+    
+    Args:
+        schema_part: The schema fragment to resolve
+        full_spec: The full OpenAPI specification
+        visited_refs: Set of visited references for cycle detection
+        cache: Memoization cache for resolved references
+        
+    Returns:
+        The fully resolved schema with all transformations applied
+    """
+    # Pass 1: Reference resolution with cycle elimination (without sibling merging)
+    resolved_schema = _resolve_schema_refs(schema_part, full_spec, visited_refs, cache)
+    
+    # Pass 2: Sibling merging
+    merged_schema = merge_siblings(resolved_schema, schema_part)
+    
+    # Pass 3: allOf folding
+    if isinstance(merged_schema, dict):
+        return fold_all_of(merged_schema)
+    elif isinstance(merged_schema, list):
+        return [fold_all_of(item) if isinstance(item, dict) else item for item in merged_schema]
+    else:
+        return merged_schema
 
 
 def extract_operation_io(
@@ -550,9 +641,9 @@ def extract_operation_io(
             else:
                 # Resolve schema ref if present
                 if isinstance(param_schema, dict) and "$ref" in param_schema:
-                    # Defer full resolution to _resolve_schema_refs to properly handle cycles
+                    # Defer full resolution to resolve_schema to properly handle cycles, siblings, and allOf
                     try:
-                        param_schema = _resolve_schema_refs(param_schema, spec)
+                        param_schema = resolve_schema(param_schema, spec)
                     except Exception as ref_e:
                         logger.warning(
                             f"Could not resolve schema $ref for parameter '{param_name}': {ref_e}"
@@ -592,9 +683,9 @@ def extract_operation_io(
         try:
             request_body = operation["requestBody"]
             if "$ref" in request_body:
-                # Resolve requestBody schema using cycle-safe resolver.
+                # Resolve requestBody schema using three-pass resolver with cycles, siblings, and allOf.
                 try:
-                    request_body = _resolve_schema_refs(request_body, spec)
+                    request_body = resolve_schema(request_body, spec)
                 except Exception as e:
                     # Continue with execution even if schema could not be fully resolved
                     logger.warning(f"Could not resolve requestBody: {e}")
@@ -606,8 +697,8 @@ def extract_operation_io(
             if body_schema:
                 # Let the recursive resolver handle any $ref and cycles
 
-                # Recursively resolve nested refs within the body schema
-                fully_resolved_body_schema = _resolve_schema_refs(body_schema, spec)
+                # Recursively resolve nested refs within the body schema with three-pass resolution
+                fully_resolved_body_schema = resolve_schema(body_schema, spec)
 
                 # --- Flatten body properties into inputs ---
                 if (
@@ -652,8 +743,8 @@ def extract_operation_io(
             try:
                 resolved_response = success_response
                 if isinstance(success_response, dict) and "$ref" in success_response:
-                    # Resolve response object safely with schema resolver
-                    resolved_response = _resolve_schema_refs(success_response, spec)
+                    # Resolve response object safely with three-pass schema resolver
+                    resolved_response = resolve_schema(success_response, spec)
 
                 # Check for application/json content in the resolved successful response
                 json_content = resolved_response.get("content", {}).get("application/json", {})
@@ -664,7 +755,7 @@ def extract_operation_io(
                     logger.debug(
                         f"Output schema BEFORE recursive resolve: {_schema_brief(response_schema)}"
                     )
-                    fully_resolved_output_schema = _resolve_schema_refs(response_schema, spec)
+                    fully_resolved_output_schema = resolve_schema(response_schema, spec)
                     logger.debug(
                         f"Output schema AFTER recursive resolve: {_schema_brief(fully_resolved_output_schema)}"
                     )
