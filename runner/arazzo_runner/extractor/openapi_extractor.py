@@ -469,12 +469,7 @@ def resolve_schema(
     merged_schema = merge_siblings(resolved_schema, schema_part)
 
     # Pass 3: allOf folding
-    if isinstance(merged_schema, dict):
-        return fold_all_of(merged_schema)
-    elif isinstance(merged_schema, list):
-        return [fold_all_of(item) if isinstance(item, dict) else item for item in merged_schema]
-    else:
-        return merged_schema
+    return fold_all_of(merged_schema)
 
 
 def extract_operation_io(
