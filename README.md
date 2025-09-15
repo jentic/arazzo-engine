@@ -2,48 +2,60 @@
 
 # Arazzo Engine
 
-Welcome to the Arazzo Engine repository! This project is dedicated to building a powerful suite of tools for the **[Arazzo Specification](https://www.openapis.org/arazzo-specification)**, a new open-source standard from the **OpenAPI Initiative** for describing and executing complex sequences of API calls.
+Welcome to the Arazzo Engine repository!  
+This project is dedicated to building a powerful suite of tools for the **[Arazzo Specification](https://www.openapis.org/arazzo-specification)**—a new open-source standard from the **OpenAPI Initiative** for describing and executing complex sequences of API calls.
 
-As a community-driven specification under the Linux Foundation, Arazzo is poised to revolutionize how we orchestrate and automate API interactions. This repository provides a set of open-source tools to bring Arazzo workflows to life.
+As a community-driven specification under the Linux Foundation, Arazzo is designed to revolutionize how we orchestrate and automate API interactions. This repository provides open-source tools to bring Arazzo workflows to life.
 
 > **Join our community!** Connect with contributors and users on [Discord](https://discord.gg/yrxmDZWMqB) to discuss ideas, ask questions, and collaborate on the Arazzo Engine.
 
+---
+
 ## What is Arazzo?
 
-Arazzo is an official specification from the OpenAPI Initiative, joining the well-known OpenAPI Specification (OAS) and the new Overlay Specification. While OAS excels at describing individual APIs, **Arazzo defines a standard, language-agnostic way to orchestrate calls across one or more APIs into a workflow.**
+Arazzo is an official specification from the OpenAPI Initiative, joining the well-known OpenAPI Specification (OAS) and the new Overlay Specification.  
+While OAS excels at describing individual APIs, **Arazzo defines a standard, language-agnostic way to orchestrate calls across one or more APIs into a workflow.**
 
-It makes API use cases human- and machine-readable, removing the guesswork and enabling powerful automation for:
-*   Interactive workflow documentation
-*   Code and SDK generation
-*   Automated testing
-*   Deterministic API invocation by AI agents
+It makes API use cases human- and machine-readable, removing guesswork and enabling powerful automation for:
 
-This project, the Arazzo Engine, provides tools to harness the power of this new standard.
+* Interactive workflow documentation  
+* Code and SDK generation  
+* Automated testing  
+* Deterministic API invocation by AI agents  
 
-## What's in this Repository?
+This project, the **Arazzo Engine**, provides tools to harness the power of this new standard.
+
+---
+
+## What’s in this Repository?
 
 This repository is home to a growing collection of tools for the Arazzo ecosystem, including the [Arazzo Runner](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md) and the [Arazzo Generator](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md).
 
 ### [Arazzo Runner](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md)
 
-The Arazzo Runner is a command-line tool and Python library that can execute Arazzo workflows. It is the engine that powers the execution of your Arazzo definitions, handling everything from authentication and parameter passing to conditional logic and error handling.
+The Arazzo Runner is a command-line tool and Python library that executes Arazzo workflows.  
+It powers the execution of your Arazzo definitions, handling everything from authentication and parameter passing to conditional logic and error handling.
 
-[**Learn more about the Arazzo Runner here.**](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md)
+ [**Learn more about the Arazzo Runner here.**](https://github.com/jentic/arazzo-engine/blob/main/runner/README.md)
 
 ### [Arazzo Generator](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md)
 
 The Arazzo Generator is a command-line tool and Python library for analyzing OpenAPI specifications and generating meaningful Arazzo workflows by identifying logical API sequences and patterns.
 
-[**Learn more about the Arazzo Generator here.**](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md)
+ [**Learn more about the Arazzo Generator here.**](https://github.com/jentic/arazzo-engine/blob/main/generator/README.md)
 
+---
 
-## Join the Community!
-The Arazzo specification and the tools in this repository are open-source and community-driven. We believe that the best way to build a powerful and flexible workflow standard is to do it in the open, with the help of the entire OpenAPI community.
-Whether you're an API developer, a DevOps engineer, or just someone who is passionate about automation, we invite you to get involved. Here are a few ways you can contribute:
-*   **Try out the Arazzo Runner:** Use it to automate your own API workflows and give us feedback.
-*   **Contribute to the code:** Help us build new features, fix bugs, and improve the existing tools.
-*   **Improve the documentation:** Help us make the Arazzo specification and our tools easier to understand and use.
-*   **Spread the word:** Tell your friends and colleagues about Arazzo and the Arazzo Engine.
+## Join the Community
 
-We're excited to have you on board. Let's build the future of API orchestration together!
+The Arazzo specification and the tools in this repository are open source and community-driven.  
+We believe the best way to build a powerful and flexible workflow standard is to do it in the open, with the support of the entire OpenAPI community.
 
+Whether you’re an API developer, a DevOps engineer, or simply someone passionate about automation, we invite you to get involved. Here are a few ways you can contribute:
+
+* **Try out the Arazzo Runner:** Use it to automate your own API workflows and share feedback.  
+* **Contribute to the code:** Help us build new features, fix bugs, and improve existing tools.  
+* **Improve the documentation:** Make the Arazzo specification and tools easier to understand and use.  
+* **Spread the word:** Tell your friends and colleagues about Arazzo and the Arazzo Engine.  
+
+We’re excited to have you on board—let’s build the future of API orchestration together!
