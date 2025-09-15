@@ -164,7 +164,7 @@ def _merge_schema_dicts(
 ) -> dict[str, Any]:
     """
     Merge two schema dictionaries with special handling for properties and required fields.
-    
+
     Args:
         base_dict: The base dictionary to merge into
         overlay_dict: The dictionary to overlay onto base_dict
@@ -173,15 +173,15 @@ def _merge_schema_dicts(
         memo: The memoization cache
         special_handling: Optional dict mapping keys to special merge strategies
                          (e.g., {"properties": "update", "required": "extend"})
-    
+
     Returns:
         The merged dictionary
     """
     if special_handling is None:
         special_handling = {"properties": "update", "required": "extend"}
-    
+
     merged = dict(base_dict)
-    
+
     for key, value in overlay_dict.items():
         if key in special_handling:
             strategy = special_handling[key]
@@ -202,12 +202,12 @@ def _merge_schema_dicts(
                 merged[key] = value
         else:
             # Resolve the value if it's a complex type, then assign
-            if isinstance(value, (dict, list)):
+            if isinstance(value, (dict | list)):
                 resolved_value = _resolve_schema_refs(value, full_spec, stack, memo)
                 merged[key] = resolved_value
             else:
                 merged[key] = value
-    
+
     return merged
 
 
@@ -298,8 +298,11 @@ def _resolve_schema_refs(
             all_of_items = schema_part["allOf"]
             if not isinstance(all_of_items, list):
                 logger.warning("allOf must be an array, skipping allOf processing")
-                return {k: _resolve_schema_refs(v, full_spec, stack, memo) for k, v in schema_part.items()}
-            
+                return {
+                    k: _resolve_schema_refs(v, full_spec, stack, memo)
+                    for k, v in schema_part.items()
+                }
+
             # Resolve all allOf items first
             resolved_items = []
             for item in all_of_items:
@@ -309,55 +312,66 @@ def _resolve_schema_refs(
                     # with the rest of the circular reference handling logic
                     resolved_items.append(resolved_item)
                 else:
-                    logger.warning(f"allOf item resolved to non-dict: {type(resolved_item)}, skipping")
-            
+                    logger.warning(
+                        f"allOf item resolved to non-dict: {type(resolved_item)}, skipping"
+                    )
+
             if not resolved_items:
                 logger.warning("No valid allOf items found, returning original schema")
-                return {k: _resolve_schema_refs(v, full_spec, stack, memo) for k, v in schema_part.items()}
-            
+                return {
+                    k: _resolve_schema_refs(v, full_spec, stack, memo)
+                    for k, v in schema_part.items()
+                }
+
             # Merge all resolved items using the helper function
             merged_schema: dict[str, Any] = {}
             circular_refs = []
-            
+
             for item in resolved_items:
                 # Check if this is a circular reference placeholder
                 if "$ref" in item and len(item) == 1:
                     circular_refs.append(item)
                 else:
                     merged_schema = _merge_schema_dicts(
-                        merged_schema, 
-                        item, 
-                        full_spec, 
-                        stack, 
+                        merged_schema,
+                        item,
+                        full_spec,
+                        stack,
                         memo,
-                        special_handling={"properties": "update", "required": "extend"}
+                        special_handling={"properties": "update", "required": "extend"},
                     )
-            
+
             # If we have circular references, merge them as siblings to maintain consistency
             # with the rest of the circular reference handling (same as regular $ref handling)
             for circular_ref in circular_refs:
                 merged_schema.update(circular_ref)
-            
+
             # Remove duplicates from required fields while preserving order
             if "required" in merged_schema and isinstance(merged_schema["required"], list):
                 seen = set()
-                merged_schema["required"] = [x for x in merged_schema["required"] if not (x in seen or seen.add(x))]
-            
+                merged_schema["required"] = [
+                    x for x in merged_schema["required"] if not (x in seen or seen.add(x))
+                ]
+
             # Ensure type is set to object if we have properties
             if "properties" in merged_schema and "type" not in merged_schema:
                 merged_schema["type"] = "object"
-            
+
             # Process any remaining non-allOf keys in the original schema
             for key, value in schema_part.items():
                 if key != "allOf":
                     resolved_value = _resolve_schema_refs(value, full_spec, stack, memo)
                     # For properties, merge them instead of overwriting
-                    if key == "properties" and isinstance(resolved_value, dict) and isinstance(merged_schema.get(key), dict):
+                    if (
+                        key == "properties"
+                        and isinstance(resolved_value, dict)
+                        and isinstance(merged_schema.get(key), dict)
+                    ):
                         merged_schema[key].update(resolved_value)
                     else:
                         # Non-allOf keys take precedence over merged content
                         merged_schema[key] = resolved_value
-            
+
             return merged_schema
 
         # Regular dict: resolve entries
