@@ -859,3 +859,103 @@ def test_resolve_schema_refs_allof_with_deep_circular_ref():
     
     # No top-level $ref should be added since the circular ref is nested
     assert "$ref" not in resolved
+
+
+def test_resolve_schema_refs_oneof_behavior():
+    """Tests that oneOf is preserved structurally and $refs within it are resolved."""
+    spec = {
+        "components": {
+            "schemas": {
+                "BaseSchema": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "name": {"type": "string"}
+                    }
+                },
+                "ExtendedSchema": {
+                    "type": "object",
+                    "properties": {
+                        "description": {"type": "string"},
+                        "tags": {"type": "array", "items": {"type": "string"}}
+                    }
+                },
+                "SchemaWithOneOf": {
+                    "type": "object",
+                    "properties": {
+                        "type": {"type": "string"},
+                        "data": {
+                            "oneOf": [
+                                {"$ref": "#/components/schemas/BaseSchema"},
+                                {"$ref": "#/components/schemas/ExtendedSchema"},
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "custom_field": {"type": "string"},
+                                        "nested": {
+                                            "oneOf": [
+                                                {"$ref": "#/components/schemas/BaseSchema"},
+                                                {"type": "object", "properties": {"other": {"type": "string"}}}
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    schema = {"$ref": "#/components/schemas/SchemaWithOneOf"}
+    resolved = _resolve_schema_refs(schema, spec)
+    
+    # oneOf should be preserved structurally
+    data_property = resolved.get("properties", {}).get("data", {})
+    assert "oneOf" in data_property, "oneOf should be preserved"
+    
+    one_of = data_property["oneOf"]
+    assert isinstance(one_of, list), "oneOf should be a list"
+    assert len(one_of) == 3, "Should have 3 oneOf options"
+    
+    # First option: BaseSchema should be resolved
+    first_option = one_of[0]
+    assert isinstance(first_option, dict)
+    assert "properties" in first_option
+    assert "id" in first_option["properties"]
+    assert "name" in first_option["properties"]
+    assert "$ref" not in first_option, "BaseSchema $ref should be resolved"
+    
+    # Second option: ExtendedSchema should be resolved
+    second_option = one_of[1]
+    assert isinstance(second_option, dict)
+    assert "properties" in second_option
+    assert "description" in second_option["properties"]
+    assert "tags" in second_option["properties"]
+    assert "$ref" not in second_option, "ExtendedSchema $ref should be resolved"
+    
+    # Third option: Inline object with nested oneOf
+    third_option = one_of[2]
+    assert isinstance(third_option, dict)
+    assert "custom_field" in third_option.get("properties", {})
+    
+    # Nested oneOf should also be preserved and resolved
+    nested = third_option.get("properties", {}).get("nested", {})
+    assert "oneOf" in nested, "Nested oneOf should be preserved"
+    nested_one_of = nested["oneOf"]
+    assert isinstance(nested_one_of, list)
+    assert len(nested_one_of) == 2
+    
+    # First nested option should be resolved
+    nested_first = nested_one_of[0]
+    assert isinstance(nested_first, dict)
+    assert "properties" in nested_first
+    assert "id" in nested_first["properties"]
+    assert "$ref" not in nested_first, "Nested BaseSchema $ref should be resolved"
+    
+    # Second nested option should be preserved as-is
+    nested_second = nested_one_of[1]
+    assert isinstance(nested_second, dict)
+    assert "properties" in nested_second
+    assert "other" in nested_second["properties"]
