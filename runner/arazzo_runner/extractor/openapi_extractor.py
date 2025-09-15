@@ -457,9 +457,16 @@ def extract_operation_io(
                     # Continue with execution even if schema could not be fully resolved
                     logger.warning(f"Could not resolve requestBody: {e}")
 
-            # Check for application/json content
-            json_content = request_body.get("content", {}).get("application/json", {})
-            body_schema = json_content.get("schema")
+            # Check for application/json or application/x-www-form-urlencoded content in the request body
+            body_content = request_body.get("content", {})
+
+            body_schema = None
+            if "application/json" in body_content:
+                body_schema = body_content.get("application/json", {}).get("schema")
+            elif "application/x-www-form-urlencoded" in body_content:
+                body_schema = body_content.get("application/x-www-form-urlencoded", {}).get(
+                    "schema"
+                )
 
             if body_schema:
                 # Let the recursive resolver handle any $ref and cycles
@@ -513,9 +520,16 @@ def extract_operation_io(
                     # Resolve response object safely with schema resolver
                     resolved_response = _resolve_schema_refs(success_response, spec)
 
-                # Check for application/json content in the resolved successful response
-                json_content = resolved_response.get("content", {}).get("application/json", {})
-                response_schema = json_content.get("schema")
+                # Check for application/json or application/x-www-form-urlencoded content in the resolved successful response
+                response_content = resolved_response.get("content", {})
+
+                response_schema = None
+                if "application/json" in response_content:
+                    response_schema = response_content.get("application/json", {}).get("schema")
+                elif "application/x-www-form-urlencoded" in response_content:
+                    response_schema = response_content.get(
+                        "application/x-www-form-urlencoded", {}
+                    ).get("schema")
 
                 if response_schema:
                     # Recursively resolve nested refs within the response schema
