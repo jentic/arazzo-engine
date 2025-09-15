@@ -568,18 +568,16 @@ def test_resolve_schema_refs_complex_circular_dependency():
     assert isinstance(children, dict) and children.get("type") == "array"
     assert isinstance(children.get("items"), dict)
     assert children.get("items").get("$ref") == "#/components/schemas/SelfReferential"
-    # allOf includes a $ref back to itself and the sibling piece is preserved
-    assert isinstance(resolved_self.get("allOf"), list)
-    assert any(
-        isinstance(p, dict) and p.get("$ref") == "#/components/schemas/SelfReferential"
-        for p in resolved_self["allOf"]
-    ) or resolved_self.get("allOf") == {"$ref": "#/components/schemas/SelfReferential"}
-    # ensure sibling from allOf second element made it through
-    # (it may appear inside allOf second dict)
-    assert any(
-        isinstance(p, dict) and "properties" in p and "tag" in p["properties"]
-        for p in resolved_self.get("allOf", [])
-    )
+    # allOf should be merged and removed, with circular references merged as siblings
+    assert "allOf" not in resolved_self, "allOf should be merged and removed"
+    
+    # Check that circular reference is preserved as a sibling (consistent with regular $ref handling)
+    assert "$ref" in resolved_self, "Circular reference should be preserved as sibling"
+    assert resolved_self["$ref"] == "#/components/schemas/SelfReferential"
+    
+    # Check that properties from non-circular allOf items are merged
+    assert "tag" in resolved_self.get("properties", {}), "Tag property from allOf should be merged into main properties"
+    assert resolved_self["properties"]["tag"]["type"] == "string"
 
     # Indirect cycle with allOf on B
     resolved_indirect = _resolve_schema_refs(schema_indirect, circular_spec)
@@ -591,14 +589,11 @@ def test_resolve_schema_refs_complex_circular_dependency():
     link_to_a = link_to_b.get("properties", {}).get("link_to_a")
     assert isinstance(link_to_a, dict)
     assert link_to_a.get("$ref") == "#/components/schemas/IndirectA"
-    # allOf on B should be preserved and include the extra property declaratively
-    allof = link_to_b.get("allOf")
-    assert isinstance(allof, list)
-    assert any(
-        "properties" in part and "extra" in part["properties"]
-        for part in allof
-        if isinstance(part, dict)
-    )
+    # allOf on B should be merged and the extra property should be in the main properties
+    assert "allOf" not in link_to_b, "allOf should be merged and removed"
+    b_properties = link_to_b.get("properties", {})
+    assert "extra" in b_properties, "Extra property from allOf should be merged into properties"
+    assert b_properties["extra"]["type"] == "string"
 
     # Diamond cycle via oneOf
     resolved_diamond = _resolve_schema_refs(schema_diamond, circular_spec)
@@ -623,3 +618,244 @@ def test_resolve_schema_refs_complex_circular_dependency():
         or (isinstance(b, dict) and b.get("$ref") == "#/components/schemas/DiamondB")
         for b in oneof
     )
+
+
+def test_resolve_schema_refs_allof_merging():
+    """Tests that _resolve_schema_refs properly merges allOf schemas."""
+    spec = {
+        "components": {
+            "schemas": {
+                "BaseSchema": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "name": {"type": "string"}
+                    },
+                    "required": ["id"]
+                },
+                "ExtendedSchema": {
+                    "allOf": [
+                        {"$ref": "#/components/schemas/BaseSchema"},
+                        {
+                            "type": "object",
+                            "properties": {
+                                "description": {"type": "string"},
+                                "tags": {"type": "array", "items": {"type": "string"}}
+                            },
+                            "required": ["description"]
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    
+    schema = {"$ref": "#/components/schemas/ExtendedSchema"}
+    resolved = _resolve_schema_refs(schema, spec)
+    
+    # allOf should be merged and removed
+    assert "allOf" not in resolved
+    
+    # Properties from both schemas should be merged
+    properties = resolved.get("properties", {})
+    assert "id" in properties
+    assert "name" in properties
+    assert "description" in properties
+    assert "tags" in properties
+    
+    # Required fields should be merged
+    required = resolved.get("required", [])
+    assert "id" in required
+    assert "description" in required
+
+
+def test_resolve_schema_refs_allof_with_nested_refs():
+    """Tests allOf merging with nested $ref within allOf items."""
+    spec = {
+        "components": {
+            "schemas": {
+                "NestedSchema": {
+                    "type": "object",
+                    "properties": {
+                        "nested_prop": {"type": "string"}
+                    }
+                },
+                "AllOfWithNestedRef": {
+                    "allOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "base_prop": {"type": "string"}
+                            }
+                        },
+                        {
+                            "type": "object",
+                            "properties": {
+                                "nested": {"$ref": "#/components/schemas/NestedSchema"}
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    
+    schema = {"$ref": "#/components/schemas/AllOfWithNestedRef"}
+    resolved = _resolve_schema_refs(schema, spec)
+    
+    # allOf should be merged and removed
+    assert "allOf" not in resolved
+    
+    # Properties should be merged
+    properties = resolved.get("properties", {})
+    assert "base_prop" in properties
+    assert "nested" in properties
+    
+    # Nested $ref should be resolved
+    nested = properties.get("nested", {})
+    assert isinstance(nested, dict)
+    assert "nested_prop" in nested.get("properties", {})
+
+
+def test_resolve_schema_refs_allof_in_request_body():
+    """Tests allOf merging in request body schemas via extract_operation_io."""
+    request_body_spec = {
+        "openapi": "3.0.0",
+        "info": {"title": "Test API", "version": "1.0.0"},
+        "servers": [{"url": "http://test.com/api"}],
+        "paths": {
+            "/test": {
+                "post": {
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "base_field": {"type": "string"}
+                                            }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "properties": {
+                                                "extended_field": {"type": "integer"}
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "responses": {"200": {"description": "OK"}}
+                }
+            }
+        }
+    }
+    
+    result = extract_operation_io(request_body_spec, "/test", "post")
+    
+    # Check that allOf was merged in the input schema
+    input_schema = result.get("inputs", {})
+    assert "allOf" not in input_schema
+    
+    # Check that properties from both allOf items were merged
+    properties = input_schema.get("properties", {})
+    assert "base_field" in properties
+    assert "extended_field" in properties
+    assert properties["base_field"]["type"] == "string"
+    assert properties["extended_field"]["type"] == "integer"
+
+
+def test_resolve_schema_refs_allof_with_deep_circular_ref():
+    """Tests allOf merging where circular reference is deep in property structure."""
+    spec = {
+        "components": {
+            "schemas": {
+                "User": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "email": {"type": "string"},
+                        "address": {
+                            "type": "object",
+                            "properties": {
+                                "street": {"type": "string"},
+                                "city": {"type": "string"},
+                                "owner": {"$ref": "#/components/schemas/User"}  # Deep circular ref
+                            }
+                        }
+                    },
+                    "allOf": [
+                        {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "email": {"type": "string"},
+                                "address": {
+                                    "type": "object",
+                                    "properties": {
+                                        "street": {"type": "string"},
+                                        "city": {"type": "string"},
+                                        "owner": {"$ref": "#/components/schemas/User"}  # Deep circular ref
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "phone": {"type": "string"},
+                                "age": {"type": "integer"},
+                                "preferences": {
+                                    "type": "object",
+                                    "properties": {
+                                        "theme": {"type": "string"},
+                                        "notifications": {"type": "boolean"}
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+    
+    schema = {"$ref": "#/components/schemas/User"}
+    resolved = _resolve_schema_refs(schema, spec)
+    
+    # allOf should be merged and removed
+    assert "allOf" not in resolved
+    
+    # Most properties should be merged at the top level
+    properties = resolved.get("properties", {})
+    assert "name" in properties
+    assert "email" in properties
+    assert "phone" in properties
+    assert "age" in properties
+    assert "address" in properties
+    assert "preferences" in properties
+    
+    # Address should have its properties merged
+    address = properties.get("address", {})
+    assert isinstance(address, dict)
+    address_props = address.get("properties", {})
+    assert "street" in address_props
+    assert "city" in address_props
+    assert "owner" in address_props
+    
+    # The circular reference should be preserved deep in the structure
+    owner = address_props.get("owner", {})
+    assert owner == {"$ref": "#/components/schemas/User"}
+    
+    # Preferences should be fully merged
+    preferences = properties.get("preferences", {})
+    assert isinstance(preferences, dict)
+    pref_props = preferences.get("properties", {})
+    assert "theme" in pref_props
+    assert "notifications" in pref_props
+    
+    # No top-level $ref should be added since the circular ref is nested
+    assert "$ref" not in resolved
