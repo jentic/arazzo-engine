@@ -11,8 +11,8 @@ import pytest
 from arazzo_runner.extractor.openapi_extractor import (
     _limit_dict_depth,
     _resolve_schema_refs,
-    resolve_schema,
     extract_operation_io,
+    resolve_schema,
 )
 
 # Configure specific logger for the extractor module for debug output
@@ -599,7 +599,7 @@ def test_resolve_schema_refs_complex_circular_dependency():
     assert b_properties["extra"]["type"] == "string"
 
     # Diamond cycle via oneOf
-    resolved_diamond = _resolve_schema_refs(schema_diamond, circular_spec)
+    resolved_diamond = resolve_schema(schema_diamond, circular_spec)
     assert isinstance(resolved_diamond, dict)
     oneof = resolved_diamond.get("properties", {}).get("next", {}).get("oneOf")
     assert isinstance(oneof, list)
@@ -955,13 +955,13 @@ def test_merge_json_schemas_boolean_schemas():
     from arazzo_runner.extractor.openapi_extractor import merge_json_schemas
 
     # Test Boolean schemas
-    assert merge_json_schemas(True, {"type": "string"}) == True
-    assert merge_json_schemas(False, {"type": "string"}) == False
-    assert merge_json_schemas({"type": "string"}, True) == True
-    assert merge_json_schemas({"type": "string"}, False) == False
-    assert merge_json_schemas(True, True) == True
-    assert merge_json_schemas(False, False) == False
-    assert merge_json_schemas(True, False) == True  # Target takes precedence
+    assert merge_json_schemas(True, {"type": "string"}) is True
+    assert merge_json_schemas(False, {"type": "string"}) is False
+    assert merge_json_schemas({"type": "string"}, True) is True
+    assert merge_json_schemas({"type": "string"}, False) is False
+    assert merge_json_schemas(True, True) is True
+    assert merge_json_schemas(False, False) is False
+    assert merge_json_schemas(True, False) is True  # Target takes precedence
 
     # Test with allOf folding
     schema_with_boolean = {
@@ -973,4 +973,4 @@ def test_merge_json_schemas_boolean_schemas():
 
     resolved = resolve_schema(schema_with_boolean, {})
     # Should return True since Boolean schemas take precedence
-    assert resolved == True
+    assert resolved is True
