@@ -239,6 +239,37 @@ def _resolve_schema_refs(
     return [_resolve_schema_refs(item, full_spec, stack, memo) for item in schema_part]
 
 
+def _extract_schema_of_content_encoding(body_content: dict[str, Any]) -> dict[str, Any]:
+    """
+    Extract schema from request/response body content, prioritizing JSON over form-encoded.
+    
+    This function looks for supported content types in the body_content dictionary:
+    1. First tries to find any content type that starts with "application/json"
+    2. If no JSON content type found, looks for "application/x-www-form-urlencoded"
+    3. Returns the schema from the first matching content type, or None if none found
+    
+    This handles content types with parameters like "application/json;q=0.7" by matching
+    the prefix rather than requiring exact key matches.
+    
+    Args:
+        body_content: Dictionary mapping content types to their schemas
+        
+    Returns:
+        The schema object from the first supported content type, or None if none found
+    """
+    content_type = next(
+        (key for key in body_content.keys() if key.startswith("application/json")), 
+        None
+    )
+    if not content_type:
+        content_type = next(
+        (key for key in body_content.keys() if key.startswith("application/x-www-form-urlencoded")), 
+        None
+    )
+
+    return body_content.get(content_type, {}).get("schema")
+
+
 def extract_operation_io(
     spec: dict[str, Any],
     http_path: str,
@@ -460,13 +491,7 @@ def extract_operation_io(
             # Check for application/json or application/x-www-form-urlencoded content in the request body
             body_content = request_body.get("content", {})
 
-            body_schema = None
-            if "application/json" in body_content:
-                body_schema = body_content.get("application/json", {}).get("schema")
-            elif "application/x-www-form-urlencoded" in body_content:
-                body_schema = body_content.get("application/x-www-form-urlencoded", {}).get(
-                    "schema"
-                )
+            body_schema = _extract_schema_of_content_encoding(body_content)
 
             if body_schema:
                 # Let the recursive resolver handle any $ref and cycles
@@ -523,13 +548,7 @@ def extract_operation_io(
                 # Check for application/json or application/x-www-form-urlencoded content in the resolved successful response
                 response_content = resolved_response.get("content", {})
 
-                response_schema = None
-                if "application/json" in response_content:
-                    response_schema = response_content.get("application/json", {}).get("schema")
-                elif "application/x-www-form-urlencoded" in response_content:
-                    response_schema = response_content.get(
-                        "application/x-www-form-urlencoded", {}
-                    ).get("schema")
+                response_schema = _extract_schema_of_content_encoding(response_content)
 
                 if response_schema:
                     # Recursively resolve nested refs within the response schema
