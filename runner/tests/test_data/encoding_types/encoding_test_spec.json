@@ -1,0 +1,208 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Encoding Types Test API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.com"
+    }
+  ],
+  "paths": {
+    "/chat.postMessage": {
+      "post": {
+        "summary": "Send a message (form-encoded only)",
+        "operationId": "chat_postMessage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "description": "Channel to send message to"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Text of the message"
+                  }
+                },
+                "required": ["channel", "text"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {"type": "boolean"},
+                    "ts": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users.create": {
+      "post": {
+        "summary": "Create a user (JSON only)",
+        "operationId": "users_create",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "User's name"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "User's email"
+                  },
+                  "age": {
+                    "type": "integer",
+                    "description": "User's age"
+                  }
+                },
+                "required": ["name", "email"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {"type": "string"},
+                    "name": {"type": "string"},
+                    "email": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages.send": {
+      "post": {
+        "summary": "Send message (both JSON and form-encoded)",
+        "operationId": "messages_send",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "Message content"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": ["low", "normal", "high"]
+                  }
+                },
+                "required": ["message"]
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "Message content"
+                  },
+                  "urgent": {
+                    "type": "boolean",
+                    "description": "Is urgent"
+                  }
+                },
+                "required": ["message"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Message sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {"type": "boolean"},
+                    "message_id": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data.upload": {
+      "post": {
+        "summary": "Upload data (JSON with allowed extra parameter)",
+        "operationId": "data_upload",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json;q=0.7": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "string",
+                    "description": "Data to upload"
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": ["csv", "json", "xml"]
+                  }
+                },
+                "required": ["data"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Data uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "upload_id": {"type": "string"},
+                    "status": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
