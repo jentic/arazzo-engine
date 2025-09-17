@@ -472,6 +472,42 @@ def resolve_schema(
     return fold_all_of(merged_schema)
 
 
+def _extract_media_type_schema(body_content: dict[str, Any] | None) -> dict[str, Any] | None:
+    """
+    Extract schema from request/response body content, prioritizing JSON over form-encoded.
+
+    This function looks for supported media types in the body_content dictionary:
+    1. First tries to find any media type that starts with "application/json"
+    2. If no JSON content type found, looks for "application/x-www-form-urlencoded"
+    3. Returns the schema from the first matching media type, or None if none found
+
+    This handles media types with parameters like "application/json;q=0.7" by matching
+    the prefix rather than requiring exact key matches.
+
+    Args:
+        body_content: Dictionary mapping media types to their schemas
+
+    Returns:
+        The schema object from the first supported media type, or None if none found
+    """
+    if not isinstance(body_content, dict):
+        logger.debug("Body schema must be a dictionary.")
+        return None
+
+    if len(body_content.keys()) == 0:
+        logger.debug("No media type definitions found in the body schema.")
+        return None
+
+    for prefix in ("application/json", "application/x-www-form-urlencoded"):
+        for media_type, value in body_content.items():
+            if media_type.startswith(prefix):
+                logger.debug(f"Found {prefix} media type in the body schema.")
+                return value.get("schema")
+
+    logger.debug("No supported media type found in the body schema.")
+    return None
+
+
 def extract_operation_io(
     spec: dict[str, Any],
     http_path: str,
@@ -690,9 +726,10 @@ def extract_operation_io(
                     # Continue with execution even if schema could not be fully resolved
                     logger.warning(f"Could not resolve requestBody: {e}")
 
-            # Check for application/json content
-            json_content = request_body.get("content", {}).get("application/json", {})
-            body_schema = json_content.get("schema")
+            # Check for application/json or application/x-www-form-urlencoded content in the request body
+            body_content = request_body.get("content", {})
+
+            body_schema = _extract_media_type_schema(body_content)
 
             if body_schema:
                 # Let the recursive resolver handle any $ref and cycles
@@ -746,9 +783,10 @@ def extract_operation_io(
                     # Resolve response object safely with three-pass schema resolver
                     resolved_response = resolve_schema(success_response, spec)
 
-                # Check for application/json content in the resolved successful response
-                json_content = resolved_response.get("content", {}).get("application/json", {})
-                response_schema = json_content.get("schema")
+                # Check for application/json or application/x-www-form-urlencoded content in the resolved successful response
+                response_content = resolved_response.get("content", {})
+
+                response_schema = _extract_media_type_schema(response_content)
 
                 if response_schema:
                     # Recursively resolve nested refs within the response schema
