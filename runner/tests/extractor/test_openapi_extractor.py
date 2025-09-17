@@ -640,15 +640,15 @@ def test_extract_schema_of_content_encoding_form_encoded():
     spec = _load_test_spec("encoding_types/encoding_test_spec.json")
     chat_operation = spec["paths"]["/chat.postMessage"]["post"]
     body_content = chat_operation["requestBody"]["content"]
-    
+
     result = _extract_schema_of_content_encoding(body_content)
     expected = {
         "type": "object",
         "properties": {
             "channel": {"type": "string", "description": "Channel to send message to"},
-            "text": {"type": "string", "description": "Text of the message"}
+            "text": {"type": "string", "description": "Text of the message"},
         },
-        "required": ["channel", "text"]
+        "required": ["channel", "text"],
     }
     assert result == expected
 
@@ -658,16 +658,16 @@ def test_extract_schema_of_content_encoding_json():
     spec = _load_test_spec("encoding_types/encoding_test_spec.json")
     users_operation = spec["paths"]["/users.create"]["post"]
     body_content = users_operation["requestBody"]["content"]
-    
+
     result = _extract_schema_of_content_encoding(body_content)
     expected = {
         "type": "object",
         "properties": {
             "name": {"type": "string", "description": "User's name"},
             "email": {"type": "string", "format": "email", "description": "User's email"},
-            "age": {"type": "integer", "description": "User's age"}
+            "age": {"type": "integer", "description": "User's age"},
         },
-        "required": ["name", "email"]
+        "required": ["name", "email"],
     }
     assert result == expected
 
@@ -677,16 +677,16 @@ def test_extract_schema_of_content_encoding_both_types():
     spec = _load_test_spec("encoding_types/encoding_test_spec.json")
     messages_operation = spec["paths"]["/messages.send"]["post"]
     body_content = messages_operation["requestBody"]["content"]
-    
+
     result = _extract_schema_of_content_encoding(body_content)
     # Should return JSON schema (first supported type found)
     expected = {
         "type": "object",
         "properties": {
             "message": {"type": "string", "description": "Message content"},
-            "priority": {"type": "string", "enum": ["low", "normal", "high"]}
+            "priority": {"type": "string", "enum": ["low", "normal", "high"]},
         },
-        "required": ["message"]
+        "required": ["message"],
     }
     assert result == expected
 
@@ -696,15 +696,15 @@ def test_extract_schema_of_content_encoding_json_with_parameter():
     spec = _load_test_spec("encoding_types/encoding_test_spec.json")
     data_operation = spec["paths"]["/data.upload"]["post"]
     body_content = data_operation["requestBody"]["content"]
-    
+
     result = _extract_schema_of_content_encoding(body_content)
     expected = {
         "type": "object",
         "properties": {
             "data": {"type": "string", "description": "Data to upload"},
-            "format": {"type": "string", "enum": ["csv", "json", "xml"]}
+            "format": {"type": "string", "enum": ["csv", "json", "xml"]},
         },
-        "required": ["data"]
+        "required": ["data"],
     }
     assert result == expected
 
@@ -712,11 +712,7 @@ def test_extract_schema_of_content_encoding_json_with_parameter():
 def test_extract_schema_of_content_encoding_unsupported():
     """Test _extract_schema_of_content_encoding with unsupported content types."""
     # Test content with no supported types
-    unsupported_content = {
-        "text/plain": {
-            "schema": {"type": "string"}
-        }
-    }
+    unsupported_content = {"text/plain": {"schema": {"type": "string"}}}
     result = _extract_schema_of_content_encoding(unsupported_content)
     assert result is None
 
