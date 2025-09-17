@@ -260,7 +260,7 @@ def _extract_media_type_schema(body_content: dict[str, Any] | None) -> dict[str,
     if not isinstance(body_content, dict):
         logger.debug("Body schema must be a dictionary.")
         return None
-    
+
     if len(body_content.keys()) == 0:
         logger.debug("No media type definitions found in the body schema.")
         return None
