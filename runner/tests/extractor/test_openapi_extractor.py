@@ -1372,7 +1372,10 @@ def test_extract_operation_io_complex_oneof_request_body_with_parameters():
     assert result["inputs"]["type"] == expected_inputs["type"]
     assert result["inputs"]["properties"]["owner"] == expected_inputs["properties"]["owner"]
     assert result["inputs"]["properties"]["repo"] == expected_inputs["properties"]["repo"]
-    assert result["inputs"]["properties"]["issue_number"] == expected_inputs["properties"]["issue_number"]
+    assert (
+        result["inputs"]["properties"]["issue_number"]
+        == expected_inputs["properties"]["issue_number"]
+    )
     assert result["inputs"]["properties"]["oneOf"] == expected_inputs["properties"]["oneOf"]
     assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
 
