@@ -218,7 +218,10 @@ def test_extract_order_post_details():
         },
         "required": ["items"],  # Add missing required field
     }
-    assert extracted["outputs"] == expected_resolved_output_schema
+    # Check outputs with order-agnostic required array comparison
+    assert extracted["outputs"]["type"] == expected_resolved_output_schema["type"]
+    assert extracted["outputs"]["properties"] == expected_resolved_output_schema["properties"]
+    assert set(extracted["outputs"]["required"]) == set(expected_resolved_output_schema["required"])
 
     # --- Assert Security Requirements ---
     assert "security_requirements" in extracted
@@ -628,193 +631,65 @@ def test_resolve_schema_refs_complex_circular_dependency():
 
 def test_resolve_schema_refs_allof_merging():
     """Tests that _resolve_schema_refs properly merges allOf schemas."""
-    spec = {
-        "components": {
-            "schemas": {
-                "BaseSchema": {
-                    "type": "object",
-                    "properties": {"id": {"type": "string"}, "name": {"type": "string"}},
-                    "required": ["id"],
-                },
-                "ExtendedSchema": {
-                    "allOf": [
-                        {"$ref": "#/components/schemas/BaseSchema"},
-                        {
-                            "type": "object",
-                            "properties": {
-                                "description": {"type": "string"},
-                                "tags": {"type": "array", "items": {"type": "string"}},
-                            },
-                            "required": ["description"],
-                        },
-                    ]
-                },
-            }
-        }
-    }
-
+    spec = _load_test_spec("allof_merging/allof_merging_test_spec.json")
     schema = {"$ref": "#/components/schemas/ExtendedSchema"}
     resolved = resolve_schema(schema, spec)
 
-    # allOf should be merged and removed
-    assert "allOf" not in resolved
+    # Expected merged schema with allOf removed and properties/required combined
+    expected_schema = {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "tags": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["id", "description"],
+    }
 
-    # Properties from both schemas should be merged
-    properties = resolved.get("properties", {})
-    assert "id" in properties
-    assert "name" in properties
-    assert "description" in properties
-    assert "tags" in properties
-
-    # Required fields should be merged
-    required = resolved.get("required", [])
-    assert "id" in required
-    assert "description" in required
+    # Check main structure
+    assert resolved["type"] == expected_schema["type"]
+    assert resolved["properties"] == expected_schema["properties"]
+    # Check required fields separately (order doesn't matter)
+    assert set(resolved["required"]) == set(expected_schema["required"])
 
 
 def test_resolve_schema_refs_allof_with_nested_refs():
     """Tests allOf merging with nested $ref within allOf items."""
-    spec = {
-        "components": {
-            "schemas": {
-                "NestedSchema": {
-                    "type": "object",
-                    "properties": {"nested_prop": {"type": "string"}},
-                },
-                "AllOfWithNestedRef": {
-                    "allOf": [
-                        {"type": "object", "properties": {"base_prop": {"type": "string"}}},
-                        {
-                            "type": "object",
-                            "properties": {"nested": {"$ref": "#/components/schemas/NestedSchema"}},
-                        },
-                    ]
-                },
-            }
-        }
-    }
-
+    spec = _load_test_spec("allof_merging/allof_merging_test_spec.json")
     schema = {"$ref": "#/components/schemas/AllOfWithNestedRef"}
     resolved = resolve_schema(schema, spec)
 
-    # allOf should be merged and removed
-    assert "allOf" not in resolved
+    # Expected merged schema with allOf removed and nested $ref resolved
+    expected_schema = {
+        "type": "object",
+        "properties": {
+            "base_prop": {"type": "string"},
+            "nested": {"type": "object", "properties": {"nested_prop": {"type": "string"}}},
+        },
+    }
 
-    # Properties should be merged
-    properties = resolved.get("properties", {})
-    assert "base_prop" in properties
-    assert "nested" in properties
-
-    # Nested $ref should be resolved
-    nested = properties.get("nested", {})
-    assert isinstance(nested, dict)
-    assert "nested_prop" in nested.get("properties", {})
+    assert resolved == expected_schema
 
 
 def test_resolve_schema_refs_allof_in_request_body():
     """Tests allOf merging in request body schemas via extract_operation_io."""
-    request_body_spec = {
-        "openapi": "3.0.0",
-        "info": {"title": "Test API", "version": "1.0.0"},
-        "servers": [{"url": "http://test.com/api"}],
-        "paths": {
-            "/test": {
-                "post": {
-                    "requestBody": {
-                        "required": True,
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {
-                                            "type": "object",
-                                            "properties": {"base_field": {"type": "string"}},
-                                        },
-                                        {
-                                            "type": "object",
-                                            "properties": {"extended_field": {"type": "integer"}},
-                                        },
-                                    ]
-                                }
-                            }
-                        },
-                    },
-                    "responses": {"200": {"description": "OK"}},
-                }
-            }
-        },
+    spec = _load_test_spec("allof_merging/allof_merging_test_spec.json")
+    result = extract_operation_io(spec, "/request-body-allof", "post")
+
+    # Expected input schema with allOf merged and properties flattened
+    expected_inputs = {
+        "type": "object",
+        "properties": {"base_field": {"type": "string"}, "extended_field": {"type": "integer"}},
+        "required": [],
     }
 
-    result = extract_operation_io(request_body_spec, "/test", "post")
-
-    # Check that allOf was merged in the input schema
-    input_schema = result.get("inputs", {})
-    assert "allOf" not in input_schema
-
-    # Check that properties from both allOf items were merged
-    properties = input_schema.get("properties", {})
-    assert "base_field" in properties
-    assert "extended_field" in properties
-    assert properties["base_field"]["type"] == "string"
-    assert properties["extended_field"]["type"] == "integer"
+    assert result["inputs"] == expected_inputs
 
 
 def test_resolve_schema_refs_allof_with_deep_circular_ref():
     """Tests allOf merging where circular reference is deep in property structure."""
-    spec = {
-        "components": {
-            "schemas": {
-                "User": {
-                    "type": "object",
-                    "properties": {
-                        "name": {"type": "string"},
-                        "email": {"type": "string"},
-                        "address": {
-                            "type": "object",
-                            "properties": {
-                                "street": {"type": "string"},
-                                "city": {"type": "string"},
-                                "owner": {"$ref": "#/components/schemas/User"},  # Deep circular ref
-                            },
-                        },
-                    },
-                    "allOf": [
-                        {
-                            "type": "object",
-                            "properties": {
-                                "name": {"type": "string"},
-                                "email": {"type": "string"},
-                                "address": {
-                                    "type": "object",
-                                    "properties": {
-                                        "street": {"type": "string"},
-                                        "city": {"type": "string"},
-                                        "owner": {
-                                            "$ref": "#/components/schemas/User"
-                                        },  # Deep circular ref
-                                    },
-                                },
-                            },
-                        },
-                        {
-                            "properties": {
-                                "phone": {"type": "string"},
-                                "age": {"type": "integer"},
-                                "preferences": {
-                                    "type": "object",
-                                    "properties": {
-                                        "theme": {"type": "string"},
-                                        "notifications": {"type": "boolean"},
-                                    },
-                                },
-                            }
-                        },
-                    ],
-                }
-            }
-        }
-    }
-
+    spec = _load_test_spec("allof_merging/allof_merging_test_spec.json")
     schema = {"$ref": "#/components/schemas/User"}
     resolved = resolve_schema(schema, spec)
 
@@ -855,102 +730,52 @@ def test_resolve_schema_refs_allof_with_deep_circular_ref():
 
 def test_resolve_schema_refs_oneof_behavior():
     """Tests that oneOf is preserved structurally and $refs within it are resolved."""
-    spec = {
-        "components": {
-            "schemas": {
-                "BaseSchema": {
-                    "type": "object",
-                    "properties": {"id": {"type": "string"}, "name": {"type": "string"}},
-                },
-                "ExtendedSchema": {
-                    "type": "object",
-                    "properties": {
-                        "description": {"type": "string"},
-                        "tags": {"type": "array", "items": {"type": "string"}},
-                    },
-                },
-                "SchemaWithOneOf": {
-                    "type": "object",
-                    "properties": {
-                        "type": {"type": "string"},
-                        "data": {
-                            "oneOf": [
-                                {"$ref": "#/components/schemas/BaseSchema"},
-                                {"$ref": "#/components/schemas/ExtendedSchema"},
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "custom_field": {"type": "string"},
-                                        "nested": {
-                                            "oneOf": [
-                                                {"$ref": "#/components/schemas/BaseSchema"},
-                                                {
-                                                    "type": "object",
-                                                    "properties": {"other": {"type": "string"}},
-                                                },
-                                            ]
-                                        },
-                                    },
-                                },
-                            ]
-                        },
-                    },
-                },
-            }
-        }
-    }
-
+    spec = _load_test_spec("oneof_behavior/oneof_behavior_test_spec.json")
     schema = {"$ref": "#/components/schemas/SchemaWithOneOf"}
     resolved = resolve_schema(schema, spec)
 
-    # oneOf should be preserved structurally
-    data_property = resolved.get("properties", {}).get("data", {})
-    assert "oneOf" in data_property, "oneOf should be preserved"
+    # Expected schema with oneOf preserved and $refs resolved
+    expected_schema = {
+        "type": "object",
+        "properties": {
+            "type": {"type": "string"},
+            "data": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {"id": {"type": "string"}, "name": {"type": "string"}},
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "tags": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "custom_field": {"type": "string"},
+                            "nested": {
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {"type": "string"},
+                                            "name": {"type": "string"},
+                                        },
+                                    },
+                                    {"type": "object", "properties": {"other": {"type": "string"}}},
+                                ]
+                            },
+                        },
+                    },
+                ]
+            },
+        },
+    }
 
-    one_of = data_property["oneOf"]
-    assert isinstance(one_of, list), "oneOf should be a list"
-    assert len(one_of) == 3, "Should have 3 oneOf options"
-
-    # First option: BaseSchema should be resolved
-    first_option = one_of[0]
-    assert isinstance(first_option, dict)
-    assert "properties" in first_option
-    assert "id" in first_option["properties"]
-    assert "name" in first_option["properties"]
-    assert "$ref" not in first_option, "BaseSchema $ref should be resolved"
-
-    # Second option: ExtendedSchema should be resolved
-    second_option = one_of[1]
-    assert isinstance(second_option, dict)
-    assert "properties" in second_option
-    assert "description" in second_option["properties"]
-    assert "tags" in second_option["properties"]
-    assert "$ref" not in second_option, "ExtendedSchema $ref should be resolved"
-
-    # Third option: Inline object with nested oneOf
-    third_option = one_of[2]
-    assert isinstance(third_option, dict)
-    assert "custom_field" in third_option.get("properties", {})
-
-    # Nested oneOf should also be preserved and resolved
-    nested = third_option.get("properties", {}).get("nested", {})
-    assert "oneOf" in nested, "Nested oneOf should be preserved"
-    nested_one_of = nested["oneOf"]
-    assert isinstance(nested_one_of, list)
-    assert len(nested_one_of) == 2
-
-    # First nested option should be resolved
-    nested_first = nested_one_of[0]
-    assert isinstance(nested_first, dict)
-    assert "properties" in nested_first
-    assert "id" in nested_first["properties"]
-    assert "$ref" not in nested_first, "Nested BaseSchema $ref should be resolved"
-
-    # Second nested option should be preserved as-is
-    nested_second = nested_one_of[1]
-    assert isinstance(nested_second, dict)
-    assert "properties" in nested_second
-    assert "other" in nested_second["properties"]
+    assert resolved == expected_schema
 
 
 def test_merge_json_schemas_boolean_schemas():
@@ -1281,8 +1106,14 @@ def test_sibling_merge_nested():
         "required": ["customerId", "items"],
     }
 
-    assert result["inputs"] == expected_inputs
-    assert result["outputs"] == expected_outputs
+    # Check inputs and outputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+    assert set(result["outputs"]["required"]) == set(expected_outputs["required"])
 
 
 def test_sibling_merge_boolean():
@@ -1366,10 +1197,14 @@ def test_sibling_merge_additional_properties():
         "additionalProperties": True,
     }
 
-    # Test the main structure
-    assert result["inputs"] == expected_inputs
+    # Test the main structure with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
     assert result["outputs"]["type"] == expected_outputs["type"]
     assert result["outputs"]["properties"] == expected_outputs["properties"]
+    assert set(result["outputs"]["required"]) == set(expected_outputs["required"])
     assert result["outputs"]["additionalProperties"] is True
 
 
