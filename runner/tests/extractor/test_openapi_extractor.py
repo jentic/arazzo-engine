@@ -973,6 +973,66 @@ def test_boolean_schema_nested_allof_precedence():
     assert input_metadata == expected_metadata
 
 
+def test_boolean_schema_false_body_with_parameters():
+    """Test that false request body schema doesn't interfere with parameter processing."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/reject-body-with-params", "post")
+
+    # Input should contain parameters but no body properties (since body schema is false)
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "user_id": {"type": "string", "schema": {"type": "string"}},
+            "limit": {"type": "integer", "schema": {"type": "integer"}},
+        },
+        "required": ["user_id"],
+    }
+
+    # Output should be the resolved response schema
+    expected_outputs = {
+        "type": "object",
+        "properties": {"message": {"type": "string"}, "user_id": {"type": "string"}},
+    }
+
+    # Check inputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_boolean_schema_true_body_with_parameters():
+    """Test that true request body schema doesn't interfere with parameter processing."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/accept-body-with-params", "post")
+
+    # Input should contain parameters but no body properties (since body schema is true and gets converted to {})
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "api_key": {"type": "string", "schema": {"type": "string"}},
+            "timeout": {"type": "integer", "schema": {"type": "integer"}},
+        },
+        "required": ["api_key"],
+    }
+
+    # Output should be the resolved response schema
+    expected_outputs = {
+        "type": "object",
+        "properties": {"status": {"type": "string"}, "api_key": {"type": "string"}},
+    }
+
+    # Check inputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
 def test_sibling_merge_basic():
     """Test basic sibling merge with $ref and additional properties."""
     spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
