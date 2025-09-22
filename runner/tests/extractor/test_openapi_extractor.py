@@ -1159,8 +1159,8 @@ def test_sibling_merge_basic():
         "properties": {
             "name": {"type": "string", "minLength": 1},
             "age": {"type": "integer", "minimum": 0},
-            "email": {"type": "string", "format": "email"}
-        }
+            "email": {"type": "string", "format": "email"},
+        },
     }
 
     # Output should merge BaseUser with additional id property
@@ -1169,8 +1169,8 @@ def test_sibling_merge_basic():
         "properties": {
             "name": {"type": "string", "minLength": 1},
             "age": {"type": "integer", "minimum": 0},
-            "id": {"type": "integer", "description": "User ID"}
-        }
+            "id": {"type": "integer", "description": "User ID"},
+        },
     }
 
     # Test the main structure
@@ -1195,10 +1195,10 @@ def test_sibling_merge_complex():
         "type": "object",
         "properties": {
             "price": {"type": "number", "minimum": 0},
-            "discount": {"type": "number", "minimum": 0, "maximum": 1}
+            "discount": {"type": "number", "minimum": 0, "maximum": 1},
         },
         "required": ["price"],
-        "additionalProperties": False
+        "additionalProperties": False,
     }
 
     # Output should merge BaseProduct with inventory property (no additionalProperties constraint)
@@ -1211,12 +1211,12 @@ def test_sibling_merge_complex():
                 "type": "object",
                 "properties": {
                     "stock": {"type": "integer", "minimum": 0},
-                    "warehouse": {"type": "string"}
-                }
-            }
-        }
+                    "warehouse": {"type": "string"},
+                },
+            },
+        },
     }
-    
+
     # Test the main structure
     assert result["inputs"]["type"] == expected_inputs["type"]
     assert result["inputs"]["properties"] == expected_inputs["properties"]
@@ -1244,14 +1244,14 @@ def test_sibling_merge_nested():
                     "type": "object",
                     "properties": {
                         "productId": {"type": "string"},
-                        "quantity": {"type": "integer", "minimum": 1}
-                    }
-                }
+                        "quantity": {"type": "integer", "minimum": 1},
+                    },
+                },
             },
             "priority": {"type": "string", "enum": ["low", "medium", "high"]},
-            "notes": {"type": "string", "maxLength": 500}
+            "notes": {"type": "string", "maxLength": 500},
         },
-        "required": ["customerId", "items"]
+        "required": ["customerId", "items"],
     }
 
     # Output should merge BaseOrder with status and tracking properties
@@ -1265,20 +1265,20 @@ def test_sibling_merge_nested():
                     "type": "object",
                     "properties": {
                         "productId": {"type": "string"},
-                        "quantity": {"type": "integer", "minimum": 1}
-                    }
-                }
+                        "quantity": {"type": "integer", "minimum": 1},
+                    },
+                },
             },
-            "status": {"type": "string", "enum": ["pending", "processing", "completed", "cancelled"]},
+            "status": {
+                "type": "string",
+                "enum": ["pending", "processing", "completed", "cancelled"],
+            },
             "tracking": {
                 "type": "object",
-                "properties": {
-                    "number": {"type": "string"},
-                    "carrier": {"type": "string"}
-                }
-            }
+                "properties": {"number": {"type": "string"}, "carrier": {"type": "string"}},
+            },
         },
-        "required": ["customerId", "items"]
+        "required": ["customerId", "items"],
     }
 
     assert result["inputs"] == expected_inputs
@@ -1293,20 +1293,14 @@ def test_sibling_merge_boolean():
     # Input should merge BaseConfig with enabled property
     expected_inputs = {
         "type": "object",
-        "properties": {
-            "version": {"type": "string"},
-            "enabled": {"type": "boolean"}
-        },
-        "required": []  # merge_json_schemas adds empty required array
+        "properties": {"version": {"type": "string"}, "enabled": {"type": "boolean"}},
+        "required": [],  # merge_json_schemas adds empty required array
     }
 
     # Output should merge BaseConfig with debug property
     expected_outputs = {
         "type": "object",
-        "properties": {
-            "version": {"type": "string"},
-            "debug": {"type": "boolean"}
-        }
+        "properties": {"version": {"type": "string"}, "debug": {"type": "boolean"}},
     }
 
     assert result["inputs"] == expected_inputs
@@ -1323,13 +1317,9 @@ def test_sibling_merge_array():
         "type": "object",
         "properties": {
             "title": {"type": "string"},
-            "items": {
-                "type": "array",
-                "items": {"type": "string"},
-                "minItems": 1
-            }
+            "items": {"type": "array", "items": {"type": "string"}, "minItems": 1},
         },
-        "required": []  # merge_json_schemas adds empty required array
+        "required": [],  # merge_json_schemas adds empty required array
     }
 
     # Output should merge BaseList with metadata property
@@ -1339,12 +1329,9 @@ def test_sibling_merge_array():
             "title": {"type": "string"},
             "metadata": {
                 "type": "object",
-                "properties": {
-                    "count": {"type": "integer"},
-                    "total": {"type": "integer"}
-                }
-            }
-        }
+                "properties": {"count": {"type": "integer"}, "total": {"type": "integer"}},
+            },
+        },
     }
 
     assert result["inputs"] == expected_inputs
@@ -1355,30 +1342,30 @@ def test_sibling_merge_additional_properties():
     """Test that merge_siblings works with additionalProperties using test data."""
     spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
     result = extract_operation_io(spec, "/additional-properties-true", "post")
-    
+
     # The inputs should have the merged properties from BaseUser + sibling email
     expected_inputs = {
         "type": "object",
         "properties": {
             "name": {"type": "string", "minLength": 1},
             "age": {"type": "integer", "minimum": 0},
-            "email": {"type": "string", "format": "email"}
+            "email": {"type": "string", "format": "email"},
         },
-        "required": ["name"]
+        "required": ["name"],
     }
-    
-    # The outputs should have additionalProperties: true from the sibling schema  
+
+    # The outputs should have additionalProperties: true from the sibling schema
     expected_outputs = {
         "type": "object",
         "properties": {
             "name": {"type": "string", "minLength": 1},
             "age": {"type": "integer", "minimum": 0},
-            "id": {"type": "integer", "description": "User ID"}
+            "id": {"type": "integer", "description": "User ID"},
         },
         "required": ["name"],
-        "additionalProperties": True
+        "additionalProperties": True,
     }
-    
+
     # Test the main structure
     assert result["inputs"] == expected_inputs
     assert result["outputs"]["type"] == expected_outputs["type"]
@@ -1389,34 +1376,25 @@ def test_sibling_merge_additional_properties():
 def test_merge_json_schemas_additional_properties_false_constraint():
     """Test that merge_json_schemas respects additionalProperties: false constraint."""
     from arazzo_runner.extractor.openapi_extractor import merge_json_schemas
-    
+
     # Test case 1: base schema with additionalProperties: false should not be merged
     base_schema = {
-        'type': 'object', 
-        'properties': {'name': {'type': 'string'}},
-        'additionalProperties': False
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "additionalProperties": False,
     }
-    sibling_object = {
-        'properties': {
-            'email': {'type': 'string', 'format': 'email'}
-        }
-    }
-    
+    sibling_object = {"properties": {"email": {"type": "string", "format": "email"}}}
+
     result = merge_json_schemas(base_schema, sibling_object)
     assert result == base_schema, "Schema with additionalProperties: false should not be merged"
-    
+
     # Test case 2: sibling with additionalProperties: false should not be merged
-    base_schema = {
-        'type': 'object', 
-        'properties': {'name': {'type': 'string'}}
-    }
+    base_schema = {"type": "object", "properties": {"name": {"type": "string"}}}
     sibling_object = {
-        'properties': {
-            'email': {'type': 'string', 'format': 'email'}
-        },
-        'additionalProperties': False
+        "properties": {"email": {"type": "string", "format": "email"}},
+        "additionalProperties": False,
     }
-    
+
     result = merge_json_schemas(base_schema, sibling_object)
     assert result == sibling_object, "Sibling with additionalProperties: false should not be merged"
 
@@ -1425,34 +1403,34 @@ def test_sibling_merge_ref_with_type_and_properties():
     """Test sibling merge with $ref, type, and properties siblings."""
     spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
     result = extract_operation_io(spec, "/ref-with-type-and-properties", "post")
-    
+
     # Input should merge BaseObject with cost property
     expected_inputs = {
         "type": "object",
         "properties": {
             "name": {"type": "string"},
             "id": {"type": "integer"},
-            "cost": {"type": "number"}
+            "cost": {"type": "number"},
         },
-        "required": ["name", "cost"]
+        "required": ["name", "cost"],
     }
-    
+
     # Output should merge BaseObject with price property
     expected_outputs = {
         "type": "object",
         "properties": {
             "name": {"type": "string"},
             "id": {"type": "integer"},
-            "price": {"type": "number"}
+            "price": {"type": "number"},
         },
-        "required": ["name", "price"]
+        "required": ["name", "price"],
     }
-    
+
     # Check inputs
     assert result["inputs"]["type"] == expected_inputs["type"]
     assert result["inputs"]["properties"] == expected_inputs["properties"]
     assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
-    
+
     # Check outputs
     assert result["outputs"]["type"] == expected_outputs["type"]
     assert result["outputs"]["properties"] == expected_outputs["properties"]

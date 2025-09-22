@@ -308,16 +308,20 @@ def _convert_booleans_to_dict_representation(schema: Any) -> Any:
         if "properties" in schema and isinstance(schema["properties"], dict):
             result["properties"] = {}
             for prop_name, prop_schema in schema["properties"].items():
-                if isinstance(prop_schema, dict) and ("oneOf" in prop_schema or "anyOf" in prop_schema):
+                if isinstance(prop_schema, dict) and (
+                    "oneOf" in prop_schema or "anyOf" in prop_schema
+                ):
                     result["properties"][prop_name] = {**prop_schema}
                     for array_key in ["oneOf", "anyOf"]:
                         if array_key in prop_schema:
                             result["properties"][prop_name][array_key] = [
-                                _convert_booleans_to_dict_representation(item) 
+                                _convert_booleans_to_dict_representation(item)
                                 for item in prop_schema[array_key]
                             ]
                 else:
-                    result["properties"][prop_name] = _convert_booleans_to_dict_representation(prop_schema)
+                    result["properties"][prop_name] = _convert_booleans_to_dict_representation(
+                        prop_schema
+                    )
         return result
     else:
         return schema
@@ -472,7 +476,7 @@ def merge_siblings(schema: Any, original_schema: Any) -> Any:
         if "$ref" in original_schema and len(original_schema) > 1:
             # This was a $ref with siblings - extract siblings and merge
             siblings = {k: v for k, v in original_schema.items() if k != "$ref"}
-            
+
             # Use merge_json_schemas to combine resolved schema with siblings
             return merge_json_schemas(schema, siblings)
         else:
