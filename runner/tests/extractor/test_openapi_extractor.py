@@ -957,7 +957,7 @@ def test_merge_json_schemas_boolean_schemas():
     """Test that Boolean JSON Schemas (true/false) are handled correctly."""
     from arazzo_runner.extractor.openapi_extractor import merge_json_schemas
 
-    # Test Boolean schemas
+    # Test Boolean schemas - Booleans take precedence during merging
     assert merge_json_schemas(True, {"type": "string"}) is True
     assert merge_json_schemas(False, {"type": "string"}) is False
     assert merge_json_schemas({"type": "string"}, True) is True
@@ -975,8 +975,8 @@ def test_merge_json_schemas_boolean_schemas():
     }
 
     resolved = resolve_schema(schema_with_boolean, {})
-    # Should return True since Boolean schemas take precedence
-    assert resolved is True
+    # Should return {} since Boolean schemas take precedence and get converted to text-based representation
+    assert resolved == {}
 
 
 def _load_test_spec(relative_path: str):
@@ -1070,3 +1070,79 @@ def test_extract_media_type_schema_unsupported():
     # Test empty content
     result = _extract_media_type_schema({})
     assert result is None
+
+
+def test_boolean_schema_true_accepts_any():
+    """Test that true Boolean schemas accept any input and output."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/accept-any", "post")
+
+    # Both input and output should be converted to empty schema objects
+    expected_inputs = {"type": "object", "properties": {}, "required": []}
+    expected_outputs = {}
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_boolean_schema_false_rejects_all():
+    """Test that false Boolean schemas reject all input and output."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/reject-all", "post")
+
+    # Input should be empty schema, output should be rejection schema
+    expected_inputs = {"type": "object", "properties": {}, "required": []}
+    expected_outputs = {"not": {}}
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_boolean_schema_allof_precedence():
+    """Test that Boolean schemas take precedence in allOf arrays."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/mixed-boolean", "post")
+
+    # Input: true takes precedence over object schema
+    expected_inputs = {"type": "object", "properties": {}, "required": []}
+    # Output: false takes precedence over object schema
+    expected_outputs = {"not": {}}
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_boolean_schema_oneof_preservation():
+    """Test that Boolean schemas are preserved and converted in oneOf arrays."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/nested-boolean", "post")
+
+    # Input: oneOf should contain converted Boolean schemas and object
+    input_data_oneof = result["inputs"]["properties"]["data"]["oneOf"]
+    expected_data_oneof = [
+        {},  # true converted to {}
+        {"not": {}},  # false converted to {"not": {}}
+        {"type": "object", "properties": {"value": {"type": "string"}}},
+    ]
+
+    # Output: oneOf should contain converted Boolean schema and object
+    output_response_oneof = result["outputs"]["properties"]["response"]["oneOf"]
+    expected_response_oneof = [
+        {"not": {}},  # false converted to {"not": {}}
+        {"type": "object", "properties": {"status": {"type": "string"}}},
+    ]
+
+    assert input_data_oneof == expected_data_oneof
+    assert output_response_oneof == expected_response_oneof
+
+
+def test_boolean_schema_nested_allof_precedence():
+    """Test that Boolean schemas take precedence in nested allOf structures."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/nested-boolean", "post")
+
+    # Input: allOf with true should result in empty schema
+    input_metadata = result["inputs"]["properties"]["metadata"]
+    expected_metadata = {}  # true takes precedence over object properties
+
+    assert input_metadata == expected_metadata

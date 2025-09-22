@@ -1,0 +1,177 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Boolean Schema Test API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://test.com/api"
+    }
+  ],
+  "paths": {
+    "/accept-any": {
+      "post": {
+        "summary": "Accept any input",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": true
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reject-all": {
+      "post": {
+        "summary": "Reject all input",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": false
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mixed-boolean": {
+      "post": {
+        "summary": "Mixed boolean and object schemas",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  true,
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    false,
+                    {
+                      "type": "object",
+                      "properties": {
+                        "result": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nested-boolean": {
+      "post": {
+        "summary": "Boolean schemas in nested structures",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "oneOf": [
+                      true,
+                      false,
+                      {
+                        "type": "object",
+                        "properties": {
+                          "value": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "metadata": {
+                    "allOf": [
+                      true,
+                      {
+                        "properties": {
+                          "source": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "oneOf": [
+                        false,
+                        {
+                          "type": "object",
+                          "properties": {
+                            "status": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

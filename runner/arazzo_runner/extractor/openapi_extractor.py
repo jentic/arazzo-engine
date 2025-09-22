@@ -161,13 +161,17 @@ def merge_json_schemas(
     Merge two JSON Schema objects following JSON Schema Draft 4/5 and 2020-12 specifications.
 
     This function handles the merging of two schema objects, including:
-    - Boolean JSON Schemas (true/false)
+    - Boolean JSON Schemas (true/false) with OpenAPI 3.1.x compatibility
     - Properties merging with recursive handling
     - Required fields consolidation
     - Type keyword merging
     - Enum merging
     - Items, contains, contentSchema merging
     - Other schema keywords
+
+    For OpenAPI 3.1.x compatibility, Boolean schemas are converted to proper
+    schema object representations before merging to ensure compatibility with
+    higher-order code that expects schema objects.
 
     Args:
         target: The target schema object to merge into
@@ -180,8 +184,7 @@ def merge_json_schemas(
     if config is None:
         config = {}
 
-    # Handle Boolean JSON Schemas
-    # If either is a boolean, return the target (which takes precedence)
+    # Handle Boolean JSON Schemas - Booleans take precedence
     if target is True or target is False:
         return target
     if source is True or source is False:
@@ -271,6 +274,32 @@ def merge_json_schemas(
     return merged
 
 
+def _convert_booleans_to_dict_representation(schema: Any) -> Any:
+    """
+    Recursively convert Boolean schemas to text-based representations for agents.
+
+    This is the final step before schemas are shown to agents, converting:
+    - True -> {} (empty schema that accepts anything)
+    - False -> {"not": {}} (schema that rejects everything)
+
+    Args:
+        schema: The schema to process
+
+    Returns:
+        The schema with Boolean values converted to text-based representations
+    """
+    if schema is True:
+        return {}
+    elif schema is False:
+        return {"not": {}}
+    elif isinstance(schema, dict):
+        return {k: _convert_booleans_to_dict_representation(v) for k, v in schema.items()}
+    elif isinstance(schema, list):
+        return [_convert_booleans_to_dict_representation(item) for item in schema]
+    else:
+        return schema
+
+
 def fold_all_of(schema: Any) -> Any:
     """
     Recursively fold allOf arrays into single schema objects by merging all allOf items.
@@ -278,6 +307,9 @@ def fold_all_of(schema: Any) -> Any:
     This function takes a schema that may contain allOf arrays and folds them
     into single schemas without allOf keywords, using merge_json_schemas.
     It processes the schema recursively to handle nested allOf arrays.
+
+    Note: Raw Boolean values (True/False) are not expected here as they are
+    converted to proper schema objects in _resolve_schema_refs via _convert_boolean_schema.
 
     Args:
         schema: The schema object that may contain allOf arrays
@@ -305,8 +337,8 @@ def fold_all_of(schema: Any) -> Any:
             if isinstance(item, dict):
                 merged_schema = merge_json_schemas(merged_schema, item)
             elif item is True or item is False:
-                # Handle Boolean JSON Schemas
-                merged_schema = merge_json_schemas(merged_schema, item)
+                # Handle Boolean JSON Schemas - they take precedence
+                merged_schema = item
 
         # Remove the allOf keyword and merge with any other properties in the original schema
         schema_without_allof = {k: v for k, v in processed_schema.items() if k != "allOf"}
@@ -334,6 +366,9 @@ def _resolve_schema_refs(
     without merging sibling properties. This allows for clean separation of
     concerns where sibling merging can be handled in a separate pass.
 
+    Handles Boolean JSON Schemas (True/False) as identity functions for OpenAPI 3.1.x
+    compatibility, where schemas can be represented as boolean values.
+
     Args:
         schema_part: The schema fragment to resolve
         full_spec: The full OpenAPI specification
@@ -345,6 +380,10 @@ def _resolve_schema_refs(
     """
     stack = visited_refs if visited_refs is not None else set()
     memo = cache if cache is not None else {}
+
+    # Handle Boolean JSON Schemas (OpenAPI 3.1.x compatibility)
+    if schema_part is True or schema_part is False:
+        return schema_part
 
     # Primitives pass through
     if not isinstance(schema_part, dict | list):
@@ -392,33 +431,31 @@ def _resolve_schema_refs(
 
 def merge_siblings(schema: Any, original_schema: Any) -> Any:
     """
-    Merge sibling properties with resolved $ref schemas.
+    Merge sibling properties with resolved $ref schemas using proper schema merging.
 
     This function handles the case where a schema object contains both a $ref
-    and additional properties at the same level. The referenced schema takes
-    precedence, and sibling properties only fill in missing keys.
+    and additional properties at the same level. It uses merge_json_schemas
+    for proper schema merging following the established algorithm from the
+    JSON Schema community discussion.
 
     Args:
         schema: The schema with resolved references
         original_schema: The original schema before reference resolution
 
     Returns:
-        The schema with sibling properties merged
+        The schema with sibling properties merged using proper schema merging
     """
     if isinstance(schema, dict) and isinstance(original_schema, dict):
         # Check if the original had a $ref with siblings
         if "$ref" in original_schema and len(original_schema) > 1:
-            # This was a $ref with siblings - merge them
+            # This was a $ref with siblings - use OpenAPI 3.1.x approach
             siblings = {k: v for k, v in original_schema.items() if k != "$ref"}
 
             # Recursively process sibling values
             processed_siblings = {k: merge_siblings(v, v) for k, v in siblings.items()}
 
-            # Start from siblings, then overlay the resolved $ref result so $ref wins on conflicts
-            merged: dict[str, Any] = dict(processed_siblings)
-            for k, v in schema.items():
-                merged[k] = v
-            return merged
+            # Use merge_json_schemas for proper schema merging
+            return merge_json_schemas(schema, processed_siblings)
         else:
             # No $ref with siblings, just process recursively
             # But if the original was just a $ref, return the resolved schema as-is
@@ -444,14 +481,19 @@ def resolve_schema(
     cache: dict[str, Any] | None = None,
 ) -> Any:
     """
-    Three-pass schema resolution with complete separation of concerns:
+    Three-pass schema resolution with OpenAPI 3.0.x and 3.1.x compatibility:
     1. Reference resolution with cycle elimination (without sibling merging)
-    2. Sibling merging (merge $ref with sibling properties)
+    2. Sibling merging using merge_json_schemas for proper schema merging
     3. allOf folding using merge_json_schemas
 
     This function implements the cleanest separation of concerns approach
-    where each pass handles a single responsibility. It replaces the original
-    mixed-approach implementation with a clean three-pass architecture.
+    where each pass handles a single responsibility. It supports both:
+    - OpenAPI 3.0.x: Reference Objects are replaced by referenced Schema Objects
+    - OpenAPI 3.1.x: Schema Objects can reference other Schema Objects with proper
+      merging using the established schema merging algorithm
+
+    Handles Boolean JSON Schemas (True/False) by converting them to proper
+    schema object representations for compatibility with higher-order code.
 
     Args:
         schema_part: The schema fragment to resolve
@@ -469,7 +511,10 @@ def resolve_schema(
     merged_schema = merge_siblings(resolved_schema, schema_part)
 
     # Pass 3: allOf folding
-    return fold_all_of(merged_schema)
+    result = fold_all_of(merged_schema)
+
+    # Final step: Convert Boolean schemas to text-based representations for agents
+    return _convert_booleans_to_dict_representation(result)
 
 
 def _extract_media_type_schema(body_content: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -731,7 +776,7 @@ def extract_operation_io(
 
             body_schema = _extract_media_type_schema(body_content)
 
-            if body_schema:
+            if body_schema is not None:
                 # Let the recursive resolver handle any $ref and cycles
 
                 # Recursively resolve nested refs within the body schema with three-pass resolution
@@ -788,7 +833,7 @@ def extract_operation_io(
 
                 response_schema = _extract_media_type_schema(response_content)
 
-                if response_schema:
+                if response_schema is not None:
                     # Recursively resolve nested refs within the response schema
                     logger.debug(
                         f"Output schema BEFORE recursive resolve: {_schema_brief(response_schema)}"
