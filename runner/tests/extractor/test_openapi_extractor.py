@@ -997,36 +997,30 @@ def test_boolean_schema_true_body_with_parameters():
     assert result["outputs"] == expected_outputs
 
 
-def test_resolve_schema_boolean_ref_oneof_request_body():
-    """Test resolve_schema with $ref to oneOf containing Boolean schemas for request body."""
+def test_extract_operation_io_request_body_oneof_with_boolean_schemas():
+    """Test extract_operation_io with request body containing $ref to oneOf with Boolean schemas that should be flattened."""
     spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
-    schema = {"$ref": "#/components/schemas/BooleanOneOfSchema"}
-    resolved = resolve_schema(schema, spec)
+    result = extract_operation_io(spec, "/ref-oneof-request-body", "post")
 
-    # Expected oneOf with converted Boolean schemas
-    expected_schema = {
-        "oneOf": [
-            {},  # true converted to {}
-            {"not": {}},  # false converted to {"not": {}}
-            {
-                "type": "object",
-                "properties": {"name": {"type": "string"}, "value": {"type": "string"}},
-                "required": ["name"],
-            },
-        ]
+    # Input should have oneOf with converted Boolean schemas flattened into inputs properties
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "oneOf": [
+                {},  # true converted to {}
+                {"not": {}},  # false converted to {"not": {}}
+                {
+                    "type": "object",
+                    "properties": {"name": {"type": "string"}, "value": {"type": "string"}},
+                    "required": ["name"],
+                },
+            ]
+        },
+        "required": [],
     }
 
-    assert resolved == expected_schema
-
-
-def test_resolve_schema_boolean_ref_oneof_response():
-    """Test resolve_schema with $ref to oneOf containing Boolean schemas for response."""
-    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
-    schema = {"$ref": "#/components/schemas/BooleanOneOfResponse"}
-    resolved = resolve_schema(schema, spec)
-
-    # Expected oneOf with converted Boolean schemas
-    expected_schema = {
+    # Output should have oneOf with converted Boolean schemas
+    expected_outputs = {
         "oneOf": [
             {"not": {}},  # false converted to {"not": {}}
             {
@@ -1037,29 +1031,15 @@ def test_resolve_schema_boolean_ref_oneof_response():
         ]
     }
 
-    assert resolved == expected_schema
+    # Check inputs
+    assert result["inputs"] == expected_inputs
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
 
 
-def test_resolve_schema_boolean_ref_oneof_parameter():
-    """Test resolve_schema with $ref to oneOf containing Boolean schemas for parameter."""
-    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
-    schema = {"$ref": "#/components/schemas/BooleanOneOfParameter"}
-    resolved = resolve_schema(schema, spec)
-
-    # Expected oneOf with converted Boolean schemas
-    expected_schema = {
-        "oneOf": [
-            {},  # true converted to {}
-            {"type": "string", "enum": ["strict", "loose"]},
-            {"not": {}},  # false converted to {"not": {}}
-        ]
-    }
-
-    assert resolved == expected_schema
-
-
-def test_extract_operation_io_boolean_ref_oneof_response():
-    """Test extract_operation_io with response containing $ref to oneOf with Boolean schemas."""
+def test_extract_operation_io_response_oneof_with_boolean_schemas():
+    """Test extract_operation_io with response containing $ref to oneOf with Boolean schemas that should be converted."""
     spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
     result = extract_operation_io(spec, "/ref-oneof-response", "get")
 
@@ -1085,8 +1065,8 @@ def test_extract_operation_io_boolean_ref_oneof_response():
     assert result["outputs"] == expected_outputs
 
 
-def test_extract_operation_io_boolean_ref_oneof_parameter():
-    """Test extract_operation_io with parameter containing $ref to oneOf with Boolean schemas."""
+def test_extract_operation_io_parameter_oneof_with_boolean_schemas():
+    """Test extract_operation_io with parameter containing $ref to oneOf with Boolean schemas that should be converted."""
     spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
     result = extract_operation_io(spec, "/ref-oneof-parameter", "get")
 
@@ -1114,6 +1094,208 @@ def test_extract_operation_io_boolean_ref_oneof_parameter():
     # Check inputs with order-agnostic required array comparison
     assert result["inputs"]["type"] == expected_inputs["type"]
     assert result["inputs"]["properties"]["filter"] == expected_inputs["properties"]["filter"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_extract_operation_io_request_body_oneof_flattening_into_inputs():
+    """Test extract_operation_io with oneOf request body that should be flattened into inputs properties."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/oneof-request-body-flattening", "post")
+
+    # Input should have oneOf flattened into inputs properties
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {"user_id": {"type": "string"}, "name": {"type": "string"}},
+                    "required": ["user_id"],
+                },
+                {
+                    "type": "object",
+                    "properties": {"email": {"type": "string"}, "age": {"type": "integer"}},
+                    "required": ["email"],
+                },
+            ]
+        },
+        "required": [],
+    }
+
+    # Output should be simple object
+    expected_outputs = {"type": "object", "properties": {"message": {"type": "string"}}}
+
+    # Check inputs
+    assert result["inputs"] == expected_inputs
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_extract_operation_io_request_body_anyof_flattening_into_inputs():
+    """Test extract_operation_io with anyOf request body that should be flattened into inputs properties."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/anyof-request-body-flattening", "post")
+
+    # Input should have anyOf flattened into inputs properties
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "anyOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "product_id": {"type": "string"},
+                        "quantity": {"type": "integer"},
+                    },
+                    "required": ["product_id"],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "category": {"type": "string"},
+                        "tags": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["category"],
+                },
+            ]
+        },
+        "required": [],
+    }
+
+    # Output should be simple object
+    expected_outputs = {"type": "object", "properties": {"message": {"type": "string"}}}
+
+    # Check inputs
+    assert result["inputs"] == expected_inputs
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_extract_operation_io_request_body_oneof_with_boolean_schemas_flattening():
+    """Test extract_operation_io with oneOf containing Boolean schemas that should be flattened and converted."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/oneof-with-booleans-request-body", "post")
+
+    # Input should have oneOf with converted Boolean schemas flattened into inputs properties
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "oneOf": [
+                {},  # true converted to {}
+                {
+                    "type": "object",
+                    "properties": {"data": {"type": "string"}, "enabled": {"type": "boolean"}},
+                    "required": ["data"],
+                },
+                {"not": {}},  # false converted to {"not": {}}
+            ]
+        },
+        "required": [],
+    }
+
+    # Output should be simple object
+    expected_outputs = {"type": "object", "properties": {"message": {"type": "string"}}}
+
+    # Check inputs
+    assert result["inputs"] == expected_inputs
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_extract_operation_io_request_body_oneof_with_query_parameters():
+    """Test extract_operation_io with oneOf request body and query parameters - both should be in inputs."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/oneof-request-body-with-query-params", "post")
+
+    # Input should have both query parameters and oneOf flattened into inputs properties
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "user_id": {"type": "string", "schema": {"type": "string"}},
+            "limit": {"type": "integer", "schema": {"type": "integer"}},
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {"user_id": {"type": "string"}, "name": {"type": "string"}},
+                    "required": ["user_id"],
+                },
+                {
+                    "type": "object",
+                    "properties": {"email": {"type": "string"}, "age": {"type": "integer"}},
+                    "required": ["email"],
+                },
+            ],
+        },
+        "required": ["user_id"],
+    }
+
+    # Output should be simple object
+    expected_outputs = {
+        "type": "object",
+        "properties": {"message": {"type": "string"}, "user_id": {"type": "string"}},
+    }
+
+    # Check inputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"]["user_id"] == expected_inputs["properties"]["user_id"]
+    assert result["inputs"]["properties"]["limit"] == expected_inputs["properties"]["limit"]
+    assert result["inputs"]["properties"]["oneOf"] == expected_inputs["properties"]["oneOf"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_extract_operation_io_request_body_anyof_with_query_parameters():
+    """Test extract_operation_io with anyOf request body and query parameters - both should be in inputs."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/anyof-request-body-with-query-params", "post")
+
+    # Input should have both query parameters and anyOf flattened into inputs properties
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "category": {"type": "string", "schema": {"type": "string"}},
+            "sort": {"type": "string", "schema": {"type": "string", "enum": ["asc", "desc"]}},
+            "anyOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "product_id": {"type": "string"},
+                        "quantity": {"type": "integer"},
+                    },
+                    "required": ["product_id"],
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "category": {"type": "string"},
+                        "tags": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["category"],
+                },
+            ],
+        },
+        "required": ["category"],
+    }
+
+    # Output should be simple object
+    expected_outputs = {
+        "type": "object",
+        "properties": {"message": {"type": "string"}, "category": {"type": "string"}},
+    }
+
+    # Check inputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"]["category"] == expected_inputs["properties"]["category"]
+    assert result["inputs"]["properties"]["sort"] == expected_inputs["properties"]["sort"]
+    assert result["inputs"]["properties"]["anyOf"] == expected_inputs["properties"]["anyOf"]
     assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
 
     # Check outputs

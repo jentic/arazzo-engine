@@ -120,6 +120,186 @@
           }
         }
       }
+    },
+    "/oneof-request-body-flattening": {
+      "post": {
+        "summary": "Request body with oneOf that should be flattened into inputs",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OneOfRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/anyof-request-body-flattening": {
+      "post": {
+        "summary": "Request body with anyOf that should be flattened into inputs",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnyOfRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oneof-with-booleans-request-body": {
+      "post": {
+        "summary": "Request body with oneOf containing Boolean schemas that should be flattened",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OneOfWithBooleansRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oneof-request-body-with-query-params": {
+      "post": {
+        "summary": "Request body with oneOf and query parameters",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {"type": "integer"}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OneOfRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {"type": "string"},
+                    "user_id": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/anyof-request-body-with-query-params": {
+      "post": {
+        "summary": "Request body with anyOf and query parameters",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": true,
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {"type": "string", "enum": ["asc", "desc"]}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnyOfRequestSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {"type": "string"},
+                    "category": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -157,6 +337,60 @@
           {
             "type": "string",
             "enum": ["strict", "loose"]
+          },
+          false
+        ]
+      },
+      "OneOfRequestSchema": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "user_id": {"type": "string"},
+              "name": {"type": "string"}
+            },
+            "required": ["user_id"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "email": {"type": "string"},
+              "age": {"type": "integer"}
+            },
+            "required": ["email"]
+          }
+        ]
+      },
+      "AnyOfRequestSchema": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "product_id": {"type": "string"},
+              "quantity": {"type": "integer"}
+            },
+            "required": ["product_id"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "category": {"type": "string"},
+              "tags": {"type": "array", "items": {"type": "string"}}
+            },
+            "required": ["category"]
+          }
+        ]
+      },
+      "OneOfWithBooleansRequestSchema": {
+        "oneOf": [
+          true,
+          {
+            "type": "object",
+            "properties": {
+              "data": {"type": "string"},
+              "enabled": {"type": "boolean"}
+            },
+            "required": ["data"]
           },
           false
         ]

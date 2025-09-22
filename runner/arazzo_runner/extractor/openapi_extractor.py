@@ -819,6 +819,17 @@ def extract_operation_io(
                     for req_prop_name in body_required:
                         if req_prop_name not in extracted_details["inputs"]["required"]:
                             extracted_details["inputs"]["required"].append(req_prop_name)
+                elif isinstance(fully_resolved_body_schema, dict) and (
+                    any(
+                        structure_type in fully_resolved_body_schema
+                        for structure_type in ["oneOf", "anyOf"]
+                    )
+                ):
+                    for structure_type in ["oneOf", "anyOf"]:
+                        if structure_type in fully_resolved_body_schema:
+                            extracted_details["inputs"]["properties"][structure_type] = (
+                                fully_resolved_body_schema[structure_type]
+                            )
                 else:
                     # If body is not an object (e.g., array, primitive) or has no properties, don't flatten.
                     # Log a warning as we are not adding it under 'body' key either per the requirement.
