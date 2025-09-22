@@ -15,6 +15,7 @@ from arazzo_runner.extractor.openapi_extractor import (
     _limit_dict_depth,
     _resolve_schema_refs,
     extract_operation_io,
+    resolve_schema,
 )
 
 # Configure specific logger for the extractor module for debug output
@@ -217,7 +218,10 @@ def test_extract_order_post_details():
         },
         "required": ["items"],  # Add missing required field
     }
-    assert extracted["outputs"] == expected_resolved_output_schema
+    # Check outputs with order-agnostic required array comparison
+    assert extracted["outputs"]["type"] == expected_resolved_output_schema["type"]
+    assert extracted["outputs"]["properties"] == expected_resolved_output_schema["properties"]
+    assert set(extracted["outputs"]["required"]) == set(expected_resolved_output_schema["required"])
 
     # --- Assert Security Requirements ---
     assert "security_requirements" in extracted
@@ -563,7 +567,7 @@ def test_resolve_schema_refs_complex_circular_dependency():
     schema_diamond = {"$ref": "#/components/schemas/DiamondA"}
 
     # Direct self-reference through array items and allOf
-    resolved_self = _resolve_schema_refs(schema_self, circular_spec)
+    resolved_self = resolve_schema(schema_self, circular_spec)
     assert isinstance(resolved_self, dict)
     assert resolved_self.get("type") == "object"
     # children is an array and items keeps $ref to SelfReferential (cycle preserved)
@@ -571,21 +575,21 @@ def test_resolve_schema_refs_complex_circular_dependency():
     assert isinstance(children, dict) and children.get("type") == "array"
     assert isinstance(children.get("items"), dict)
     assert children.get("items").get("$ref") == "#/components/schemas/SelfReferential"
-    # allOf includes a $ref back to itself and the sibling piece is preserved
-    assert isinstance(resolved_self.get("allOf"), list)
-    assert any(
-        isinstance(p, dict) and p.get("$ref") == "#/components/schemas/SelfReferential"
-        for p in resolved_self["allOf"]
-    ) or resolved_self.get("allOf") == {"$ref": "#/components/schemas/SelfReferential"}
-    # ensure sibling from allOf second element made it through
-    # (it may appear inside allOf second dict)
-    assert any(
-        isinstance(p, dict) and "properties" in p and "tag" in p["properties"]
-        for p in resolved_self.get("allOf", [])
-    )
+    # allOf should be merged and removed, with circular references merged as siblings
+    assert "allOf" not in resolved_self, "allOf should be merged and removed"
+
+    # Check that circular reference is preserved as a sibling (consistent with regular $ref handling)
+    assert "$ref" in resolved_self, "Circular reference should be preserved as sibling"
+    assert resolved_self["$ref"] == "#/components/schemas/SelfReferential"
+
+    # Check that properties from non-circular allOf items are merged
+    assert "tag" in resolved_self.get(
+        "properties", {}
+    ), "Tag property from allOf should be merged into main properties"
+    assert resolved_self["properties"]["tag"]["type"] == "string"
 
     # Indirect cycle with allOf on B
-    resolved_indirect = _resolve_schema_refs(schema_indirect, circular_spec)
+    resolved_indirect = resolve_schema(schema_indirect, circular_spec)
     assert isinstance(resolved_indirect, dict)
     assert resolved_indirect.get("type") == "object"
     link_to_b = resolved_indirect.get("properties", {}).get("link_to_b")
@@ -594,17 +598,14 @@ def test_resolve_schema_refs_complex_circular_dependency():
     link_to_a = link_to_b.get("properties", {}).get("link_to_a")
     assert isinstance(link_to_a, dict)
     assert link_to_a.get("$ref") == "#/components/schemas/IndirectA"
-    # allOf on B should be preserved and include the extra property declaratively
-    allof = link_to_b.get("allOf")
-    assert isinstance(allof, list)
-    assert any(
-        "properties" in part and "extra" in part["properties"]
-        for part in allof
-        if isinstance(part, dict)
-    )
+    # allOf on B should be merged and the extra property should be in the main properties
+    assert "allOf" not in link_to_b, "allOf should be merged and removed"
+    b_properties = link_to_b.get("properties", {})
+    assert "extra" in b_properties, "Extra property from allOf should be merged into properties"
+    assert b_properties["extra"]["type"] == "string"
 
     # Diamond cycle via oneOf
-    resolved_diamond = _resolve_schema_refs(schema_diamond, circular_spec)
+    resolved_diamond = resolve_schema(schema_diamond, circular_spec)
     assert isinstance(resolved_diamond, dict)
     oneof = resolved_diamond.get("properties", {}).get("next", {}).get("oneOf")
     assert isinstance(oneof, list)
@@ -626,6 +627,181 @@ def test_resolve_schema_refs_complex_circular_dependency():
         or (isinstance(b, dict) and b.get("$ref") == "#/components/schemas/DiamondB")
         for b in oneof
     )
+
+
+def test_resolve_schema_refs_allof_merging():
+    """Tests that _resolve_schema_refs properly merges allOf schemas."""
+    spec = _load_test_spec("allof_merging/allof_merging_test_spec.json")
+    schema = {"$ref": "#/components/schemas/ExtendedSchema"}
+    resolved = resolve_schema(schema, spec)
+
+    # Expected merged schema with allOf removed and properties/required combined
+    expected_schema = {
+        "type": "object",
+        "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "tags": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["id", "description"],
+    }
+
+    # Check main structure
+    assert resolved["type"] == expected_schema["type"]
+    assert resolved["properties"] == expected_schema["properties"]
+    # Check required fields separately (order doesn't matter)
+    assert set(resolved["required"]) == set(expected_schema["required"])
+
+
+def test_resolve_schema_refs_allof_with_nested_refs():
+    """Tests allOf merging with nested $ref within allOf items."""
+    spec = _load_test_spec("allof_merging/allof_merging_test_spec.json")
+    schema = {"$ref": "#/components/schemas/AllOfWithNestedRef"}
+    resolved = resolve_schema(schema, spec)
+
+    # Expected merged schema with allOf removed and nested $ref resolved
+    expected_schema = {
+        "type": "object",
+        "properties": {
+            "base_prop": {"type": "string"},
+            "nested": {"type": "object", "properties": {"nested_prop": {"type": "string"}}},
+        },
+    }
+
+    assert resolved == expected_schema
+
+
+def test_resolve_schema_refs_allof_in_request_body():
+    """Tests allOf merging in request body schemas via extract_operation_io."""
+    spec = _load_test_spec("allof_merging/allof_merging_test_spec.json")
+    result = extract_operation_io(spec, "/request-body-allof", "post")
+
+    # Expected input schema with allOf merged and properties flattened
+    expected_inputs = {
+        "type": "object",
+        "properties": {"base_field": {"type": "string"}, "extended_field": {"type": "integer"}},
+        "required": [],
+    }
+
+    assert result["inputs"] == expected_inputs
+
+
+def test_resolve_schema_refs_allof_with_deep_circular_ref():
+    """Tests allOf merging where circular reference is deep in property structure."""
+    spec = _load_test_spec("allof_merging/allof_merging_test_spec.json")
+    schema = {"$ref": "#/components/schemas/User"}
+    resolved = resolve_schema(schema, spec)
+
+    # allOf should be merged and removed
+    assert "allOf" not in resolved
+
+    # Most properties should be merged at the top level
+    properties = resolved.get("properties", {})
+    assert "name" in properties
+    assert "email" in properties
+    assert "phone" in properties
+    assert "age" in properties
+    assert "address" in properties
+    assert "preferences" in properties
+
+    # Address should have its properties merged
+    address = properties.get("address", {})
+    assert isinstance(address, dict)
+    address_props = address.get("properties", {})
+    assert "street" in address_props
+    assert "city" in address_props
+    assert "owner" in address_props
+
+    # The circular reference should be preserved deep in the structure
+    owner = address_props.get("owner", {})
+    assert owner == {"$ref": "#/components/schemas/User"}
+
+    # Preferences should be fully merged
+    preferences = properties.get("preferences", {})
+    assert isinstance(preferences, dict)
+    pref_props = preferences.get("properties", {})
+    assert "theme" in pref_props
+    assert "notifications" in pref_props
+
+    # No top-level $ref should be added since the circular ref is nested
+    assert "$ref" not in resolved
+
+
+def test_resolve_schema_refs_oneof_behavior():
+    """Tests that oneOf is preserved structurally and $refs within it are resolved."""
+    spec = _load_test_spec("oneof_behavior/oneof_behavior_test_spec.json")
+    schema = {"$ref": "#/components/schemas/SchemaWithOneOf"}
+    resolved = resolve_schema(schema, spec)
+
+    # Expected schema with oneOf preserved and $refs resolved
+    expected_schema = {
+        "type": "object",
+        "properties": {
+            "type": {"type": "string"},
+            "data": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {"id": {"type": "string"}, "name": {"type": "string"}},
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "description": {"type": "string"},
+                            "tags": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "custom_field": {"type": "string"},
+                            "nested": {
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "properties": {
+                                            "id": {"type": "string"},
+                                            "name": {"type": "string"},
+                                        },
+                                    },
+                                    {"type": "object", "properties": {"other": {"type": "string"}}},
+                                ]
+                            },
+                        },
+                    },
+                ]
+            },
+        },
+    }
+
+    assert resolved == expected_schema
+
+
+def test_merge_json_schemas_boolean_schemas():
+    """Test that Boolean JSON Schemas (true/false) are handled correctly."""
+    from arazzo_runner.extractor.openapi_extractor import merge_json_schemas
+
+    # Test Boolean schemas - Booleans take precedence during merging
+    assert merge_json_schemas(True, {"type": "string"}) is True
+    assert merge_json_schemas(False, {"type": "string"}) is False
+    assert merge_json_schemas({"type": "string"}, True) is True
+    assert merge_json_schemas({"type": "string"}, False) is False
+    assert merge_json_schemas(True, True) is True
+    assert merge_json_schemas(False, False) is False
+    assert merge_json_schemas(True, False) is True  # Target takes precedence
+
+    # Test with allOf folding
+    schema_with_boolean = {
+        "allOf": [
+            True,  # Boolean schema
+            {"properties": {"field": {"type": "string"}}},
+        ]
+    }
+
+    resolved = resolve_schema(schema_with_boolean, {})
+    # Should return {} since Boolean schemas take precedence and get converted to text-based representation
+    assert resolved == {}
 
 
 def _load_test_spec(relative_path: str):
@@ -719,3 +895,525 @@ def test_extract_media_type_schema_unsupported():
     # Test empty content
     result = _extract_media_type_schema({})
     assert result is None
+
+
+def test_boolean_schema_true_accepts_any():
+    """Test that true Boolean schemas accept any input and output."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/accept-any", "post")
+
+    # Both input and output should be converted to empty schema objects
+    expected_inputs = {"type": "object", "properties": {}, "required": []}
+    expected_outputs = {}
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_boolean_schema_false_rejects_all():
+    """Test that false Boolean schemas reject all input and output."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/reject-all", "post")
+
+    # Input should be empty schema, output should be rejection schema
+    expected_inputs = {"type": "object", "properties": {}, "required": []}
+    expected_outputs = {"not": {}}
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_boolean_schema_allof_precedence():
+    """Test that Boolean schemas take precedence in allOf arrays."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/mixed-boolean", "post")
+
+    # Input: true takes precedence over object schema
+    expected_inputs = {"type": "object", "properties": {}, "required": []}
+    # Output: false takes precedence over object schema
+    expected_outputs = {"not": {}}
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_boolean_schema_false_body_with_parameters():
+    """Test that false request body schema doesn't interfere with parameter processing."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/reject-body-with-params", "post")
+
+    # Input should contain parameters but no body properties (since body schema is false)
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "user_id": {"type": "string", "schema": {"type": "string"}},
+            "limit": {"type": "integer", "schema": {"type": "integer"}},
+        },
+        "required": ["user_id"],
+    }
+
+    # Output should be the resolved response schema
+    expected_outputs = {
+        "type": "object",
+        "properties": {"message": {"type": "string"}, "user_id": {"type": "string"}},
+    }
+
+    # Check inputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_boolean_schema_true_body_with_parameters():
+    """Test that true request body schema doesn't interfere with parameter processing."""
+    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
+    result = extract_operation_io(spec, "/accept-body-with-params", "post")
+
+    # Input should contain parameters but no body properties (since body schema is true and gets converted to {})
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "api_key": {"type": "string", "schema": {"type": "string"}},
+            "timeout": {"type": "integer", "schema": {"type": "integer"}},
+        },
+        "required": ["api_key"],
+    }
+
+    # Output should be the resolved response schema
+    expected_outputs = {
+        "type": "object",
+        "properties": {"status": {"type": "string"}, "api_key": {"type": "string"}},
+    }
+
+    # Check inputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_resolve_schema_boolean_ref_oneof_request_body():
+    """Test resolve_schema with $ref to oneOf containing Boolean schemas for request body."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    schema = {"$ref": "#/components/schemas/BooleanOneOfSchema"}
+    resolved = resolve_schema(schema, spec)
+
+    # Expected oneOf with converted Boolean schemas
+    expected_schema = {
+        "oneOf": [
+            {},  # true converted to {}
+            {"not": {}},  # false converted to {"not": {}}
+            {
+                "type": "object",
+                "properties": {"name": {"type": "string"}, "value": {"type": "string"}},
+                "required": ["name"],
+            },
+        ]
+    }
+
+    assert resolved == expected_schema
+
+
+def test_resolve_schema_boolean_ref_oneof_response():
+    """Test resolve_schema with $ref to oneOf containing Boolean schemas for response."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    schema = {"$ref": "#/components/schemas/BooleanOneOfResponse"}
+    resolved = resolve_schema(schema, spec)
+
+    # Expected oneOf with converted Boolean schemas
+    expected_schema = {
+        "oneOf": [
+            {"not": {}},  # false converted to {"not": {}}
+            {
+                "type": "object",
+                "properties": {"status": {"type": "string"}, "data": {"type": "object"}},
+            },
+            {},  # true converted to {}
+        ]
+    }
+
+    assert resolved == expected_schema
+
+
+def test_resolve_schema_boolean_ref_oneof_parameter():
+    """Test resolve_schema with $ref to oneOf containing Boolean schemas for parameter."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    schema = {"$ref": "#/components/schemas/BooleanOneOfParameter"}
+    resolved = resolve_schema(schema, spec)
+
+    # Expected oneOf with converted Boolean schemas
+    expected_schema = {
+        "oneOf": [
+            {},  # true converted to {}
+            {"type": "string", "enum": ["strict", "loose"]},
+            {"not": {}},  # false converted to {"not": {}}
+        ]
+    }
+
+    assert resolved == expected_schema
+
+
+def test_extract_operation_io_boolean_ref_oneof_response():
+    """Test extract_operation_io with response containing $ref to oneOf with Boolean schemas."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/ref-oneof-response", "get")
+
+    # Input should be empty (no parameters or body)
+    expected_inputs = {"type": "object", "properties": {}, "required": []}
+
+    # Output should have oneOf with converted Boolean schemas
+    expected_outputs = {
+        "oneOf": [
+            {"not": {}},  # false converted to {"not": {}}
+            {
+                "type": "object",
+                "properties": {"status": {"type": "string"}, "data": {"type": "object"}},
+            },
+            {},  # true converted to {}
+        ]
+    }
+
+    # Check inputs
+    assert result["inputs"] == expected_inputs
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_extract_operation_io_boolean_ref_oneof_parameter():
+    """Test extract_operation_io with parameter containing $ref to oneOf with Boolean schemas."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/ref-oneof-parameter", "get")
+
+    # Input should contain parameter with oneOf schema wrapped in type/schema structure
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "filter": {
+                "type": "string",  # Default OpenAPI type for parameters
+                "schema": {
+                    "oneOf": [
+                        {},  # true converted to {}
+                        {"type": "string", "enum": ["strict", "loose"]},
+                        {"not": {}},  # false converted to {"not": {}}
+                    ]
+                },
+            }
+        },
+        "required": ["filter"],
+    }
+
+    # Output should be simple object
+    expected_outputs = {"type": "object", "properties": {"message": {"type": "string"}}}
+
+    # Check inputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"]["filter"] == expected_inputs["properties"]["filter"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_sibling_merge_basic():
+    """Test basic sibling merge with $ref and additional properties."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/basic-sibling-merge", "post")
+
+    # Input should merge BaseUser with additional email property
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "age": {"type": "integer", "minimum": 0},
+            "email": {"type": "string", "format": "email"},
+        },
+    }
+
+    # Output should merge BaseUser with additional id property
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "age": {"type": "integer", "minimum": 0},
+            "id": {"type": "integer", "description": "User ID"},
+        },
+    }
+
+    # Test the main structure
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+
+    # Test required fields separately (order doesn't matter)
+    assert set(result["inputs"]["required"]) == {"name", "email"}
+    assert set(result["outputs"]["required"]) == {"name"}
+
+
+def test_sibling_merge_complex():
+    """Test complex sibling merge with multiple properties and constraints."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/complex-sibling-merge", "post")
+
+    # Input should NOT merge because sibling has additionalProperties: false
+    # The sibling schema should be returned as-is
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "price": {"type": "number", "minimum": 0},
+            "discount": {"type": "number", "minimum": 0, "maximum": 1},
+        },
+        "required": ["price"],
+        "additionalProperties": False,
+    }
+
+    # Output should merge BaseProduct with inventory property (no additionalProperties constraint)
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "description": {"type": "string"},
+            "inventory": {
+                "type": "object",
+                "properties": {
+                    "stock": {"type": "integer", "minimum": 0},
+                    "warehouse": {"type": "string"},
+                },
+            },
+        },
+    }
+
+    # Test the main structure
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+
+    # Test required fields separately (order doesn't matter)
+    assert set(result["inputs"]["required"]) == {"price"}
+    assert set(result["outputs"]["required"]) == {"name", "inventory"}
+
+
+def test_sibling_merge_nested():
+    """Test nested sibling merge with allOf and additional properties."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/nested-sibling-merge", "post")
+
+    # Input should merge BaseOrder with allOf priority and notes properties
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "customerId": {"type": "string"},
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "productId": {"type": "string"},
+                        "quantity": {"type": "integer", "minimum": 1},
+                    },
+                },
+            },
+            "priority": {"type": "string", "enum": ["low", "medium", "high"]},
+            "notes": {"type": "string", "maxLength": 500},
+        },
+        "required": ["customerId", "items"],
+    }
+
+    # Output should merge BaseOrder with status and tracking properties
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "customerId": {"type": "string"},
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "productId": {"type": "string"},
+                        "quantity": {"type": "integer", "minimum": 1},
+                    },
+                },
+            },
+            "status": {
+                "type": "string",
+                "enum": ["pending", "processing", "completed", "cancelled"],
+            },
+            "tracking": {
+                "type": "object",
+                "properties": {"number": {"type": "string"}, "carrier": {"type": "string"}},
+            },
+        },
+        "required": ["customerId", "items"],
+    }
+
+    # Check inputs and outputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+    assert set(result["outputs"]["required"]) == set(expected_outputs["required"])
+
+
+def test_sibling_merge_boolean():
+    """Test sibling merge with Boolean schemas."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/boolean-sibling-merge", "post")
+
+    # Input should merge BaseConfig with enabled property
+    expected_inputs = {
+        "type": "object",
+        "properties": {"version": {"type": "string"}, "enabled": {"type": "boolean"}},
+        "required": [],  # merge_json_schemas adds empty required array
+    }
+
+    # Output should merge BaseConfig with debug property
+    expected_outputs = {
+        "type": "object",
+        "properties": {"version": {"type": "string"}, "debug": {"type": "boolean"}},
+    }
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_sibling_merge_array():
+    """Test sibling merge with array properties."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/array-sibling-merge", "post")
+
+    # Input should merge BaseList with items array property
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "items": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        },
+        "required": [],  # merge_json_schemas adds empty required array
+    }
+
+    # Output should merge BaseList with metadata property
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "metadata": {
+                "type": "object",
+                "properties": {"count": {"type": "integer"}, "total": {"type": "integer"}},
+            },
+        },
+    }
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_sibling_merge_additional_properties():
+    """Test that merge_siblings works with additionalProperties using test data."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/additional-properties-true", "post")
+
+    # The inputs should have the merged properties from BaseUser + sibling email
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "age": {"type": "integer", "minimum": 0},
+            "email": {"type": "string", "format": "email"},
+        },
+        "required": ["name"],
+    }
+
+    # The outputs should have additionalProperties: true from the sibling schema
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "age": {"type": "integer", "minimum": 0},
+            "id": {"type": "integer", "description": "User ID"},
+        },
+        "required": ["name"],
+        "additionalProperties": True,
+    }
+
+    # Test the main structure with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+    assert set(result["outputs"]["required"]) == set(expected_outputs["required"])
+    assert result["outputs"]["additionalProperties"] is True
+
+
+def test_merge_json_schemas_additional_properties_false_constraint():
+    """Test that merge_json_schemas respects additionalProperties: false constraint."""
+    from arazzo_runner.extractor.openapi_extractor import merge_json_schemas
+
+    # Test case 1: base schema with additionalProperties: false should not be merged
+    base_schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "additionalProperties": False,
+    }
+    sibling_object = {"properties": {"email": {"type": "string", "format": "email"}}}
+
+    result = merge_json_schemas(base_schema, sibling_object)
+    assert result == base_schema, "Schema with additionalProperties: false should not be merged"
+
+    # Test case 2: sibling with additionalProperties: false should not be merged
+    base_schema = {"type": "object", "properties": {"name": {"type": "string"}}}
+    sibling_object = {
+        "properties": {"email": {"type": "string", "format": "email"}},
+        "additionalProperties": False,
+    }
+
+    result = merge_json_schemas(base_schema, sibling_object)
+    assert result == sibling_object, "Sibling with additionalProperties: false should not be merged"
+
+
+def test_sibling_merge_ref_with_type_and_properties():
+    """Test sibling merge with $ref, type, and properties siblings."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/ref-with-type-and-properties", "post")
+
+    # Input should merge BaseObject with cost property
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "id": {"type": "integer"},
+            "cost": {"type": "number"},
+        },
+        "required": ["name", "cost"],
+    }
+
+    # Output should merge BaseObject with price property
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "id": {"type": "integer"},
+            "price": {"type": "number"},
+        },
+        "required": ["name", "price"],
+    }
+
+    # Check inputs
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+    assert set(result["outputs"]["required"]) == set(expected_outputs["required"])

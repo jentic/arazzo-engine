@@ -1,0 +1,166 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Boolean Ref OneOf Test API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://test.com/api"
+    }
+  ],
+  "paths": {
+    "/ref-oneof-request-body": {
+      "post": {
+        "summary": "Request body with $ref to oneOf containing Boolean schemas",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BooleanOneOfSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanOneOfResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ref-oneof-response": {
+      "get": {
+        "summary": "Response with $ref to oneOf containing Boolean schemas",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanOneOfResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ref-oneof-parameter": {
+      "get": {
+        "summary": "Parameter with $ref to oneOf containing Boolean schemas",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BooleanOneOfParameter"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mixed-ref-oneof": {
+      "post": {
+        "summary": "Mixed $ref oneOf with Boolean schemas in request and response",
+        "parameters": [
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/BooleanOneOfParameter"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BooleanOneOfSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BooleanOneOfResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BooleanOneOfSchema": {
+        "oneOf": [
+          true,
+          false,
+          {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "value": {"type": "string"}
+            },
+            "required": ["name"]
+          }
+        ]
+      },
+      "BooleanOneOfResponse": {
+        "oneOf": [
+          false,
+          {
+            "type": "object",
+            "properties": {
+              "status": {"type": "string"},
+              "data": {"type": "object"}
+            }
+          },
+          true
+        ]
+      },
+      "BooleanOneOfParameter": {
+        "oneOf": [
+          true,
+          {
+            "type": "string",
+            "enum": ["strict", "loose"]
+          },
+          false
+        ]
+      }
+    }
+  }
+}
