@@ -1302,6 +1302,84 @@ def test_extract_operation_io_request_body_anyof_with_query_parameters():
     assert result["outputs"] == expected_outputs
 
 
+def test_extract_operation_io_complex_oneof_request_body_with_parameters():
+    """Test extract_operation_io with complex oneOf request body containing multiple types and path parameters."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/complex-oneof-request-body", "post")
+
+    # Input should have both path parameters and complex oneOf flattened into inputs properties
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "owner": {"type": "string", "schema": {"type": "string"}},
+            "repo": {"type": "string", "schema": {"type": "string"}},
+            "issue_number": {"type": "integer", "schema": {"type": "integer"}},
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "labels": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {"type": "string"},
+                        }
+                    },
+                },
+                {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {"type": "string"},
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "labels": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "type": "object",
+                                "properties": {"name": {"type": "string"}},
+                                "required": ["name"],
+                            },
+                        }
+                    },
+                },
+                {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "properties": {"name": {"type": "string"}},
+                        "required": ["name"],
+                    },
+                },
+                {"type": "string"},
+            ],
+        },
+        "required": ["owner", "repo", "issue_number"],
+    }
+
+    # Output should be simple object
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "message": {"type": "string"},
+            "labels_added": {"type": "integer"},
+        },
+    }
+
+    # Check inputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"]["owner"] == expected_inputs["properties"]["owner"]
+    assert result["inputs"]["properties"]["repo"] == expected_inputs["properties"]["repo"]
+    assert result["inputs"]["properties"]["issue_number"] == expected_inputs["properties"]["issue_number"]
+    assert result["inputs"]["properties"]["oneOf"] == expected_inputs["properties"]["oneOf"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
 def test_sibling_merge_basic():
     """Test basic sibling merge with $ref and additional properties."""
     spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
