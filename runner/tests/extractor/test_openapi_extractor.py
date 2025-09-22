@@ -1419,3 +1419,41 @@ def test_merge_json_schemas_additional_properties_false_constraint():
     
     result = merge_json_schemas(base_schema, sibling_object)
     assert result == sibling_object, "Sibling with additionalProperties: false should not be merged"
+
+
+def test_sibling_merge_ref_with_type_and_properties():
+    """Test sibling merge with $ref, type, and properties siblings."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/ref-with-type-and-properties", "post")
+    
+    # Input should merge BaseObject with cost property
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "id": {"type": "integer"},
+            "cost": {"type": "number"}
+        },
+        "required": ["name", "cost"]
+    }
+    
+    # Output should merge BaseObject with price property
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "id": {"type": "integer"},
+            "price": {"type": "number"}
+        },
+        "required": ["name", "price"]
+    }
+    
+    # Check inputs
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+    
+    # Check outputs
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+    assert set(result["outputs"]["required"]) == set(expected_outputs["required"])

@@ -275,6 +275,46 @@
           }
         }
       }
+    },
+    "/ref-with-type-and-properties": {
+      "post": {
+        "summary": "Test $ref with type and properties siblings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseObject",
+                "type": "object",
+                "properties": {
+                  "cost": {
+                    "type": "number"
+                  }
+                },
+                "required": ["cost"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseObject",
+                  "type": "object",
+                  "properties": {
+                    "price": {
+                      "type": "number"
+                    }
+                  },
+                  "required": ["price"]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -340,6 +380,18 @@
             "type": "string"
           }
         }
+      },
+      "BaseObject": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": ["name"]
       }
     }
   }
