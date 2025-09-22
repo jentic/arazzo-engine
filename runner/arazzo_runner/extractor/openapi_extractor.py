@@ -283,7 +283,7 @@ def merge_json_schemas(
 
 def _convert_booleans_to_dict_representation(schema: Any) -> Any:
     """
-    Convert Boolean JSON Schemas to text-based representations for agents.
+    Convert Boolean JSON Schemas to dict-based representations for agents.
 
     This is the final step before schemas are shown to agents, converting:
     - True -> {} (empty schema that accepts anything)
@@ -297,7 +297,7 @@ def _convert_booleans_to_dict_representation(schema: Any) -> Any:
         schema: The schema to process
 
     Returns:
-        The schema with Boolean values converted to text-based representations
+        The schema with Boolean values converted to dict-based representations
     """
     if schema is True:
         return {}
@@ -526,7 +526,9 @@ def resolve_schema(
     # Pass 3: allOf folding
     result = fold_all_of(merged_schema)
 
-    # Final step: Convert Boolean schemas to text-based representations for agents
+    # Final step: Convert Boolean schemas to dict-based representations for agents
+    # Note: if the schema is a boolean schema, an empty dict will be shown to the agent, as it is not a schema of type: object.
+    # If this becomes an issue, a future fix can be implemented to alter this behaviour.
     return _convert_booleans_to_dict_representation(result)
 
 
