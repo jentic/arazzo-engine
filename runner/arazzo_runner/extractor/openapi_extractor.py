@@ -476,18 +476,8 @@ def merge_siblings(schema: Any, original_schema: Any) -> Any:
             # Use merge_json_schemas to combine resolved schema with siblings
             return merge_json_schemas(schema, siblings)
         else:
-            # No $ref with siblings, just process recursively
-            # But if the original was just a $ref, return the resolved schema as-is
-            if "$ref" in original_schema and len(original_schema) == 1:
-                return schema
-            else:
-                return {k: merge_siblings(schema.get(k, v), v) for k, v in original_schema.items()}
-    elif isinstance(schema, list) and isinstance(original_schema, list):
-        # Process each item in the list
-        return [
-            merge_siblings(schema[i] if i < len(schema) else item, item)
-            for i, item in enumerate(original_schema)
-        ]
+            # No $ref with siblings, return resolved schema as-is
+            return schema
     else:
         # Return the resolved schema as-is
         return schema
