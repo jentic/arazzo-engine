@@ -1,0 +1,346 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sibling Merge Test API",
+    "version": "1.0.0",
+    "description": "Test API for OpenAPI 3.1 sibling merge functionality"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.com",
+      "description": "Test server"
+    }
+  ],
+  "paths": {
+    "/basic-sibling-merge": {
+      "post": {
+        "summary": "Basic sibling merge with $ref and additional properties",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseUser",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseUser",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "User ID"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/complex-sibling-merge": {
+      "post": {
+        "summary": "Complex sibling merge with multiple properties",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseProduct",
+                "type": "object",
+                "required": ["price"],
+                "properties": {
+                  "price": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "discount": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseProduct",
+                  "properties": {
+                    "inventory": {
+                      "type": "object",
+                      "properties": {
+                        "stock": {"type": "integer", "minimum": 0},
+                        "warehouse": {"type": "string"}
+                      }
+                    }
+                  },
+                  "required": ["inventory"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nested-sibling-merge": {
+      "post": {
+        "summary": "Nested sibling merge with allOf",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseOrder",
+                "allOf": [
+                  {
+                    "properties": {
+                      "priority": {
+                        "type": "string",
+                        "enum": ["low", "medium", "high"]
+                      }
+                    }
+                  }
+                ],
+                "properties": {
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseOrder",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["pending", "processing", "completed", "cancelled"]
+                    },
+                    "tracking": {
+                      "type": "object",
+                      "properties": {
+                        "number": {"type": "string"},
+                        "carrier": {"type": "string"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/boolean-sibling-merge": {
+      "post": {
+        "summary": "Sibling merge with Boolean schemas",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseConfig",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseConfig",
+                  "properties": {
+                    "debug": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/array-sibling-merge": {
+      "post": {
+        "summary": "Sibling merge with array properties",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseList",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseList",
+                  "properties": {
+                    "metadata": {
+                      "type": "object",
+                      "properties": {
+                        "count": {"type": "integer"},
+                        "total": {"type": "integer"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/additional-properties-true": {
+      "post": {
+        "summary": "Sibling merge with additionalProperties: true",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseUser",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseUser",
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "description": "User ID"
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BaseUser": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "age": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["name"]
+      },
+      "BaseProduct": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": ["name"]
+      },
+      "BaseOrder": {
+        "type": "object",
+        "properties": {
+          "customerId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "productId": {"type": "string"},
+                "quantity": {"type": "integer", "minimum": 1}
+              }
+            }
+          }
+        },
+        "required": ["customerId", "items"]
+      },
+      "BaseConfig": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "BaseList": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

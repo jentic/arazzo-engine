@@ -196,6 +196,13 @@ def merge_json_schemas(
     if not isinstance(source, dict):
         return target
 
+    # If either schema has additionalProperties: false, don't merge - return the one with the constraint
+    # This prevents adding properties to a schema that explicitly forbids them
+    if target.get("additionalProperties") is False:
+        return target
+    if source.get("additionalProperties") is False:
+        return source
+
     # Start with source, then overlay target (target takes precedence)
     merged = {**source, **target}
 
@@ -276,11 +283,15 @@ def merge_json_schemas(
 
 def _convert_booleans_to_dict_representation(schema: Any) -> Any:
     """
-    Recursively convert Boolean schemas to text-based representations for agents.
+    Convert Boolean JSON Schemas to text-based representations for agents.
 
     This is the final step before schemas are shown to agents, converting:
     - True -> {} (empty schema that accepts anything)
     - False -> {"not": {}} (schema that rejects everything)
+
+    Processes:
+    1. Direct True/False schemas
+    2. oneOf/anyOf arrays within properties
 
     Args:
         schema: The schema to process
@@ -292,10 +303,22 @@ def _convert_booleans_to_dict_representation(schema: Any) -> Any:
         return {}
     elif schema is False:
         return {"not": {}}
-    elif isinstance(schema, dict):
-        return {k: _convert_booleans_to_dict_representation(v) for k, v in schema.items()}
-    elif isinstance(schema, list):
-        return [_convert_booleans_to_dict_representation(item) for item in schema]
+    elif isinstance(schema, dict) and "properties" in schema:
+        result = schema.copy()
+        if "properties" in schema and isinstance(schema["properties"], dict):
+            result["properties"] = {}
+            for prop_name, prop_schema in schema["properties"].items():
+                if isinstance(prop_schema, dict) and ("oneOf" in prop_schema or "anyOf" in prop_schema):
+                    result["properties"][prop_name] = {**prop_schema}
+                    for array_key in ["oneOf", "anyOf"]:
+                        if array_key in prop_schema:
+                            result["properties"][prop_name][array_key] = [
+                                _convert_booleans_to_dict_representation(item) 
+                                for item in prop_schema[array_key]
+                            ]
+                else:
+                    result["properties"][prop_name] = _convert_booleans_to_dict_representation(prop_schema)
+        return result
     else:
         return schema
 
@@ -431,31 +454,27 @@ def _resolve_schema_refs(
 
 def merge_siblings(schema: Any, original_schema: Any) -> Any:
     """
-    Merge sibling properties with resolved $ref schemas using proper schema merging.
+    Merge sibling properties with resolved $ref schemas using merge_json_schemas.
 
     This function handles the case where a schema object contains both a $ref
-    and additional properties at the same level. It uses merge_json_schemas
-    for proper schema merging following the established algorithm from the
-    JSON Schema community discussion.
+    and additional properties at the same level. It surfaces sibling fields as
+    objects and combines them using the established merge_json_schemas algorithm.
 
     Args:
         schema: The schema with resolved references
         original_schema: The original schema before reference resolution
 
     Returns:
-        The schema with sibling properties merged using proper schema merging
+        The schema with sibling properties merged using merge_json_schemas
     """
     if isinstance(schema, dict) and isinstance(original_schema, dict):
         # Check if the original had a $ref with siblings
         if "$ref" in original_schema and len(original_schema) > 1:
-            # This was a $ref with siblings - use OpenAPI 3.1.x approach
+            # This was a $ref with siblings - extract siblings and merge
             siblings = {k: v for k, v in original_schema.items() if k != "$ref"}
-
-            # Recursively process sibling values
-            processed_siblings = {k: merge_siblings(v, v) for k, v in siblings.items()}
-
-            # Use merge_json_schemas for proper schema merging
-            return merge_json_schemas(schema, processed_siblings)
+            
+            # Use merge_json_schemas to combine resolved schema with siblings
+            return merge_json_schemas(schema, siblings)
         else:
             # No $ref with siblings, just process recursively
             # But if the original was just a $ref, return the resolved schema as-is
@@ -781,7 +800,6 @@ def extract_operation_io(
 
                 # Recursively resolve nested refs within the body schema with three-pass resolution
                 fully_resolved_body_schema = resolve_schema(body_schema, spec)
-
                 # --- Flatten body properties into inputs ---
                 if (
                     isinstance(fully_resolved_body_schema, dict)

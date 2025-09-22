@@ -1146,3 +1146,276 @@ def test_boolean_schema_nested_allof_precedence():
     expected_metadata = {}  # true takes precedence over object properties
 
     assert input_metadata == expected_metadata
+
+
+def test_sibling_merge_basic():
+    """Test basic sibling merge with $ref and additional properties."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/basic-sibling-merge", "post")
+
+    # Input should merge BaseUser with additional email property
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "age": {"type": "integer", "minimum": 0},
+            "email": {"type": "string", "format": "email"}
+        }
+    }
+
+    # Output should merge BaseUser with additional id property
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "age": {"type": "integer", "minimum": 0},
+            "id": {"type": "integer", "description": "User ID"}
+        }
+    }
+
+    # Test the main structure
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+
+    # Test required fields separately (order doesn't matter)
+    assert set(result["inputs"]["required"]) == {"name", "email"}
+    assert set(result["outputs"]["required"]) == {"name"}
+
+
+def test_sibling_merge_complex():
+    """Test complex sibling merge with multiple properties and constraints."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/complex-sibling-merge", "post")
+
+    # Input should NOT merge because sibling has additionalProperties: false
+    # The sibling schema should be returned as-is
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "price": {"type": "number", "minimum": 0},
+            "discount": {"type": "number", "minimum": 0, "maximum": 1}
+        },
+        "required": ["price"],
+        "additionalProperties": False
+    }
+
+    # Output should merge BaseProduct with inventory property (no additionalProperties constraint)
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "description": {"type": "string"},
+            "inventory": {
+                "type": "object",
+                "properties": {
+                    "stock": {"type": "integer", "minimum": 0},
+                    "warehouse": {"type": "string"}
+                }
+            }
+        }
+    }
+    
+    # Test the main structure
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+
+    # Test required fields separately (order doesn't matter)
+    assert set(result["inputs"]["required"]) == {"price"}
+    assert set(result["outputs"]["required"]) == {"name", "inventory"}
+
+
+def test_sibling_merge_nested():
+    """Test nested sibling merge with allOf and additional properties."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/nested-sibling-merge", "post")
+
+    # Input should merge BaseOrder with allOf priority and notes properties
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "customerId": {"type": "string"},
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "productId": {"type": "string"},
+                        "quantity": {"type": "integer", "minimum": 1}
+                    }
+                }
+            },
+            "priority": {"type": "string", "enum": ["low", "medium", "high"]},
+            "notes": {"type": "string", "maxLength": 500}
+        },
+        "required": ["customerId", "items"]
+    }
+
+    # Output should merge BaseOrder with status and tracking properties
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "customerId": {"type": "string"},
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "productId": {"type": "string"},
+                        "quantity": {"type": "integer", "minimum": 1}
+                    }
+                }
+            },
+            "status": {"type": "string", "enum": ["pending", "processing", "completed", "cancelled"]},
+            "tracking": {
+                "type": "object",
+                "properties": {
+                    "number": {"type": "string"},
+                    "carrier": {"type": "string"}
+                }
+            }
+        },
+        "required": ["customerId", "items"]
+    }
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_sibling_merge_boolean():
+    """Test sibling merge with Boolean schemas."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/boolean-sibling-merge", "post")
+
+    # Input should merge BaseConfig with enabled property
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "version": {"type": "string"},
+            "enabled": {"type": "boolean"}
+        },
+        "required": []  # merge_json_schemas adds empty required array
+    }
+
+    # Output should merge BaseConfig with debug property
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "version": {"type": "string"},
+            "debug": {"type": "boolean"}
+        }
+    }
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_sibling_merge_array():
+    """Test sibling merge with array properties."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/array-sibling-merge", "post")
+
+    # Input should merge BaseList with items array property
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "items": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1
+            }
+        },
+        "required": []  # merge_json_schemas adds empty required array
+    }
+
+    # Output should merge BaseList with metadata property
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "metadata": {
+                "type": "object",
+                "properties": {
+                    "count": {"type": "integer"},
+                    "total": {"type": "integer"}
+                }
+            }
+        }
+    }
+
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_sibling_merge_additional_properties():
+    """Test that merge_siblings works with additionalProperties using test data."""
+    spec = _load_test_spec("sibling_merge/sibling_merge_test_spec.json")
+    result = extract_operation_io(spec, "/additional-properties-true", "post")
+    
+    # The inputs should have the merged properties from BaseUser + sibling email
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "age": {"type": "integer", "minimum": 0},
+            "email": {"type": "string", "format": "email"}
+        },
+        "required": ["name"]
+    }
+    
+    # The outputs should have additionalProperties: true from the sibling schema  
+    expected_outputs = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "age": {"type": "integer", "minimum": 0},
+            "id": {"type": "integer", "description": "User ID"}
+        },
+        "required": ["name"],
+        "additionalProperties": True
+    }
+    
+    # Test the main structure
+    assert result["inputs"] == expected_inputs
+    assert result["outputs"]["type"] == expected_outputs["type"]
+    assert result["outputs"]["properties"] == expected_outputs["properties"]
+    assert result["outputs"]["additionalProperties"] is True
+
+
+def test_merge_json_schemas_additional_properties_false_constraint():
+    """Test that merge_json_schemas respects additionalProperties: false constraint."""
+    from arazzo_runner.extractor.openapi_extractor import merge_json_schemas
+    
+    # Test case 1: base schema with additionalProperties: false should not be merged
+    base_schema = {
+        'type': 'object', 
+        'properties': {'name': {'type': 'string'}},
+        'additionalProperties': False
+    }
+    sibling_object = {
+        'properties': {
+            'email': {'type': 'string', 'format': 'email'}
+        }
+    }
+    
+    result = merge_json_schemas(base_schema, sibling_object)
+    assert result == base_schema, "Schema with additionalProperties: false should not be merged"
+    
+    # Test case 2: sibling with additionalProperties: false should not be merged
+    base_schema = {
+        'type': 'object', 
+        'properties': {'name': {'type': 'string'}}
+    }
+    sibling_object = {
+        'properties': {
+            'email': {'type': 'string', 'format': 'email'}
+        },
+        'additionalProperties': False
+    }
+    
+    result = merge_json_schemas(base_schema, sibling_object)
+    assert result == sibling_object, "Sibling with additionalProperties: false should not be merged"
