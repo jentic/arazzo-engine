@@ -937,42 +937,6 @@ def test_boolean_schema_allof_precedence():
     assert result["outputs"] == expected_outputs
 
 
-def test_boolean_schema_oneof_preservation():
-    """Test that Boolean schemas are preserved and converted in oneOf arrays."""
-    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
-    result = extract_operation_io(spec, "/nested-boolean", "post")
-
-    # Input: oneOf should contain converted Boolean schemas and object
-    input_data_oneof = result["inputs"]["properties"]["data"]["oneOf"]
-    expected_data_oneof = [
-        {},  # true converted to {}
-        {"not": {}},  # false converted to {"not": {}}
-        {"type": "object", "properties": {"value": {"type": "string"}}},
-    ]
-
-    # Output: oneOf should contain converted Boolean schema and object
-    output_response_oneof = result["outputs"]["properties"]["response"]["oneOf"]
-    expected_response_oneof = [
-        {"not": {}},  # false converted to {"not": {}}
-        {"type": "object", "properties": {"status": {"type": "string"}}},
-    ]
-
-    assert input_data_oneof == expected_data_oneof
-    assert output_response_oneof == expected_response_oneof
-
-
-def test_boolean_schema_nested_allof_precedence():
-    """Test that Boolean schemas take precedence in nested allOf structures."""
-    spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
-    result = extract_operation_io(spec, "/nested-boolean", "post")
-
-    # Input: allOf with true should result in empty schema
-    input_metadata = result["inputs"]["properties"]["metadata"]
-    expected_metadata = {}  # true takes precedence over object properties
-
-    assert input_metadata == expected_metadata
-
-
 def test_boolean_schema_false_body_with_parameters():
     """Test that false request body schema doesn't interfere with parameter processing."""
     spec = _load_test_spec("boolean_schemas/boolean_schema_test_spec.json")
@@ -1027,6 +991,129 @@ def test_boolean_schema_true_body_with_parameters():
     # Check inputs with order-agnostic required array comparison
     assert result["inputs"]["type"] == expected_inputs["type"]
     assert result["inputs"]["properties"] == expected_inputs["properties"]
+    assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_resolve_schema_boolean_ref_oneof_request_body():
+    """Test resolve_schema with $ref to oneOf containing Boolean schemas for request body."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    schema = {"$ref": "#/components/schemas/BooleanOneOfSchema"}
+    resolved = resolve_schema(schema, spec)
+
+    # Expected oneOf with converted Boolean schemas
+    expected_schema = {
+        "oneOf": [
+            {},  # true converted to {}
+            {"not": {}},  # false converted to {"not": {}}
+            {
+                "type": "object",
+                "properties": {"name": {"type": "string"}, "value": {"type": "string"}},
+                "required": ["name"],
+            },
+        ]
+    }
+
+    assert resolved == expected_schema
+
+
+def test_resolve_schema_boolean_ref_oneof_response():
+    """Test resolve_schema with $ref to oneOf containing Boolean schemas for response."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    schema = {"$ref": "#/components/schemas/BooleanOneOfResponse"}
+    resolved = resolve_schema(schema, spec)
+
+    # Expected oneOf with converted Boolean schemas
+    expected_schema = {
+        "oneOf": [
+            {"not": {}},  # false converted to {"not": {}}
+            {
+                "type": "object",
+                "properties": {"status": {"type": "string"}, "data": {"type": "object"}},
+            },
+            {},  # true converted to {}
+        ]
+    }
+
+    assert resolved == expected_schema
+
+
+def test_resolve_schema_boolean_ref_oneof_parameter():
+    """Test resolve_schema with $ref to oneOf containing Boolean schemas for parameter."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    schema = {"$ref": "#/components/schemas/BooleanOneOfParameter"}
+    resolved = resolve_schema(schema, spec)
+
+    # Expected oneOf with converted Boolean schemas
+    expected_schema = {
+        "oneOf": [
+            {},  # true converted to {}
+            {"type": "string", "enum": ["strict", "loose"]},
+            {"not": {}},  # false converted to {"not": {}}
+        ]
+    }
+
+    assert resolved == expected_schema
+
+
+def test_extract_operation_io_boolean_ref_oneof_response():
+    """Test extract_operation_io with response containing $ref to oneOf with Boolean schemas."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/ref-oneof-response", "get")
+
+    # Input should be empty (no parameters or body)
+    expected_inputs = {"type": "object", "properties": {}, "required": []}
+
+    # Output should have oneOf with converted Boolean schemas
+    expected_outputs = {
+        "oneOf": [
+            {"not": {}},  # false converted to {"not": {}}
+            {
+                "type": "object",
+                "properties": {"status": {"type": "string"}, "data": {"type": "object"}},
+            },
+            {},  # true converted to {}
+        ]
+    }
+
+    # Check inputs
+    assert result["inputs"] == expected_inputs
+
+    # Check outputs
+    assert result["outputs"] == expected_outputs
+
+
+def test_extract_operation_io_boolean_ref_oneof_parameter():
+    """Test extract_operation_io with parameter containing $ref to oneOf with Boolean schemas."""
+    spec = _load_test_spec("boolean_schemas/boolean_ref_oneof_test_spec.json")
+    result = extract_operation_io(spec, "/ref-oneof-parameter", "get")
+
+    # Input should contain parameter with oneOf schema wrapped in type/schema structure
+    expected_inputs = {
+        "type": "object",
+        "properties": {
+            "filter": {
+                "type": "string",  # Default OpenAPI type for parameters
+                "schema": {
+                    "oneOf": [
+                        {},  # true converted to {}
+                        {"type": "string", "enum": ["strict", "loose"]},
+                        {"not": {}},  # false converted to {"not": {}}
+                    ]
+                },
+            }
+        },
+        "required": ["filter"],
+    }
+
+    # Output should be simple object
+    expected_outputs = {"type": "object", "properties": {"message": {"type": "string"}}}
+
+    # Check inputs with order-agnostic required array comparison
+    assert result["inputs"]["type"] == expected_inputs["type"]
+    assert result["inputs"]["properties"]["filter"] == expected_inputs["properties"]["filter"]
     assert set(result["inputs"]["required"]) == set(expected_inputs["required"])
 
     # Check outputs

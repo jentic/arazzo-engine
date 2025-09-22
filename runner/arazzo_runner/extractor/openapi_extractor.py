@@ -291,7 +291,7 @@ def _convert_booleans_to_dict_representation(schema: Any) -> Any:
 
     Processes:
     1. Direct True/False schemas
-    2. oneOf/anyOf arrays within properties
+    2. oneOf/anyOf arrays at the top level (only direct boolean items)
 
     Args:
         schema: The schema to process
@@ -299,29 +299,32 @@ def _convert_booleans_to_dict_representation(schema: Any) -> Any:
     Returns:
         The schema with Boolean values converted to dict-based representations
     """
-    if schema is True:
-        return {}
-    elif schema is False:
-        return {"not": {}}
-    elif isinstance(schema, dict) and "properties" in schema:
+
+    def map_boolean_schema_to_dict_representation(schema: Any) -> Any:
+        if schema is True:
+            return {}
+        elif schema is False:
+            return {"not": {}}
+        else:
+            return schema
+
+    if isinstance(schema, bool):
+        return map_boolean_schema_to_dict_representation(schema)
+
+    # Handle dict schemas with oneOf/anyOf arrays
+    if isinstance(schema, dict):
         result = schema.copy()
-        if "properties" in schema and isinstance(schema["properties"], dict):
-            result["properties"] = {}
-            for prop_name, prop_schema in schema["properties"].items():
-                if isinstance(prop_schema, dict) and (
-                    "oneOf" in prop_schema or "anyOf" in prop_schema
-                ):
-                    result["properties"][prop_name] = {**prop_schema}
-                    for array_key in ["oneOf", "anyOf"]:
-                        if array_key in prop_schema:
-                            result["properties"][prop_name][array_key] = [
-                                _convert_booleans_to_dict_representation(item)
-                                for item in prop_schema[array_key]
-                            ]
-                else:
-                    result["properties"][prop_name] = _convert_booleans_to_dict_representation(
-                        prop_schema
-                    )
+
+        # Handle oneOf/anyOf arrays at the top level
+        for array_key in ["oneOf", "anyOf"]:
+            if array_key in schema and isinstance(schema[array_key], list):
+                result[array_key] = []
+                for item in schema[array_key]:
+                    if isinstance(item, bool):
+                        result[array_key].append(map_boolean_schema_to_dict_representation(item))
+                    else:
+                        result[array_key].append(item)  # Keep non-boolean items as-is
+
         return result
     else:
         return schema
