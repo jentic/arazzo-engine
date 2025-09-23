@@ -827,9 +827,41 @@ def extract_operation_io(
                 ):
                     for structure_type in ["oneOf", "anyOf"]:
                         if structure_type in fully_resolved_body_schema:
-                            extracted_details["inputs"]["properties"][structure_type] = (
-                                fully_resolved_body_schema[structure_type]
-                            )
+                            # Copy regular input params into each oneOf/anyOf entry and perform sibling merge
+                            regular_params = extracted_details["inputs"]["properties"].copy()
+                            
+                            # Process each option in the oneOf/anyOf array
+                            extracted_properties = []
+                            for option in fully_resolved_body_schema[structure_type]:
+                                # Create base object with regular input properties
+                                base_object = {
+                                    "type": "object",
+                                    "properties": regular_params
+                                }
+                                
+                                # Use merge_json_schemas to merge the option into the base object
+                                merged_option = merge_json_schemas(base_object, option)
+                                
+                                # Extract individual properties from the merged option
+                                if "properties" in merged_option:
+                                    # Create a flat dict with all properties
+                                    flat_properties = {}
+                                    for prop_name, prop_schema in merged_option["properties"].items():
+                                        flat_properties[prop_name] = prop_schema
+                                    
+                                    # Add non-property fields as top-level fields
+                                    for key, value in merged_option.items():
+                                        if key != "properties":
+                                            flat_properties[key] = value
+                                    
+                                    extracted_properties.append(flat_properties)
+                                else:
+                                    # If no properties, just add the merged option as-is
+                                    extracted_properties.append(merged_option)
+                            
+                            # Store the extracted properties array in inputs properties
+                            extracted_details["inputs"]["properties"] = extracted_properties
+                            break
                 else:
                     # If body is not an object (e.g., array, primitive) or has no properties, don't flatten.
                     # Log a warning as we are not adding it under 'body' key either per the requirement.
