@@ -834,6 +834,7 @@ def extract_operation_io(
                             extracted_properties = []
                             for option in fully_resolved_body_schema[structure_type]:
                                 # Skip raw array and string request bodies - not yet supported
+                                # Boolean schemas are also skipped in multiple option scenarios for the time being
                                 if option.get("type") in ["array", "string"] or "properties" not in option:
                                     continue
                                 
