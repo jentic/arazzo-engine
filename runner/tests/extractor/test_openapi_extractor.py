@@ -1113,7 +1113,7 @@ def test_extract_operation_io_request_body_oneof_flattening_into_inputs():
             {
                 "email": {"type": "string", "required": True},
                 "age": {"type": "integer"},
-            }
+            },
         ],
         "strategy": "oneOf",
         "required": [],
@@ -1145,7 +1145,7 @@ def test_extract_operation_io_request_body_anyof_flattening_into_inputs():
             {
                 "category": {"type": "string", "required": True},
                 "tags": {"type": "array", "items": {"type": "string"}},
-            }
+            },
         ],
         "strategy": "anyOf",
         "required": [],
@@ -1209,7 +1209,7 @@ def test_extract_operation_io_request_body_oneof_with_query_parameters():
                 "email": {"type": "string", "required": True},
                 "user_id": {"type": "string", "schema": {"type": "string"}},
                 "age": {"type": "integer"},
-            }
+            },
         ],
         "strategy": "oneOf",
         "required": ["user_id"],
@@ -1250,7 +1250,7 @@ def test_extract_operation_io_request_body_anyof_with_query_parameters():
                 "tags": {"type": "array", "items": {"type": "string"}},
                 "category": {"type": "string", "schema": {"type": "string"}, "required": True},
                 "sort": {"type": "string", "schema": {"type": "string", "enum": ["asc", "desc"]}},
-            }
+            },
         ],
         "strategy": "anyOf",
         "required": ["category"],
@@ -1304,7 +1304,7 @@ def test_extract_operation_io_complex_oneof_request_body_with_parameters():
                 "owner": {"type": "string", "schema": {"type": "string"}},
                 "issue_number": {"type": "integer", "schema": {"type": "integer"}},
                 "repo": {"type": "string", "schema": {"type": "string"}},
-            }
+            },
         ],
         "strategy": "oneOf",
         "required": ["owner", "repo", "issue_number"],

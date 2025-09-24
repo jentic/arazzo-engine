@@ -829,39 +829,40 @@ def extract_operation_io(
                         if structure_type in fully_resolved_body_schema:
                             # Copy regular input params into each oneOf/anyOf entry and perform sibling merge
                             regular_params = extracted_details["inputs"]["properties"].copy()
-                            
+
                             # Process each option in the oneOf/anyOf array
                             extracted_properties = []
                             for option in fully_resolved_body_schema[structure_type]:
                                 # Skip raw array and string request bodies - not yet supported
                                 # Boolean schemas are also skipped in multiple option scenarios for the time being
-                                if option.get("type") in ["array", "string"] or "properties" not in option:
+                                if (
+                                    option.get("type") in ["array", "string"]
+                                    or "properties" not in option
+                                ):
                                     continue
-                                
+
                                 # Create base object with regular input properties
-                                base_object = {
-                                    "type": "object",
-                                    "properties": regular_params
-                                }
-                                
+                                base_object = {"type": "object", "properties": regular_params}
+
                                 # Use merge_json_schemas to merge the option into the base object
                                 merged_option = merge_json_schemas(base_object, option)
-                                
+
                                 # Extract individual properties from the merged option
                                 if "properties" in merged_option:
                                     # Create a flat dict with all properties
                                     flat_properties = {}
                                     required_fields = set(merged_option.get("required", []))
-                                    
-                                    for prop_name, prop_schema in merged_option["properties"].items():
+
+                                    for prop_name, prop_schema in merged_option[
+                                        "properties"
+                                    ].items():
                                         flat_properties[prop_name] = prop_schema
                                         # Add required field if the property is required
                                         if prop_name in required_fields:
                                             flat_properties[prop_name]["required"] = True
-                                    
-                                    
+
                                     extracted_properties.append(flat_properties)
-                            
+
                             # Store the extracted properties array in inputs properties
                             extracted_details["inputs"]["properties"] = extracted_properties
                             extracted_details["inputs"]["strategy"] = structure_type
