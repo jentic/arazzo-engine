@@ -862,6 +862,7 @@ def extract_operation_io(
                             
                             # Store the extracted properties array in inputs properties
                             extracted_details["inputs"]["properties"] = extracted_properties
+                            extracted_details["inputs"]["strategy"] = structure_type
                             break
                 else:
                     # If body is not an object (e.g., array, primitive) or has no properties, don't flatten.
