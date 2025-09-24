@@ -833,6 +833,10 @@ def extract_operation_io(
                             # Process each option in the oneOf/anyOf array
                             extracted_properties = []
                             for option in fully_resolved_body_schema[structure_type]:
+                                # Skip raw array and string request bodies - not yet supported
+                                if option.get("type") in ["array", "string"] or "properties" not in option:
+                                    continue
+                                
                                 # Create base object with regular input properties
                                 base_object = {
                                     "type": "object",
@@ -855,9 +859,6 @@ def extract_operation_io(
                                             flat_properties[key] = value
                                     
                                     extracted_properties.append(flat_properties)
-                                else:
-                                    # If no properties, just add the merged option as-is
-                                    extracted_properties.append(merged_option)
                             
                             # Store the extracted properties array in inputs properties
                             extracted_details["inputs"]["properties"] = extracted_properties
