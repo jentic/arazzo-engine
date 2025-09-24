@@ -1008,10 +1008,8 @@ def test_extract_operation_io_request_body_oneof_with_boolean_schemas():
         "type": "object",
         "properties": [
             {
-                "name": {"type": "string"},
+                "name": {"type": "string", "required": True},
                 "value": {"type": "string"},
-                "type": "object",
-                "required": ["name"],
             }
         ],
         "strategy": "oneOf",
@@ -1109,16 +1107,12 @@ def test_extract_operation_io_request_body_oneof_flattening_into_inputs():
         "type": "object",
         "properties": [
             {
-                "user_id": {"type": "string"},
+                "user_id": {"type": "string", "required": True},
                 "name": {"type": "string"},
-                "type": "object",
-                "required": ["user_id"],
             },
             {
-                "email": {"type": "string"},
+                "email": {"type": "string", "required": True},
                 "age": {"type": "integer"},
-                "type": "object",
-                "required": ["email"],
             }
         ],
         "strategy": "oneOf",
@@ -1145,16 +1139,12 @@ def test_extract_operation_io_request_body_anyof_flattening_into_inputs():
         "type": "object",
         "properties": [
             {
-                "product_id": {"type": "string"},
+                "product_id": {"type": "string", "required": True},
                 "quantity": {"type": "integer"},
-                "type": "object",
-                "required": ["product_id"],
             },
             {
-                "category": {"type": "string"},
+                "category": {"type": "string", "required": True},
                 "tags": {"type": "array", "items": {"type": "string"}},
-                "type": "object",
-                "required": ["category"],
             }
         ],
         "strategy": "anyOf",
@@ -1183,9 +1173,7 @@ def test_extract_operation_io_request_body_oneof_with_boolean_schemas_flattening
         "properties": [
             {
                 "enabled": {"type": "boolean"},
-                "data": {"type": "string"},
-                "type": "object",
-                "required": ["data"],
+                "data": {"type": "string", "required": True},
             }
         ],
         "strategy": "oneOf",
@@ -1213,18 +1201,14 @@ def test_extract_operation_io_request_body_oneof_with_query_parameters():
         "properties": [
             {
                 "name": {"type": "string"},
-                "user_id": {"type": "string", "schema": {"type": "string"}},
+                "user_id": {"type": "string", "schema": {"type": "string"}, "required": True},
                 "limit": {"type": "integer", "schema": {"type": "integer"}},
-                "type": "object",
-                "required": ["user_id"],
             },
             {
                 "limit": {"type": "integer", "schema": {"type": "integer"}},
-                "email": {"type": "string"},
+                "email": {"type": "string", "required": True},
                 "user_id": {"type": "string", "schema": {"type": "string"}},
                 "age": {"type": "integer"},
-                "type": "object",
-                "required": ["email"],
             }
         ],
         "strategy": "oneOf",
@@ -1258,18 +1242,14 @@ def test_extract_operation_io_request_body_anyof_with_query_parameters():
         "properties": [
             {
                 "quantity": {"type": "integer"},
-                "product_id": {"type": "string"},
+                "product_id": {"type": "string", "required": True},
                 "category": {"type": "string", "schema": {"type": "string"}},
                 "sort": {"type": "string", "schema": {"type": "string", "enum": ["asc", "desc"]}},
-                "type": "object",
-                "required": ["product_id"],
             },
             {
                 "tags": {"type": "array", "items": {"type": "string"}},
-                "category": {"type": "string", "schema": {"type": "string"}},
+                "category": {"type": "string", "schema": {"type": "string"}, "required": True},
                 "sort": {"type": "string", "schema": {"type": "string", "enum": ["asc", "desc"]}},
-                "type": "object",
-                "required": ["category"],
             }
         ],
         "strategy": "anyOf",
@@ -1310,7 +1290,6 @@ def test_extract_operation_io_complex_oneof_request_body_with_parameters():
                 "owner": {"type": "string", "schema": {"type": "string"}},
                 "issue_number": {"type": "integer", "schema": {"type": "integer"}},
                 "repo": {"type": "string", "schema": {"type": "string"}},
-                "type": "object",
             },
             {
                 "labels": {
@@ -1325,7 +1304,6 @@ def test_extract_operation_io_complex_oneof_request_body_with_parameters():
                 "owner": {"type": "string", "schema": {"type": "string"}},
                 "issue_number": {"type": "integer", "schema": {"type": "integer"}},
                 "repo": {"type": "string", "schema": {"type": "string"}},
-                "type": "object",
             }
         ],
         "strategy": "oneOf",
