@@ -1,0 +1,271 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "AllOf Merging Test API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://test.com/api"
+    }
+  ],
+  "paths": {
+    "/basic-allof": {
+      "post": {
+        "summary": "Test basic allOf merging",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtendedSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtendedSchema"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/nested-ref-allof": {
+      "post": {
+        "summary": "Test allOf merging with nested $ref",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AllOfWithNestedRef"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllOfWithNestedRef"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/request-body-allof": {
+      "post": {
+        "summary": "Test allOf merging in request body",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "base_field": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "extended_field": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/deep-circular-allof": {
+      "post": {
+        "summary": "Test allOf merging with deep circular reference",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/User"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BaseSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["id"]
+      },
+      "ExtendedSchema": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/BaseSchema"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["description"]
+          }
+        ]
+      },
+      "NestedSchema": {
+        "type": "object",
+        "properties": {
+          "nested_prop": {
+            "type": "string"
+          }
+        }
+      },
+      "AllOfWithNestedRef": {
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "base_prop": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "nested": {
+                "$ref": "#/components/schemas/NestedSchema"
+              }
+            }
+          }
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "address": {
+            "type": "object",
+            "properties": {
+              "street": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "owner": {
+                "$ref": "#/components/schemas/User"
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "address": {
+                "type": "object",
+                "properties": {
+                  "street": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "owner": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "phone": {
+                "type": "string"
+              },
+              "age": {
+                "type": "integer"
+              },
+              "preferences": {
+                "type": "object",
+                "properties": {
+                  "theme": {
+                    "type": "string"
+                  },
+                  "notifications": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
