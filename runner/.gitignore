@@ -21,6 +21,7 @@ var/
 *.egg
 .env
 .venv/
+.myenv
 .ruff_cache/
 
 # PDM
