@@ -69,7 +69,7 @@ class GenerateRequest(BaseModel):
 
     @field_validator("url")
     @classmethod
-    def validate_url(cls, v):
+    def validate_url(cls, v: str) -> str:
         """Validate that the URL is a valid http, https, or file URL."""
         if not re.match(r"^(http|https|file)://", v):
             raise ValueError("URL scheme must be http, https, or file")
@@ -93,7 +93,7 @@ class GenerationResponse(BaseModel):
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint returning API information."""
     return {
         "name": "Arazzo Generator API",
@@ -103,7 +103,7 @@ async def root():
 
 
 @app.post("/generate", response_model=GenerationResponse)
-async def generate_endpoint(request: GenerateRequest):
+async def generate_endpoint(request: GenerateRequest) -> GenerationResponse:
     """Generate an Arazzo specification from an OpenAPI specification URL."""
     try:
         # Call the service function

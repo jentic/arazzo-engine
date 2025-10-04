@@ -28,7 +28,7 @@ class OpenAPIParser:
     This avoids possible security issues with local file access.
     """
 
-    def __init__(self, url: str):
+    def __init__(self, url: str) -> None:
         """Initialize the OpenAPI parser with a URI-Reference to an OpenAPI specification.
 
         Parameters:
@@ -36,8 +36,8 @@ class OpenAPIParser:
         """
         self.url_parsed = absurl(url, abspath(os.getcwd()))
         self.url = self.url_parsed.geturl()
-        self.spec = None
-        self.paths = {}
+        self.spec: dict[str, Any] | None = None
+        self.paths: dict[str, Any] = {}
         self.components = {}
         self.version = None
         self.parser = None

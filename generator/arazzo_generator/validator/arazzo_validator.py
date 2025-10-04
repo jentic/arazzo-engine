@@ -27,9 +27,9 @@ class ArazzoValidator:
         Path(__file__).parent / "arazzo_schema" / ARAZZO_SCHEMA_VERSION / "arazzo-schema.yaml"
     )
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the Arazzo validator."""
-        self.schema = None
+        self.schema: dict[str, Any] | None = None
 
     def load_schema(self) -> dict[str, Any]:
         """Load the Arazzo schema.

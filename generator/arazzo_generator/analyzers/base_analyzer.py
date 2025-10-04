@@ -16,7 +16,7 @@ class BaseAnalyzer(ABC):
     OpenAPI specifications and extract workflows.
     """
 
-    def __init__(self, endpoints: dict[str, dict], relationships: dict | None = None):
+    def __init__(self, endpoints: dict[str, dict[str, Any]], relationships: dict[str, Any] | None = None) -> None:
         """Initialize the base analyzer.
 
         Args:
@@ -25,7 +25,7 @@ class BaseAnalyzer(ABC):
         """
         self.endpoints = endpoints
         self.relationships = relationships or {}
-        self.workflows = []
+        self.workflows: list[dict[str, Any]] = []
 
     @abstractmethod
     def analyze(self) -> list[dict[str, Any]]:

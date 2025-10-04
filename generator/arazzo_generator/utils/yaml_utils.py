@@ -1,6 +1,7 @@
 """YAML utility functions for the Arazzo generator."""
 
 import re
+from typing import Any
 
 import yaml
 
@@ -44,7 +45,7 @@ def fix_output_references(yaml_str: str) -> str:
 class NoWrapSafeDumper(yaml.SafeDumper):
     """Custom YAML dumper that preserves long strings."""
 
-    def represent_scalar(self, tag, value, style=None):
+    def represent_scalar(self, tag: str, value: Any, style: str | None = None) -> Any:
         """Override scalar representation to ensure references stay on one line."""
         if isinstance(value, str) and "$steps." in value and ".outputs." in value:
             style = '"'  # Use double quotes for output references

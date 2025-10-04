@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 class WorkflowBuilder:
     """Builds Arazzo workflows from identified workflows."""
 
-    def __init__(self, endpoints: dict[str, dict[str, Any]], openapi_spec: dict[str, Any] = None):
+    def __init__(self, endpoints: dict[str, dict[str, Any]], openapi_spec: dict[str, Any] | None = None) -> None:
         """Initialize the workflow builder.
 
         Args:

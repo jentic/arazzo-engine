@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 @click.group()
 @click.version_option()
-def cli():
+def cli() -> None:
     """Generate Arazzo workflows from OpenAPI specifications."""
     pass
 
@@ -144,7 +144,7 @@ def generate(
 
 @cli.command()
 @click.argument("file", type=click.Path(exists=True))
-def validate(file: str):
+def validate(file: str) -> None:
     """Validate an Arazzo spec file.
 
     FILE is the path to the Arazzo specification file (YAML or JSON).
@@ -270,7 +270,7 @@ def batch(
         sys.exit(1)
 
 
-def main():
+def main() -> None:
     """Main entry point for the CLI."""
     cli()
 

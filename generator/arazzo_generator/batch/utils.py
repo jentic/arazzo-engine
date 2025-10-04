@@ -12,7 +12,7 @@ from arazzo_generator.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def get_openapi_files():
+def get_openapi_files() -> list[str]:
     """
     Get a list of OpenAPI specification files from the repository.
     Finds all files named 'openapi.json' or ending with 'openapi.json'.
@@ -33,7 +33,7 @@ def get_openapi_files():
     return files
 
 
-def get_output_path(openapi_path, output_format="json"):
+def get_output_path(openapi_path: str, output_format: str = "json") -> str:
     """
     Generate the output path for an Arazzo workflow file based on the OpenAPI spec path.
 
@@ -92,7 +92,7 @@ def get_output_path(openapi_path, output_format="json"):
         return os.path.join(workflow_dir, f"workflows.arazzo.{output_format}")
 
 
-def create_workflow_dir(vendor_name):
+def create_workflow_dir(vendor_name: str) -> str:
     """Create the workflow directory for a vendor if it doesn't exist."""
     config = get_config()
     project_root = get_project_root()
@@ -103,7 +103,7 @@ def create_workflow_dir(vendor_name):
     return workflow_dir
 
 
-def write_summary_entry(summary_file, vendor, api, spec_path, output_path, status, duration):
+def write_summary_entry(summary_file: str, vendor: str, api: str, spec_path: str, output_path: str, status: str, duration: float) -> None:
     """Write a single summary entry to a CSV file.
 
     Args:

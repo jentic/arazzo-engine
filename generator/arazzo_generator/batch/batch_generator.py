@@ -74,7 +74,7 @@ class BatchProcessor:
         self._summary_file_param = summary_file
         self.summary_file = None
 
-    def _setup_summary_file(self):
+    def _setup_summary_file(self) -> None:
         """Set up the summary file for this batch run if not already set up."""
         if self.summary_file is None:
             if self._summary_file_param is None:

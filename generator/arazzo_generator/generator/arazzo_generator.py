@@ -25,8 +25,8 @@ class ArazzoGenerator:
         workflows: list[dict[str, Any]],
         openapi_spec_url: str,
         endpoints: dict[str, dict[str, Any]],
-        openapi_spec: dict[str, Any] = None,
-    ):
+        openapi_spec: dict[str, Any] | None = None,
+    ) -> None:
         """Initialize the Arazzo generator.
 
         Args:
@@ -39,9 +39,9 @@ class ArazzoGenerator:
         self.openapi_spec_url = openapi_spec_url
         self.endpoints = endpoints
         self.openapi_spec = openapi_spec
-        self.arazzo_spec = {}
+        self.arazzo_spec: dict[str, Any] = {}
 
-    def generate(self) -> dict[str, Any]:
+    def generate(self) -> dict[str, Any] | None:
         """Generate an Arazzo specification from the identified workflows.
 
         Returns:

@@ -11,7 +11,7 @@ from .main import cli
 logger = get_logger(__name__)
 
 
-def main():
+def main() -> None:
     """Entry point for PDM scripts."""
     try:
         logger.info("Starting CLI application")
