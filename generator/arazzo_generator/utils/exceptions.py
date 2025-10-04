@@ -12,7 +12,7 @@ class InvalidUserWorkflowError(ArazzoError):
         requested_workflows (list[str]): list of requested workflow descriptions.
     """
 
-    def __init__(self, requested_workflows=None):
+    def __init__(self, requested_workflows: list[str] | None = None) -> None:
         self.requested_workflows = requested_workflows or []
         super().__init__(
             "No valid workflows identified for this API. The generated spec will contain an empty workflows list."
@@ -27,6 +27,6 @@ class SpecValidationError(ArazzoError):
         validation_errors (list[str]): list of human-readable validation error messages.
     """
 
-    def __init__(self, validation_errors: list[str]):
+    def __init__(self, validation_errors: list[str]) -> None:
         self.validation_errors = validation_errors
         super().__init__("Arazzo specification failed validation")

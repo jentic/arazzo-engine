@@ -19,17 +19,17 @@ class LLMAnalyzer(BaseAnalyzer):
 
     def __init__(
         self,
-        endpoints: dict[str, dict],
+        endpoints: dict[str, dict[str, Any]],
         schemas: dict[str, Any],
         parameters: dict[str, Any],
         responses: dict[str, Any],
         request_bodies: dict[str, Any],
-        spec: dict[str, Any] = None,
-        relationships: dict | None = None,
+        spec: dict[str, Any] | None = None,
+        relationships: dict[str, Any] | None = None,
         api_key: str | None = None,
         llm_model: str | None = None,
         llm_provider: str | None = None,
-    ):
+    ) -> None:
         """Initialize the LLM-based analyzer.
 
         Args:

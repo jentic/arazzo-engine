@@ -94,7 +94,7 @@ class Config(BaseModel):
 
     @field_validator("logging", mode="before")
     @classmethod
-    def validate_logging_config(cls, v):
+    def validate_logging_config(cls, v: Any) -> Any:
         """Ensure logging configuration is properly structured."""
         if isinstance(v, dict):
             # Handle nested file and paths configurations
@@ -106,7 +106,7 @@ class Config(BaseModel):
 
     @field_validator("batch", mode="before")
     @classmethod
-    def validate_batch_config(cls, v):
+    def validate_batch_config(cls, v: Any) -> Any:
         """Ensure batch configuration is properly structured."""
         if isinstance(v, dict):
             # Handle nested paths configuration
@@ -116,7 +116,7 @@ class Config(BaseModel):
 
     @field_validator("llm", mode="before")
     @classmethod
-    def validate_llm_config(cls, v):
+    def validate_llm_config(cls, v: Any) -> Any:
         """Ensure LLM configuration is properly structured."""
         if isinstance(v, dict):
             return LLMConfig(**v)

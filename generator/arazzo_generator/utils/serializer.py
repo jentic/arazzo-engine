@@ -62,7 +62,7 @@ class ArazzoSerializer:
         return json_str
 
     @staticmethod
-    def get_arazzo_in_target_format(arazzo_spec: dict[str, Any], target_format: str = "json"):
+    def get_arazzo_in_target_format(arazzo_spec: dict[str, Any], target_format: str = "json") -> str:
         if target_format == "yaml":
             return ArazzoSerializer.to_yaml(arazzo_spec)
         elif target_format == "json":

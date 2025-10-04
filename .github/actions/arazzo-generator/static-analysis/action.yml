@@ -27,4 +27,3 @@ runs:
       shell: bash
       run: pdm run typecheck
       working-directory: ./generator
-      continue-on-error: true

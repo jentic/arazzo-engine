@@ -16,7 +16,7 @@ from ..utils.logging import get_logger, log_llm_prompt, log_llm_response, setup_
 
 # Custom JSON encoder to handle datetime objects
 class DateTimeEncoder(json.JSONEncoder):
-    def default(self, obj):
+    def default(self, obj: Any) -> Any:
         if isinstance(obj, (datetime.date | datetime.datetime)):
             return obj.isoformat()
         return super().default(obj)
