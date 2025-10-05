@@ -74,6 +74,9 @@ extend-ignore = ["E501"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S311"]
 
+[tool.setuptools.package-data]
+"arazzo_runner" = ["py.typed"]
+
 [dependency-groups]
 dev = [
     "pytest>=7.4.0",

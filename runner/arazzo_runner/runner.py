@@ -10,7 +10,7 @@ executes OpenAPI operations sequentially, handling success/failure conditions an
 import json
 import logging
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Optional
 
 import requests
 
@@ -49,12 +49,12 @@ class ArazzoRunner:
 
     def __init__(
         self,
-        arazzo_doc: ArazzoDoc | None = None,
-        source_descriptions: dict[str, OpenAPIDoc] = None,
-        http_client=None,
-        auth_provider: CredentialProvider | None = None,
-        blob_store=None,
-    ):
+        arazzo_doc: Optional[ArazzoDoc] = None,
+        source_descriptions: Optional[dict[str, OpenAPIDoc]] = None,
+        http_client: Optional[Any]=None,
+        auth_provider: Optional[CredentialProvider]= None,
+        blob_store: Optional[Any]=None,
+    ) -> None:
         """
         Initialize the runner with Arazzo document and source descriptions
 
@@ -73,10 +73,13 @@ class ArazzoRunner:
 
         # Process API authentication
         auth_processor = AuthProcessor()
-        auth_config = auth_processor.process_api_auth(
-            openapi_specs=source_descriptions,
-            arazzo_specs=[arazzo_doc] if arazzo_doc else [],
-        )
+        if source_descriptions is not None:
+            auth_config = auth_processor.process_api_auth(
+                openapi_specs=source_descriptions,
+                arazzo_specs=[arazzo_doc] if arazzo_doc else [],
+            )
+        else:
+            auth_config = None
 
         http_client = http_client or requests.Session()
 
@@ -84,12 +87,12 @@ class ArazzoRunner:
         if auth_provider:
             self.auth_provider = auth_provider
             self.auth_provider.strategy.set_auth_requirements(
-                auth_config.get("auth_requirements", [])
+                (auth_config or {}).get("auth_requirements", [])
             )
         else:
             self.auth_provider = CredentialProviderFactory.create_default(
-                auth_requirements=auth_config.get("auth_requirements", []),
-                env_mapping=auth_config.get("env_mappings", {}),
+                auth_requirements=(auth_config or {}).get("auth_requirements", []),
+                env_mapping=(auth_config or {}).get("env_mappings", {}),
                 http_client=http_client,
             )
 
@@ -98,14 +101,14 @@ class ArazzoRunner:
 
         # Initialize step executor
         self.step_executor = StepExecutor(
-            http_executor, self.source_descriptions, blob_store=blob_store
+            http_executor, self.source_descriptions or {}, blob_store=blob_store
         )
 
         # Execution state
-        self.execution_states = {}
+        self.execution_states: dict[str, ExecutionState] = {}
 
         # Event callbacks
-        self.event_callbacks = {
+        self.event_callbacks: dict[str, list[Any]] = {
             "step_start": [],
             "step_complete": [],
             "workflow_start": [],
@@ -116,11 +119,11 @@ class ArazzoRunner:
     def from_arazzo_path(
         cls,
         arazzo_path: str,
-        base_path: str = None,
-        http_client=None,
-        auth_provider=None,
-        blob_store=None,
-    ):
+        base_path: Optional[str] = None,
+        http_client: Optional[Any]=None,
+        auth_provider: Optional[CredentialProvider]=None,
+        blob_store: Optional[Any]=None,
+    ) -> "ArazzoRunner":
         """
         Initialize the runner with an Arazzo document path
 
@@ -136,7 +139,7 @@ class ArazzoRunner:
 
         arazzo_doc = load_arazzo_doc(arazzo_path)
         source_descriptions = load_source_descriptions(
-            arazzo_doc, arazzo_path, base_path, http_client
+            arazzo_doc, arazzo_path, base_path or "", http_client
         )
         return cls(
             arazzo_doc=arazzo_doc,
@@ -147,7 +150,7 @@ class ArazzoRunner:
         )
 
     @classmethod
-    def from_openapi_path(cls, openapi_path: str, blob_store=None):
+    def from_openapi_path(cls, openapi_path: str, blob_store: Optional[Any]=None) -> "ArazzoRunner":
         """
         Initialize the runner with a single OpenAPI specification path.
 
@@ -176,7 +179,7 @@ class ArazzoRunner:
             blob_store=blob_store,
         )
 
-    def register_callback(self, event_type: str, callback: Callable):
+    def register_callback(self, event_type: str, callback: Callable) -> None:
         """
         Register a callback for workflow execution events
 
@@ -189,7 +192,7 @@ class ArazzoRunner:
         else:
             logger.warning(f"Unknown event type: {event_type}")
 
-    def _trigger_event(self, event_type: str, **kwargs):
+    def _trigger_event(self, event_type: str, **kwargs: Any) -> None:
         """Trigger registered callbacks for an event"""
         for callback in self.event_callbacks.get(event_type, []):
             try:
@@ -219,10 +222,11 @@ class ArazzoRunner:
 
         # Find the workflow definition
         workflow = None
-        for wf in self.arazzo_doc.get("workflows", []):
-            if wf.get("workflowId") == workflow_id:
-                workflow = wf
-                break
+        if self.arazzo_doc is not None:
+            for wf in self.arazzo_doc.get("workflows", []):
+                if wf.get("workflowId") == workflow_id:
+                    workflow = wf
+                    break
 
         if not workflow:
             raise ValueError(f"Workflow {workflow_id} not found in Arazzo document")
@@ -259,7 +263,7 @@ class ArazzoRunner:
                 logger.info(
                     f"Dependency workflow {dep_workflow_id} outputs: {dep_state.workflow_outputs}"
                 )
-                dependency_outputs[dep_workflow_id] = dep_state.workflow_outputs.copy()
+                dependency_outputs[dep_workflow_id] = (dep_state.workflow_outputs or {}).copy()
                 # Double check dependency outputs are stored properly
                 logger.info(
                     f"After storing dependency {dep_workflow_id}, dependency_outputs: {dependency_outputs}"
@@ -298,8 +302,8 @@ class ArazzoRunner:
     def execute_workflow(
         self,
         workflow_id: str,
-        inputs: dict[str, Any] = None,
-        runtime_params: RuntimeParams | None = None,
+        inputs: Optional[dict[str, Any] ]= None,
+        runtime_params: Optional[RuntimeParams] = None,
     ) -> WorkflowExecutionResult:
         """
         Start and execute a workflow until completion, returning the outputs.
@@ -313,21 +317,40 @@ class ArazzoRunner:
             A WorkflowExecutionResult object containing the status, workflow_id, outputs, and any error
         """
 
-        def on_workflow_start(execution_id, workflow_id, inputs):
+        def on_workflow_start(
+            execution_id: str,
+            workflow_id: str,
+            inputs: dict[str, Any]
+        ) -> None:
             logger.debug(f"\n=== Starting workflow: {workflow_id} ===")
             logger.debug(f"Inputs: {json.dumps(inputs, indent=2)}")
 
-        def on_step_start(execution_id, workflow_id, step_id):
+        def on_step_start(
+            execution_id: str,
+            workflow_id: str,
+            step_id: str
+        ) -> None:
             logger.debug(f"\n--- Starting step: {step_id} ---")
 
-        def on_step_complete(execution_id, workflow_id, step_id, success, outputs=None, error=None):
+        def on_step_complete(
+            execution_id: str,
+            workflow_id: str,
+            step_id: str,
+            success: str,
+            outputs: Optional[str]=None,
+            error: Optional[str]=None
+        ) -> None:
             logger.debug(f"--- Completed step: {step_id} (Success: {success}) ---")
             if outputs:
                 logger.debug(f"Outputs: {json.dumps(outputs, indent=2)}")
             if error:
                 logger.debug(f"Error: {error}")
 
-        def on_workflow_complete(execution_id, workflow_id, outputs):
+        def on_workflow_complete(
+            execution_id: str,
+            workflow_id: str,
+            outputs: str
+        ) -> None:
             logger.debug(f"\n=== Completed workflow: {workflow_id} ===")
             logger.debug(f"Outputs: {json.dumps(outputs, indent=2)}")
 
@@ -377,10 +400,11 @@ class ArazzoRunner:
 
         # Find the workflow definition
         workflow = None
-        for wf in self.arazzo_doc.get("workflows", []):
-            if wf.get("workflowId") == workflow_id:
-                workflow = wf
-                break
+        if self.arazzo_doc is not None:
+            for wf in self.arazzo_doc.get("workflows", []):
+                if wf.get("workflowId") == workflow_id:
+                    workflow = wf
+                    break
 
         if not workflow:
             raise ValueError(f"Workflow {workflow_id} not found in Arazzo document")
@@ -473,7 +497,7 @@ class ArazzoRunner:
                 for output_name, output_expr in workflow_outputs.items():
                     # Evaluate the output expression
                     value = ExpressionEvaluator.evaluate_expression(
-                        output_expr, state, self.source_descriptions
+                        output_expr, state, self.source_descriptions or {}
                     )
                     state.workflow_outputs[output_name] = value
 
@@ -609,34 +633,34 @@ class ArazzoRunner:
                 if value.startswith("$"):
                     # Direct expression
                     value = ExpressionEvaluator.evaluate_expression(
-                        value, state, self.source_descriptions
+                        value, state, self.source_descriptions or {}
                     )
                 elif "{" in value and "}" in value:
                     # Template with expressions
                     import re
 
-                    def replace_expr(match):
+                    def replace_expr(match: re.Match) -> str:
                         expr = match.group(1)
                         eval_value = ExpressionEvaluator.evaluate_expression(
-                            expr, state, self.source_descriptions
+                            expr, state, self.source_descriptions or {}
                         )
                         return "" if eval_value is None else str(eval_value)
 
                     value = re.sub(r"\{([^}]+)\}", replace_expr, value)
             elif isinstance(value, dict):
                 value = ExpressionEvaluator.process_object_expressions(
-                    value, state, self.source_descriptions
+                    value, state, self.source_descriptions or {}
                 )
             elif isinstance(value, list):
                 value = ExpressionEvaluator.process_array_expressions(
-                    value, state, self.source_descriptions
+                    value, state, self.source_descriptions or {}
                 )
 
             logger.info(f"  Parameter: {name}, Original: {original_value}, Evaluated: {value}")
             workflow_inputs[name] = value
 
         # Start the nested workflow
-        execution_id = self.start_workflow(workflow_id, workflow_inputs)
+        execution_id = self.start_workflow(workflow_id or "", workflow_inputs)
 
         # Execute the nested workflow until completion
         while True:
@@ -728,7 +752,7 @@ class ArazzoRunner:
 
     @deprecated(
         "Use ArazzoRunner.generate_env_mappings instead. Will drop support in a future release."
-    )
+    ) #type: ignore[misc]
     def get_env_mappings(self) -> dict[str, Any]:
         """
         DEPRECATED: Use ArazzoRunner.generate_env_mappings instead.
@@ -741,17 +765,19 @@ class ArazzoRunner:
         """
         # Get authentication environment mappings (old way)
         try:
-            auth_mappings = self.auth_provider.env_mappings
+            auth_mappings: dict[str, Any] = getattr(self.auth_provider, "env_mappings", {})
         except AttributeError:
             auth_mappings = {}
 
         # Get authentication environment mappings via the EnvironmentVariableFetchStrategy
         try:
-            auth_mappings = self.auth_provider.strategy._env_mapping
+            strategy = getattr(self.auth_provider, "strategy", None)
+            if strategy:
+                auth_mappings = getattr(strategy, "_env_mapping", {})
         except AttributeError:
             auth_mappings = {}
 
-        result = {"auth": auth_mappings}
+        result: dict[str, Any] = {"auth": auth_mappings}
 
         # Get server variable environment mappings
         server_mappings = self.step_executor.server_processor.get_env_mappings()
@@ -764,7 +790,7 @@ class ArazzoRunner:
     @staticmethod
     def generate_env_mappings(
         arazzo_docs: list["ArazzoDoc"] | None = None,
-        source_descriptions: dict[str, "OpenAPIDoc"] = None,
+        source_descriptions: Optional[dict[str, "OpenAPIDoc"]] = None,
     ) -> dict:
         """
         Static method to return the environment variable mappings for both authentication and server variables.
@@ -779,10 +805,11 @@ class ArazzoRunner:
             - 'servers': Environment variable mappings for server URLs (only included if server variables exist)
         """
         auth_processor = AuthProcessor()
-        auth_config = auth_processor.process_api_auth(
-            openapi_specs=source_descriptions,
-            arazzo_specs=arazzo_docs or [],
-        )
+        if source_descriptions is not None:
+            auth_config = auth_processor.process_api_auth(
+                openapi_specs=source_descriptions,
+                arazzo_specs=arazzo_docs or [],
+            )
         auth_env_mappings = auth_config.get("env_mappings", {})
 
         server_processor = ServerProcessor(source_descriptions or {})
