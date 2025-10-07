@@ -205,7 +205,7 @@ class TestOpenAPIParser(unittest.TestCase):
     def test_clean_spec_content_utf8_bom(self):
         """Test UTF-8 BOM removal."""
         parser = OpenAPIParser("dummy_url")
-        content_with_bom = "\ufeff{\"openapi\": \"3.0.0\"}"
+        content_with_bom = '\ufeff{"openapi": "3.0.0"}'
         cleaned = parser._clean_spec_content(content_with_bom)
         self.assertFalse(cleaned.startswith("\ufeff"))
         self.assertTrue(cleaned.startswith("{"))
@@ -213,31 +213,31 @@ class TestOpenAPIParser(unittest.TestCase):
     def test_clean_spec_content_smart_quotes(self):
         """Test smart quotes replacement."""
         parser = OpenAPIParser("dummy_url")
-        content_with_smart_quotes = '“openapi”: “3.0.0”'
+        content_with_smart_quotes = "“openapi”: “3.0.0”"
         cleaned = parser._clean_spec_content(content_with_smart_quotes)
         self.assertIn('"openapi": "3.0.0"', cleaned)
 
     def test_clean_spec_content_windows_line_endings(self):
         """Test CRLF to LF conversion."""
         parser = OpenAPIParser("dummy_url")
-        content_with_crlf = "{\r\n\"openapi\": \"3.0.0\"\r\n}"
+        content_with_crlf = '{\r\n"openapi": "3.0.0"\r\n}'
         cleaned = parser._clean_spec_content(content_with_crlf)
-        self.assertNotIn('\r\n', cleaned)
-        self.assertIn('\n', cleaned)
+        self.assertNotIn("\r\n", cleaned)
+        self.assertIn("\n", cleaned)
 
     def test_clean_spec_content_non_breaking_spaces(self):
         """Test non-breaking spaces conversion."""
         parser = OpenAPIParser("dummy_url")
-        content_with_nbsp = "{\u00a0\"openapi\":\u00a0\"3.0.0\"\u00a0}"
+        content_with_nbsp = '{\u00a0"openapi":\u00a0"3.0.0"\u00a0}'
         cleaned = parser._clean_spec_content(content_with_nbsp)
-        self.assertNotIn('\u00a0', cleaned)
-        self.assertIn(' ', cleaned)
+        self.assertNotIn("\u00a0", cleaned)
+        self.assertIn(" ", cleaned)
 
     def test_clean_spec_content_dash_characters(self):
         """Test en-dash and em-dash conversion."""
         parser = OpenAPIParser("dummy_url")
         content_with_dashes = '{"desc": "en–dash, em—dash"}'
         cleaned = parser._clean_spec_content(content_with_dashes)
-        self.assertNotIn('–', cleaned)
-        self.assertNotIn('—', cleaned)
-        self.assertIn('-', cleaned)
+        self.assertNotIn("–", cleaned)
+        self.assertNotIn("—", cleaned)
+        self.assertIn("-", cleaned)
