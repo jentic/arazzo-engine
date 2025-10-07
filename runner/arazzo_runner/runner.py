@@ -51,9 +51,9 @@ class ArazzoRunner:
         self,
         arazzo_doc: Optional[ArazzoDoc] = None,
         source_descriptions: Optional[dict[str, OpenAPIDoc]] = None,
-        http_client: Optional[Any]=None,
-        auth_provider: Optional[CredentialProvider]= None,
-        blob_store: Optional[Any]=None,
+        http_client: Optional[Any] = None,
+        auth_provider: Optional[CredentialProvider] = None,
+        blob_store: Optional[Any] = None,
     ) -> None:
         """
         Initialize the runner with Arazzo document and source descriptions
@@ -120,8 +120,8 @@ class ArazzoRunner:
         cls,
         arazzo_path: str,
         base_path: Optional[str] = None,
-        http_client: Optional[Any]=None,
-        auth_provider: Optional[CredentialProvider]=None,
+        http_client: Optional[Any] = None,
+        auth_provider: Optional[CredentialProvider] = None,
         blob_store: Optional[Any]=None,
     ) -> "ArazzoRunner":
         """
@@ -150,7 +150,7 @@ class ArazzoRunner:
         )
 
     @classmethod
-    def from_openapi_path(cls, openapi_path: str, blob_store: Optional[Any]=None) -> "ArazzoRunner":
+    def from_openapi_path(cls, openapi_path: str, blob_store: Optional[Any] = None) -> "ArazzoRunner":
         """
         Initialize the runner with a single OpenAPI specification path.
 
@@ -302,7 +302,7 @@ class ArazzoRunner:
     def execute_workflow(
         self,
         workflow_id: str,
-        inputs: Optional[dict[str, Any] ]= None,
+        inputs: Optional[dict[str, Any]] = None,
         runtime_params: Optional[RuntimeParams] = None,
     ) -> WorkflowExecutionResult:
         """
@@ -336,20 +336,20 @@ class ArazzoRunner:
             execution_id: str,
             workflow_id: str,
             step_id: str,
-            success: str,
-            outputs: Optional[str]=None,
-            error: Optional[str]=None
+            success: bool,
+            outputs: Optional[dict[str, Any]] = None,
+            error: Optional[Exception] = None
         ) -> None:
             logger.debug(f"--- Completed step: {step_id} (Success: {success}) ---")
             if outputs:
                 logger.debug(f"Outputs: {json.dumps(outputs, indent=2)}")
             if error:
-                logger.debug(f"Error: {error}")
+                logger.debug(f"Error: {str(error)}")
 
         def on_workflow_complete(
             execution_id: str,
             workflow_id: str,
-            outputs: str
+            outputs: dict[str, Any]
         ) -> None:
             logger.debug(f"\n=== Completed workflow: {workflow_id} ===")
             logger.debug(f"Outputs: {json.dumps(outputs, indent=2)}")
@@ -752,7 +752,7 @@ class ArazzoRunner:
 
     @deprecated(
         "Use ArazzoRunner.generate_env_mappings instead. Will drop support in a future release."
-    ) #type: ignore[misc]
+    ) # type: ignore[misc]
     def get_env_mappings(self) -> dict[str, Any]:
         """
         DEPRECATED: Use ArazzoRunner.generate_env_mappings instead.
