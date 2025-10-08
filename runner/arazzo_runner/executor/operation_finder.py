@@ -12,6 +12,8 @@ from typing import Any
 import jsonpointer
 
 from arazzo_runner.auth.models import SecurityOption, SecurityRequirement
+from arazzo_runner.evaluator import ExpressionEvaluator
+from arazzo_runner.models import ExecutionState
 
 # Configure logging
 logger = logging.getLogger("arazzo-runner.executor")
@@ -39,6 +41,47 @@ class OperationFinder:
         Returns:
             Dictionary with operation details or None if not found
         """
+        # Special handling: support references in Arazzo specs like
+        # $sourceDescriptions.<source_name>.<operationId>
+        if isinstance(operation_id, str) and operation_id.startswith("$sourceDescriptions."):
+            # parse into three parts: prefix, source_name, operation_name
+            parts = operation_id.split(".", 2)
+            if len(parts) == 3:
+                _, source_name, target_op = parts
+                source_desc = self.source_descriptions.get(source_name)
+                if source_desc:
+                    paths = source_desc.get("paths", {})
+                    for path, path_item in paths.items():
+                        for method, operation in path_item.items():
+                            if (
+                                method in ["get", "post", "put", "delete", "patch"]
+                                and operation.get("operationId") == target_op
+                            ):
+                                try:
+                                    servers = source_desc.get("servers")
+                                    if not servers or not isinstance(servers, list):
+                                        raise ValueError(
+                                            "Missing or invalid 'servers' list in OpenAPI spec."
+                                        )
+                                    base_url = servers[0].get("url")
+                                    if not base_url or not isinstance(base_url, str):
+                                        raise ValueError(
+                                            "Missing or invalid 'url' in the first server object."
+                                        )
+                                except (IndexError, ValueError) as e:
+                                    raise ValueError(
+                                        f"Could not determine base URL from OpenAPI spec servers: {e}"
+                                    ) from e
+
+                                return {
+                                    "source": source_name,
+                                    "path": path,
+                                    "method": method,
+                                    "url": base_url + path,
+                                    "operation": operation,
+                                }
+
+        # Default: search all source descriptions for an operation with matching operationId
         for source_name, source_desc in self.source_descriptions.items():
             # Search through paths and operations
             paths = source_desc.get("paths", {})
@@ -311,6 +354,9 @@ class OperationFinder:
 
                 # Decode the path (replace ~1 with / and ~0 with ~)
                 decoded_path = encoded_path.replace("~1", "/").replace("~0", "~")
+                # Normalize leading slashes: decoded_path may start with multiple slashes
+                # because encoded_path often begins with a leading '/'. Ensure a single leading slash.
+                decoded_path = "/" + decoded_path.lstrip("/")
                 logger.debug(f"Decoded path: {decoded_path}")
 
                 # Try to find the operation in the source description
@@ -749,11 +795,58 @@ class OperationFinder:
                 if op_info:
                     operations.append(op_info)
             elif "operationPath" in step:
-                # operationPath format: <source>#<json_pointer>
-                match = re.match(r"([^#]+)#(.+)", step["operationPath"])
-                if match:
-                    source_url, json_pointer = match.groups()
-                    op_info = self.find_by_path(source_url, json_pointer)
-                    if op_info:
-                        operations.append(op_info)
+                # operationPath may be <source>#<json_pointer> or a runtime expression
+                # referencing a sourceDescription. We evaluate any braced expressions
+                # using the shared ExpressionEvaluator and then map the resolved
+                # left-hand value to a source name (by name or by matching the
+                # source's declared `url`) before delegating to find_by_path.
+                op_path = step["operationPath"]
+                if not isinstance(op_path, str):
+                    continue
+
+                left, json_pointer = (op_path.split("#", 1) + [""])[0:2]
+                resolved_left = left.strip()
+
+                # Evaluate embedded braced runtime expressions using central evaluator
+                if "{" in resolved_left and "}" in resolved_left:
+                    eval_state = ExecutionState(workflow_id="__internal__")
+
+                    def _eval_braced(m: re.Match) -> str:
+                        expr = m.group(1)
+                        try:
+                            val = ExpressionEvaluator.evaluate_expression(
+                                expr, eval_state, self.source_descriptions
+                            )
+                        except Exception:
+                            val = None
+                        return "" if val is None else str(val)
+
+                    resolved_left = re.sub(r"\{(\$[^}]+)\}", _eval_braced, resolved_left)
+
+                # Resolve a source name: prefer explicit $sourceDescriptions.<name>,
+                # otherwise match by declared url or exact name
+                source_name = None
+                if resolved_left.startswith("$sourceDescriptions."):
+                    parts = resolved_left.split(".", 2)
+                    source_name = parts[1] if len(parts) >= 2 else None
+                else:
+                    source_name = next(
+                        (
+                            name
+                            for name, desc in self.source_descriptions.items()
+                            if desc.get("url") and (
+                                desc.get("url") == resolved_left
+                                or resolved_left.endswith(desc.get("url"))
+                                or desc.get("url") in resolved_left
+                                or resolved_left in desc.get("url")
+                            )
+                        ),
+                        None,
+                    )
+                    if source_name is None and resolved_left in self.source_descriptions:
+                        source_name = resolved_left
+
+                op_info = self.find_by_path(source_name or resolved_left, json_pointer)
+                if op_info:
+                    operations.append(op_info)
         return operations

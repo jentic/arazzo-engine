@@ -371,5 +371,107 @@ def test_get_security_requirements_for_openapi_operation_basic():
     ]
 
 
+def test_find_by_id_with_source_descriptions_reference():
+    """Ensure operationId references using $sourceDescriptions.<name>.<op> resolve to the correct source."""
+    source_descriptions = {
+        "pet-coupons": {
+            "servers": [{"url": "http://pet.example"}],
+            "paths": {
+                "/pet/{petId}/coupons": {
+                    "get": {"operationId": "findPetsByTags", "summary": "Find pets"}
+                }
+            },
+        },
+        "other": {
+            "servers": [{"url": "http://other.example"}],
+            "paths": {"/items": {"get": {"operationId": "listItems"}}},
+        },
+    }
+
+    finder = OperationFinder(source_descriptions)
+
+    op_ref = "$sourceDescriptions.pet-coupons.findPetsByTags"
+    op_info = finder.find_by_id(op_ref)
+    assert op_info is not None
+    assert op_info["source"] == "pet-coupons"
+    assert op_info["path"] == "/pet/{petId}/coupons"
+    assert op_info["method"] == "get"
+
+
+def test_find_by_id_with_missing_source_falls_back():
+    """If the referenced source doesn't exist, find_by_id should fall back to global search or return None."""
+    source_descriptions = {
+        "api": {
+            "servers": [{"url": "http://localhost"}],
+            "paths": {"/foo": {"get": {"operationId": "op1"}}},
+        }
+    }
+
+    finder = OperationFinder(source_descriptions)
+
+    # Reference a non-existent source; should not raise, and should try global search (no match -> None)
+    op_ref = "$sourceDescriptions.nonexistent.op1"
+    op_info = finder.find_by_id(op_ref)
+    assert op_info is None
+
+
+def test_get_operations_for_workflow_with_operationPath_runtime_expression():
+    """Ensure get_operations_for_workflow handles operationPath runtime expressions
+    that reference a sourceDescriptions entry combined with a JSON Pointer.
+    """
+    source_descriptions = {
+        "pet-coupons": {
+            "servers": [{"url": "http://pet.example"}],
+            "paths": {
+                "/pet/findByTags": {
+                    "get": {"operationId": "findPetsByTags", "summary": "Find pets"}
+                }
+            },
+        }
+    }
+
+    finder = OperationFinder(source_descriptions)
+
+    wf = {"steps": [{"operationPath": "$sourceDescriptions.pet-coupons#/paths/~1pet~1findByTags/get"}]}
+
+    ops = finder.get_operations_for_workflow(wf)
+    assert isinstance(ops, list)
+    assert len(ops) == 1
+    op = ops[0]
+    assert op["source"] == "pet-coupons"
+    assert op["path"] == "/pet/findByTags"
+    assert op["method"] == "get"
+
+
+def test_get_operations_for_workflow_with_braced_runtime_expression():
+    """Ensure get_operations_for_workflow evaluates braced runtime expressions
+    embedded in operationPath, e.g. '{$sourceDescriptions.pet-coupons.url}#/paths/~1pet~1findByTags/get'
+    """
+    source_descriptions = {
+        "pet-coupons": {
+            "url": "pet.example",  # using a simple url attribute to exercise .url evaluation
+            "servers": [{"url": "http://pet.example"}],
+            "paths": {
+                "/pet/findByTags": {
+                    "get": {"operationId": "findPetsByTags", "summary": "Find pets"}
+                }
+            },
+        }
+    }
+
+    finder = OperationFinder(source_descriptions)
+
+    # Example operationPath with braced runtime expression referencing the sourceDescriptions url
+    wf = {"steps": [{"operationPath": "{$sourceDescriptions.pet-coupons.url}#/paths/~1pet~1findByTags/get"}]}
+
+    ops = finder.get_operations_for_workflow(wf)
+    assert isinstance(ops, list)
+    assert len(ops) == 1
+    op = ops[0]
+    assert op["source"] == "pet-coupons"
+    assert op["path"] == "/pet/findByTags"
+    assert op["method"] == "get"
+
+
 if __name__ == "__main__":
     unittest.main()
