@@ -279,6 +279,7 @@ python --version
    ```bash
    # Install dependencies
    pdm install
+   pdm install --plugins
    ```
 
 ### Executing Runner CLI commands
