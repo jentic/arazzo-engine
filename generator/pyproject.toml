@@ -64,10 +64,16 @@ where = ["."]
 
 [tool.black]
 line-length = 100
+extend-exclude = '''
+/(
+    \.pdm-plugins
+)/
+'''
 
 [tool.isort]
 profile = "black"
 line_length = 100
+extend_skip_glob = [".pdm-plugins/*"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -80,10 +86,12 @@ strict_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_return_any = true
+exclude = [".pdm-plugins"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = [".pdm-plugins"]
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "W", "I", "N", "UP", "YTT", "S"]

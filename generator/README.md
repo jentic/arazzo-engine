@@ -181,6 +181,7 @@ python --version
    ```bash
    # Install dependencies
    pdm install
+   pdm install --plugins
    ```
 
 ### Configuration

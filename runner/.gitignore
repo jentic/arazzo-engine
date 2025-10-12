@@ -26,6 +26,7 @@ var/
 # PDM
 .pdm-python
 .pdm-build/
+.pdm-plugins
 __pypackages__/
 
 # Logs
