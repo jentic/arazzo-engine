@@ -11,7 +11,6 @@ import json
 import logging
 import re
 from collections.abc import Callable
-from re import Match
 from typing import Any
 
 import requests
@@ -629,7 +628,7 @@ class ArazzoRunner:
                     )
                 elif "{" in value and "}" in value:
                     # Template with expressions
-                    def replace_expr(match: Match[str]) -> str:
+                    def replace_expr(match: re.Match[str]) -> str:
                         expr = match.group(1)
                         eval_value = ExpressionEvaluator.evaluate_expression(
                             expr, state, self.source_descriptions or {}
@@ -650,7 +649,7 @@ class ArazzoRunner:
             workflow_inputs[name] = value
 
         # Start the nested workflow
-        execution_id = self.start_workflow(workflow_id or "", workflow_inputs)
+        execution_id = self.start_workflow(workflow_id, workflow_inputs)  # type: ignore[arg-type]  # If None, start_workflow will raise clear error
 
         # Execute the nested workflow until completion
         while True:
@@ -742,7 +741,7 @@ class ArazzoRunner:
 
     @deprecated(
         "Use ArazzoRunner.generate_env_mappings instead. Will drop support in a future release."
-    )  # type: ignore[misc]
+    )  # type: ignore[misc]  # mypy doesn't recognize the custom @deprecated decorator
     def get_env_mappings(self) -> dict[str, Any]:
         """
         DEPRECATED: Use ArazzoRunner.generate_env_mappings instead.
