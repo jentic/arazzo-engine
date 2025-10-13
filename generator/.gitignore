@@ -26,7 +26,12 @@ downloads/
 env/
 .venv/
 ENV/
+
+# PDM
 .pdm-python
+.pdm-build/
+.pdm-plugins
+__pypackages__/
 
 # Editor / IDE files
 .idea/
