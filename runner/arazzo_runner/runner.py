@@ -136,7 +136,28 @@ class ArazzoRunner:
         if not arazzo_path:
             raise ValueError("Arazzo document path is required to initialize the runner.")
 
-        arazzo_doc = load_arazzo_doc(arazzo_path)
+        # --- Begin URL support ---
+        if arazzo_path.startswith(("http://", "https://")):
+            try:
+                response = requests.get(arazzo_path, timeout=10)
+                response.raise_for_status()
+                content = response.text
+                # Detect YAML or JSON based on file extension in URL
+                if arazzo_path.endswith((".yaml", ".yml")):
+                    import yaml
+
+                    arazzo_doc = yaml.safe_load(content)
+                else:
+                    import json
+
+                    arazzo_doc = json.loads(content)
+            except Exception as e:
+                raise ValueError(f"Failed to load Arazzo document from URL {arazzo_path}: {e}")
+        else:
+            # Load from local file system
+            arazzo_doc = load_arazzo_doc(arazzo_path)
+        # --- End URL support ---
+
         source_descriptions = load_source_descriptions(
             arazzo_doc, arazzo_path, base_path or "", http_client
         )

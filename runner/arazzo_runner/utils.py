@@ -1,62 +1,92 @@
 #!/usr/bin/env python3
 """
-Utility functions for Arazzo Runner
+Utility functions for Runner
 
-This module provides utility functions for the Arazzo Runner.
+This module provides utility functions for Runner, including:
+- File loading (JSON/YAML)
+- JSON pointer evaluation
+- Environment variable sanitization
+- Logging helpers
+- Deprecated decorator
+- Source description loading (local and HTTP)
 """
 import json
 import logging
 import os
 import re
 import warnings
-from typing import Any
+from typing import Any, Optional, Tuple, Dict
 
 import jsonpointer
 import yaml
+import requests  # For HTTP client usage in load_source_descriptions
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-logger = logging.getLogger("arazzo-runner")
+logger = logging.getLogger("runner-utils")
 
 
-def load_arazzo_doc(arazzo_path: str) -> dict:
+def load_file(path: str) -> dict[str, Any]:
     """
-    Load and parse the Arazzo document
+    Load a JSON or YAML file from a local path.
 
     Args:
-        arazzo_path: Path to the Arazzo document
+        path: Path to the JSON/YAML file.
 
     Returns:
-        arazzo_doc: Parsed Arazzo document
+        Parsed dictionary from the file.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        ValueError: If the file cannot be parsed as JSON/YAML.
     """
-    with open(arazzo_path) as f:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"File not found: {path}")
+
+    with open(path) as f:
         content = f.read()
-        if arazzo_path.endswith((".yaml", ".yml")):
+
+    try:
+        if path.endswith((".yaml", ".yml")):
             return yaml.safe_load(content)
         else:
             return json.loads(content)
+    except (yaml.YAMLError, json.JSONDecodeError) as e:
+        logger.error(f"Failed to parse file {path}: {e}")
+        raise ValueError(f"Cannot parse file {path}") from e
 
 
 def load_source_descriptions(
-    arazzo_doc: dict, arazzo_path: str, base_path: str, http_client
+    source_list: list[dict[str, str]],
+    base_path: Optional[str] = None,
+    arazzo_path: Optional[str] = None,
+    http_client=None,
 ) -> dict[str, Any]:
     """
-    Load referenced OpenAPI descriptions
+    Load referenced OpenAPI/JSON/YAML descriptions.
 
     Args:
-        arazzo_doc: Parsed Arazzo document
-        base_path: Base path for resolving relative paths
-        http_client: HTTP client to use for loading remote sources
+        source_list: List of source dictionaries containing 'name' and 'url'.
+        base_path: Base path for resolving local paths.
+        arazzo_path: Optional path of main document for relative references.
+        http_client: Optional HTTP client (e.g., requests) for remote sources.
 
     Returns:
-        source_descriptions: Dictionary of loaded source descriptions
-    """
-    source_descriptions = {}
-    source_descriptions_list = arazzo_doc.get("sourceDescriptions", [])
+        Dictionary of loaded source descriptions by name.
 
-    for source in source_descriptions_list:
+    Notes:
+        - Handles local files with multiple candidate paths.
+        - Handles remote URLs via HTTP client.
+    """
+    if http_client is None:
+        http_client = requests
+
+    source_descriptions = {}
+
+    for source in source_list:
         source_name = source.get("name")
         source_url = source.get("url")
 
@@ -64,76 +94,47 @@ def load_source_descriptions(
             continue
 
         # Handle local file references
-        if not (source_url.startswith("http://") or source_url.startswith("https://")):
-            # Try four approaches to finding the file path
+        if not source_url.startswith(("http://", "https://")):
             candidate_paths = []
-            # 1. If base_path exists, use it
+            # 1. Use provided base_path
             if base_path:
                 candidate_paths.append(os.path.join(base_path, source_url))
-            # 2. Try using a path relative to the arazzo_path if available
+            # 2. Use directory of arazzo_path
             if arazzo_path:
-                arazzo_dir = os.path.dirname(os.path.abspath(arazzo_path))
-                candidate_paths.append(os.path.join(arazzo_dir, source_url))
-            # 3. Try using a path relative to the current path
-            current_path = os.path.abspath(os.getcwd())
-            candidate_paths.append(os.path.join(current_path, source_url))
-            # 4. If current path contains '/tools/arazzo-runner', set base_path up 2 levels
-            if "/tools/arazzo-runner" in current_path:
-                base_path_2up = os.path.abspath(os.path.join(current_path, "../.."))
-                candidate_paths.append(os.path.join(base_path_2up, source_url))
-            # Try each candidate path
-            source_path = None
-            for path in candidate_paths:
-                if os.path.exists(path):
-                    source_path = path
-                    break
+                candidate_paths.append(os.path.join(os.path.dirname(arazzo_path), source_url))
+            # 3. Use current working directory
+            candidate_paths.append(os.path.join(os.getcwd(), source_url))
+            # 4. Special case for runner tool structure
+            if "/tools/runner" in os.getcwd():
+                candidate_paths.append(os.path.join(os.path.abspath("../.."), source_url))
+
+            # Select first existing path
+            source_path = next((p for p in candidate_paths if os.path.exists(p)), None)
             if not source_path:
                 raise FileNotFoundError(
-                    f"Could not find source file for {source_name} using any known base path candidates: {candidate_paths}"
+                    f"Could not find source file for {source_name}. Tried: {candidate_paths}"
                 )
+
             try:
-                with open(source_path) as f:
-                    content = f.read()
-                    if source_path.endswith((".yaml", ".yml")):
-                        source_descriptions[source_name] = yaml.safe_load(content)
-                    else:
-                        source_descriptions[source_name] = json.loads(content)
-            except (FileNotFoundError, json.JSONDecodeError, yaml.YAMLError) as e:
-                logger.error(f"Error loading source description {source_name}: {e}")
+                # Load the local file
+                source_descriptions[source_name] = load_file(source_path)
+            except Exception as e:
+                logger.error(f"Error loading source {source_name}: {e}")
+
+        # Handle remote URLs
         else:
-            # Handle remote URLs
             try:
                 response = http_client.get(source_url)
                 response.raise_for_status()
                 content_type = response.headers.get("Content-Type", "")
-
                 if "yaml" in content_type or "yml" in content_type:
                     source_descriptions[source_name] = yaml.safe_load(response.text)
                 else:
                     source_descriptions[source_name] = response.json()
             except Exception as e:
-                logger.error(f"Error loading remote source description {source_name}: {e}")
+                logger.error(f"Error loading remote source {source_name}: {e}")
 
     return source_descriptions
-
-
-def dump_state(state, label: str = "Current Execution State"):
-    """
-    Helper method to dump the current state for debugging
-
-    Args:
-        state: Execution state to dump
-        label: Optional label for the state dump
-    """
-    logger.debug(f"=== {label} ===")
-    logger.debug(f"Workflow ID: {state.workflow_id}")
-    logger.debug(f"Current Step ID: {state.current_step_id}")
-    logger.debug(f"Inputs: {state.inputs}")
-    logger.debug("Step Outputs:")
-    for step_id, outputs in state.step_outputs.items():
-        logger.debug(f"  {step_id}: {outputs}")
-    logger.debug(f"Workflow Outputs: {state.workflow_outputs}")
-    logger.debug(f"Status: {state.status}")
 
 
 def evaluate_json_pointer(data: dict, pointer_path: str) -> Any | None:
@@ -141,126 +142,47 @@ def evaluate_json_pointer(data: dict, pointer_path: str) -> Any | None:
     Evaluate a JSON pointer against the provided data.
 
     Args:
-        data: The data to evaluate the pointer against
-        pointer_path: The JSON pointer path (e.g., "/products/0/name")
+        data: The data to evaluate the pointer against.
+        pointer_path: The JSON pointer path (e.g., "/products/0/name").
 
     Returns:
-        The resolved value or None if the pointer cannot be resolved
+        The resolved value, or None if the pointer cannot be resolved.
     """
+    if not pointer_path or pointer_path == "/":
+        return data
     try:
-        if not pointer_path:
-            return data
-
-        # For root pointer, return the entire data
-        if pointer_path == "/":
-            return data
-
-        # Create a JSON pointer resolver
-        pointer = jsonpointer.JsonPointer(pointer_path)
-        result = pointer.resolve(data)
-        return result
+        return jsonpointer.JsonPointer(pointer_path).resolve(data)
     except (jsonpointer.JsonPointerException, TypeError) as e:
-        logger.debug(f"Error resolving JSON pointer {pointer_path}: {e}")
+        logger.debug(f"Failed to resolve JSON pointer {pointer_path}: {e}")
         return None
 
 
-def extract_json_pointer_from_expression(expression: str) -> tuple[str | None, str | None]:
+def extract_json_pointer_from_expression(expression: str) -> Tuple[Optional[str], Optional[str]]:
     """
-    Extract JSON pointer from an expression like $response.body#/path/to/value
+    Extract JSON pointer from an expression like $response.body#/path/to/value.
 
     Args:
-        expression: The expression containing a JSON pointer
+        expression: The expression containing a JSON pointer.
 
     Returns:
-        A tuple of (container_path, pointer_path) or (None, None) if not a valid pointer expression
+        A tuple of (container_path, pointer_path) or (None, None) if not valid.
     """
     if not isinstance(expression, str):
-        return (None, None)
+        return None, None
 
-    # Handle the form $response.body#/path/to/value
+    # Form: $response.body#/path/to/value
     match = re.match(r"^\$([a-zA-Z0-9_.]+)#(/.*)", expression)
     if match:
-        container_path, pointer_path = match.groups()
-        return (container_path, pointer_path)
+        return match.groups()
 
-    # Handle expressions like $response.body.path.to.value by converting to JSON pointer
-    # This supports workflows that don't explicitly use # JSON pointer syntax
+    # Form: $response.body.path.to.value
     match = re.match(r"^\$([a-zA-Z0-9_]+)\.([a-zA-Z0-9_.]+)", expression)
     if match and "#" not in expression:
         container, path = match.groups()
-        # Convert dot notation to JSON pointer format
         pointer_path = "/" + path.replace(".", "/")
-        return (container, pointer_path)
+        return container, pointer_path
 
-    # Handle the standard form $response.body#/path
-    match = re.match(r"^\$([a-zA-Z0-9_.]+)\.([a-zA-Z0-9_]+)#(/.*)", expression)
-    if match:
-        container, property_name, pointer_path = match.groups()
-        return (f"{container}.{property_name}", pointer_path)
-
-    return (None, None)
-
-
-def load_openapi_file(openapi_path: str) -> dict[str, Any]:
-    """Loads a single OpenAPI specification from a local file path.
-
-    Args:
-        openapi_path: The local file path of the OpenAPI specification.
-
-    Returns:
-        The parsed OpenAPI specification as a dictionary.
-
-    Raises:
-        ValueError: If the file cannot be parsed.
-        FileNotFoundError: If the local file does not exist.
-    """
-    logger.debug(f"Loading OpenAPI specification from local path: {openapi_path}")
-
-    try:
-        if not os.path.isfile(openapi_path):
-            raise FileNotFoundError(f"OpenAPI file not found: {openapi_path}")
-
-        with open(openapi_path) as f:
-            content = f.read()
-
-        # Try parsing as YAML, then JSON
-        try:
-            return yaml.safe_load(content)
-        except yaml.YAMLError:
-            try:
-                return json.loads(content)
-            except json.JSONDecodeError as json_err:
-                logger.error(
-                    f"Failed to parse OpenAPI spec as YAML or JSON from {openapi_path}: {json_err}"
-                )
-                raise ValueError(f"Failed to parse OpenAPI spec from {openapi_path}") from json_err
-
-    except FileNotFoundError:
-        logger.error(f"OpenAPI file not found: {openapi_path}")
-        raise
-    except Exception as e:
-        logger.error(
-            f"An unexpected error occurred while loading OpenAPI spec from {openapi_path}: {e}"
-        )
-        raise ValueError(f"Could not load OpenAPI spec from {openapi_path}") from e
-
-
-def set_log_level(level: str):
-    """
-    Set the log level
-
-    Args:
-        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    """
-    numeric_level = getattr(logging, level.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError(f"Invalid log level: {level}")
-    logger.setLevel(numeric_level)
-
-    # Also set for submodules
-    logging.getLogger("arazzo-runner.evaluator").setLevel(numeric_level)
-    logging.getLogger("arazzo-runner.executor").setLevel(numeric_level)
-    logging.getLogger("arazzo-runner.http").setLevel(numeric_level)
+    return None, None
 
 
 def sanitize_for_env_var(text: str) -> str:
@@ -268,88 +190,56 @@ def sanitize_for_env_var(text: str) -> str:
     Sanitize a string for use in environment variable names.
 
     Args:
-        text: The text to sanitize
+        text: The text to sanitize.
 
     Returns:
-        Sanitized text suitable for environment variables
+        Sanitized text suitable for environment variables.
     """
     # Convert to uppercase
     sanitized = text.upper()
-
-    # Replace hyphens with underscores
-    sanitized = sanitized.replace("-", "_")
-
-    # Replace other non-alphanumeric characters with underscores
-    sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", sanitized)
-
+    # Replace non-alphanumeric characters with underscores
+    sanitized = re.sub(r"[^A-Z0-9_]", "_", sanitized)
     # Replace multiple consecutive underscores with a single underscore
     sanitized = re.sub(r"_+", "_", sanitized)
-
     # Remove leading and trailing underscores
-    sanitized = sanitized.strip("_")
-
-    return sanitized
+    return sanitized.strip("_")
 
 
-def extract_api_title_prefix(title: str) -> str | None:
-    """
-    Derives an API title prefix from the OpenAPI spec's info.title.
-    The prefix is the first non-skip word of the title, uppercased, with non-alphanumeric
-    characters (excluding underscore) replaced by underscores.
-
-    Skip words: 'the', 'a', 'an', 'openapi', 'api', 'swagger'
-
-    Args:
-        title: The info.title string from the OpenAPI spec.
-
-    Returns:
-        The sanitized API title prefix, or None if title is empty or not suitable.
-    """
-    if not title or not title.strip():
-        logger.debug("API title is empty or not provided, no prefix will be generated.")
-        return None
-
-    # List of words to skip if they appear as the first word
-    skip_words = {"the", "a", "an", "openapi", "api", "swagger"}
-
-    # Split the title into words and remove any empty strings
-    words = [word for word in title.strip().split() if word]
-
-    for word in words:
-        if word.lower() not in skip_words:
-            return sanitize_for_env_var(word)
-
-    return words[0]
-
-
-def create_env_var_name(var_name: str, prefix: str | None = None) -> str:
+def create_env_var_name(var_name: str, prefix: Optional[str] = None) -> str:
     """
     Create a standardized environment variable name with an optional prefix.
 
     Args:
-        var_name: The base variable name
-        prefix: Optional prefix (e.g., "MY_API_")
+        var_name: The base variable name.
+        prefix: Optional prefix (e.g., "MY_API").
 
     Returns:
-        A properly formatted environment variable name
+        A properly formatted environment variable name.
     """
-    # Sanitize the base variable name
-    sanitized_var_name = sanitize_for_env_var(var_name)
-
-    # Construct parts of the environment variable name
-    parts = []
-
-    # Add prefix if provided
+    parts = [sanitize_for_env_var(var_name)]
     if prefix:
-        parts.append(prefix)
+        parts.insert(0, sanitize_for_env_var(prefix))
+    return "_".join(parts)
 
-    # Add the sanitized variable name
-    parts.append(sanitized_var_name)
 
-    # Join all parts with underscores
-    env_var_name = "_".join(parts)
+def dump_state(state: Any, label: str = "Execution State") -> None:
+    """
+    Helper method to dump the current state for debugging.
 
-    return env_var_name
+    Args:
+        state: Execution state to dump.
+        label: Optional label for the state dump.
+    """
+    logger.debug(f"=== {label} ===")
+    logger.debug(f"Workflow ID: {getattr(state, 'workflow_id', None)}")
+    logger.debug(f"Current Step ID: {getattr(state, 'current_step_id', None)}")
+    logger.debug(f"Inputs: {getattr(state, 'inputs', None)}")
+    step_outputs = getattr(state, 'step_outputs', {})
+    logger.debug("Step Outputs:")
+    for step_id, outputs in step_outputs.items():
+        logger.debug(f"  {step_id}: {outputs}")
+    logger.debug(f"Workflow Outputs: {getattr(state, 'workflow_outputs', None)}")
+    logger.debug(f"Status: {getattr(state, 'status', None)}")
 
 
 def deprecated(reason: str):
@@ -357,16 +247,24 @@ def deprecated(reason: str):
     Decorator to mark a function as deprecated.
 
     Args:
-        reason: Reason for deprecation
+        reason: Reason for deprecation.
     """
-
     def decorator(func):
         def wrapper(*args, **kwargs):
-            warnings.warn(
-                f"{func.__name__} is deprecated: {reason}", DeprecationWarning, stacklevel=2
-            )
+            warnings.warn(f"{func.__name__} is deprecated: {reason}", DeprecationWarning, stacklevel=2)
             return func(*args, **kwargs)
-
         return wrapper
-
     return decorator
+
+
+def set_log_level(level: str):
+    """
+    Set the log level for runner utilities.
+
+    Args:
+        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+    """
+    numeric_level = getattr(logging, level.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError(f"Invalid log level: {level}")
+    logger.setLevel(numeric_level)
