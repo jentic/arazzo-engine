@@ -48,7 +48,7 @@ The Arazzo Generator is a command-line tool and Python library for analyzing Ope
 
 ## Join the Community
 
-The Arazzo specification and the tools in this repository are open source and community-driven.  
+The Arazzo specification and the tools in this repository are open-source and community-driven.  
 We believe the best way to build a powerful and flexible workflow standard is to do it in the open, with the support of the entire OpenAPI community.
 
 Whether you’re an API developer, a DevOps engineer, or simply someone passionate about automation, we invite you to get involved. Here are a few ways you can contribute:
