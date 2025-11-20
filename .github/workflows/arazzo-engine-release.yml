@@ -39,7 +39,7 @@ jobs:
           private-key: ${{ secrets.ARAZZO_BUILDER_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -102,7 +102,7 @@ jobs:
           private-key: ${{ secrets.ARAZZO_BUILDER_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: true
