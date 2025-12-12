@@ -204,3 +204,55 @@ def test_resolve_server_params_with_double_variables():
         server_runtime_params=runtime_params.servers,
     )
     assert final_url == "https://api.test.test.example.com/v1/users"
+
+
+def test_resolve_server_params_with_base_path():
+    """
+    Tests that resolve_server_params correctly combines a base URL containing a path segment
+    with an operation path without losing the base path segment.
+    """
+    source_name = "petstore"
+    # Mock an OpenAPI spec with a server URL that includes a base path
+    mock_openapi_spec = {
+        "servers": [{"url": "https://petstore3.swagger.io/api/v3"}],
+        "info": {"title": "Petstore API", "version": "1.0.0"}
+    }
+    mock_source_descriptions = {source_name: mock_openapi_spec}
+
+    processor = ServerProcessor(source_descriptions=mock_source_descriptions)
+
+    operation_url_template = "/pet/{petId}"
+    server_runtime_params = {} # No runtime overrides needed for this test
+
+    final_url = processor.resolve_server_params(
+        operation_url_template=operation_url_template,
+        server_runtime_params=server_runtime_params,
+        source_name=source_name,
+    )
+    assert final_url == "https://petstore3.swagger.io/api/v3/pet/{petId}"
+
+
+def test_resolve_server_params_with_base_path_and_leading_slash_in_base_url():
+    """
+    Tests the case where the server URL in the spec contains a leading slash in its path
+    (e.g., "/some/base/path") and should still resolve correctly.
+    """
+    source_name = "api_gateway"
+    mock_openapi_spec = {
+        "servers": [{"url": "https://api.example.com/prod/v1"}],
+        "info": {"title": "API Gateway", "version": "1.0.0"}
+    }
+    mock_source_descriptions = {source_name: mock_openapi_spec}
+
+    processor = ServerProcessor(source_descriptions=mock_source_descriptions)
+
+    operation_url_template = "/resource/{id}/details"
+    server_runtime_params = {}
+
+    final_url = processor.resolve_server_params(
+        operation_url_template=operation_url_template,
+        server_runtime_params=server_runtime_params,
+        source_name=source_name,
+    )
+    assert final_url == "https://api.example.com/prod/v1/resource/{id}/details"
+
