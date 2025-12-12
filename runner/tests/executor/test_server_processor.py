@@ -222,7 +222,7 @@ def test_resolve_server_params_with_base_path():
     processor = ServerProcessor(source_descriptions=mock_source_descriptions)
 
     operation_url_template = "/pet/{petId}"
-    server_runtime_params = {} # No runtime overrides needed for this test
+    server_runtime_params = {}  # No runtime overrides needed for this test
 
     final_url = processor.resolve_server_params(
         operation_url_template=operation_url_template,
