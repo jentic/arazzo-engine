@@ -350,7 +350,6 @@ class ServerProcessor:
         server_configs: list[ServerConfiguration] = ServerProcessor.extract_server_configurations(
             spec_doc
         )
-        
         if not server_configs:
             logger.error(
                 f"No server configurations found in spec for source_name='{source_name}'. Cannot resolve URL '{operation_url_template}'."
