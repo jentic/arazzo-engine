@@ -325,7 +325,6 @@ class ServerProcessor:
         has_vars_in_host = self.url_contains_template_vars_in_host(operation_url_template)
 
         # Case 1: operation_url_template is a full URL and has NO server variables in its host. Use as is.
-        # Fix: Check if it is actually an absolute URL before returning early.
         parsed_op = urlparse(operation_url_template)
         if parsed_op.scheme and parsed_op.netloc and not has_vars_in_host:
             return operation_url_template
