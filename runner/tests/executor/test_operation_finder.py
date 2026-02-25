@@ -660,5 +660,81 @@ class TestOperationFinderWithTwoSources(unittest.TestCase):
         self.assertIsNone(result)
 
 
+# ---------------------------------------------------------------------------
+# Tests for find_by_id
+# ---------------------------------------------------------------------------
+
+class TestFindById(unittest.TestCase):
+    """
+    Unit tests for OperationFinder.find_by_id.
+
+    Ensures that plain operationId-based step dispatch still works correctly
+    after the ~1 decode fix (which only touched find_by_path internals).
+    """
+
+    def setUp(self):
+        # api_one: listUsers (GET /users), createUser (POST /users),
+        #          getUserById (GET /users/{userId}), deleteUser (DELETE /users/{userId})
+        # api_two: listItems (GET /items)
+        self.finder = OperationFinder(MOCK_SOURCE_DESC)
+
+    # --- happy-path lookups ---
+
+    def test_find_get_operation_returns_correct_fields(self):
+        """find_by_id returns source, path, method, url, and operation dict."""
+        result = self.finder.find_by_id("listUsers")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["source"], "api_one")
+        self.assertEqual(result["path"], "/users")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["url"], "http://localhost/users")
+        self.assertIsNotNone(result.get("operation"))
+
+    def test_find_post_operation(self):
+        """find_by_id locates a POST operation, not just GET."""
+        result = self.finder.find_by_id("createUser")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["source"], "api_one")
+        self.assertEqual(result["method"], "post")
+        self.assertEqual(result["path"], "/users")
+
+    def test_find_delete_operation(self):
+        """find_by_id locates a DELETE operation on a parameterised path."""
+        result = self.finder.find_by_id("deleteUser")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["source"], "api_one")
+        self.assertEqual(result["method"], "delete")
+        self.assertEqual(result["path"], "/users/{userId}")
+        self.assertEqual(result["url"], "http://localhost/users/{userId}")
+
+    def test_find_operation_in_second_source(self):
+        """find_by_id searches all registered sources, not just the first."""
+        result = self.finder.find_by_id("listItems")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["source"], "api_two")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["path"], "/items")
+        self.assertEqual(result["url"], "http://localhost:8080/items")
+
+    def test_find_parameterised_path_url(self):
+        """Base URL is correctly prepended even for parameterised path templates."""
+        result = self.finder.find_by_id("getUserById")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/users/{userId}")
+        self.assertEqual(result["url"], "http://localhost/users/{userId}")
+
+    # --- negative cases ---
+
+    def test_nonexistent_operation_returns_none(self):
+        """An operationId that appears in no source returns None."""
+        result = self.finder.find_by_id("completelyMadeUpOperation")
+        self.assertIsNone(result)
+
+    def test_empty_operation_id_returns_none(self):
+        """An empty string operationId returns None."""
+        result = self.finder.find_by_id("")
+        self.assertIsNone(result)
+
+
 if __name__ == "__main__":
     unittest.main()

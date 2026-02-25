@@ -174,5 +174,74 @@ class TestArazzoWorkflowWithTwoSources(unittest.TestCase):
         self.assertIn("getUserStep",  result.step_outputs)
 
 
+# ---------------------------------------------------------------------------
+# Workflow using operationId instead of operationPath
+# ---------------------------------------------------------------------------
+
+# Steps reference operations by operationId rather than operationPath.
+# Confirms the operationId dispatch path (OperationFinder.find_by_id) continues
+# to work correctly alongside the operationPath fix.
+_OPERATION_ID_ARAZZO_DOC = _yaml("petstore/operation_id.arazzo.yaml")
+
+
+class TestArazzoWorkflowWithOperationId(unittest.TestCase):
+    """
+    End-to-end tests confirming that steps using operationId (rather than
+    operationPath) still execute correctly.  This exercises
+    OperationFinder.find_by_id and StepExecutor._execute_operation_by_id
+    through the full ArazzoRunner pipeline.
+    """
+
+    def _make_runner(self):
+        http_client = MockHTTPExecutor()
+        # Register specific path before general so /pets/42 wins over /pets
+        http_client.add_static_response(
+            method="GET",
+            url_pattern="/pets/42",
+            status_code=200,
+            json_data={"id": 42, "name": "Fido", "tag": "dog"},
+        )
+        http_client.add_static_response(
+            method="GET",
+            url_pattern="/pets",
+            status_code=200,
+            json_data=[{"id": 42, "name": "Fido"}, {"id": 7, "name": "Whiskers"}],
+        )
+        from arazzo_runner import ArazzoRunner
+        runner = ArazzoRunner(
+            arazzo_doc=_OPERATION_ID_ARAZZO_DOC,
+            source_descriptions=PETSTORE_SOURCE_DESCRIPTIONS,
+            http_client=http_client,
+        )
+        return runner, http_client
+
+    def test_workflow_completes(self):
+        """A two-step operationId workflow reaches WORKFLOW_COMPLETE status."""
+        from arazzo_runner import WorkflowExecutionStatus
+        runner, _ = self._make_runner()
+        result = runner.execute_workflow("operationIdWorkflow")
+        self.assertEqual(result.status, WorkflowExecutionStatus.WORKFLOW_COMPLETE)
+
+    def test_workflow_outputs(self):
+        """Outputs chained across operationId steps contain the expected values."""
+        runner, _ = self._make_runner()
+        result = runner.execute_workflow("operationIdWorkflow")
+        self.assertEqual(result.outputs.get("petName"), "Fido")
+        self.assertEqual(result.outputs.get("petTag"), "dog")
+
+    def test_workflow_makes_two_http_calls(self):
+        """Two steps → exactly two HTTP requests."""
+        runner, http_client = self._make_runner()
+        runner.execute_workflow("operationIdWorkflow")
+        self.assertEqual(http_client.get_request_count(), 2)
+
+    def test_step_outputs_are_populated(self):
+        """Both step outputs are recorded on the result."""
+        runner, _ = self._make_runner()
+        result = runner.execute_workflow("operationIdWorkflow")
+        self.assertIn("listPetsStep", result.step_outputs)
+        self.assertIn("getPetStep", result.step_outputs)
+
+
 if __name__ == "__main__":
     unittest.main()
