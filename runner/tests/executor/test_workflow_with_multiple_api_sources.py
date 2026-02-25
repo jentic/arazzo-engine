@@ -12,6 +12,7 @@ test_operation_finder.py (TestOperationFinderWithTwoSources).
 
 import os
 import unittest
+from urllib.parse import urlparse
 
 import yaml
 
@@ -138,10 +139,11 @@ class TestArazzoWorkflowWithTwoSources(unittest.TestCase):
         runner.execute_workflow("crossSourceWorkflow")
 
         urls = [r["url"] for r in http_client.requests]
+        hosts = [urlparse(u).hostname for u in urls]
         self.assertTrue(
-            any("petstore.example.com" in u for u in urls), f"No petstore URL among: {urls}"
+            any(h == "petstore.example.com" for h in hosts), f"No petstore URL among: {urls}"
         )
-        self.assertTrue(any("users.example.com" in u for u in urls), f"No users URL among: {urls}")
+        self.assertTrue(any(h == "users.example.com" for h in hosts), f"No users URL among: {urls}")
 
     def test_cross_source_output_chaining(self):
         """
@@ -156,7 +158,9 @@ class TestArazzoWorkflowWithTwoSources(unittest.TestCase):
         self.assertEqual(result.status, WorkflowExecutionStatus.WORKFLOW_COMPLETE)
 
         # Confirm the users request was made with the ID chained from the petstore step
-        users_requests = [r for r in http_client.requests if "users.example.com" in r["url"]]
+        users_requests = [
+            r for r in http_client.requests if urlparse(r["url"]).hostname == "users.example.com"
+        ]
         self.assertEqual(len(users_requests), 1)
         self.assertIn("42", users_requests[0]["url"])
 
