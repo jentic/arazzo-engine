@@ -180,8 +180,6 @@ class StepExecutor:
         # Find the operation in the source descriptions
         operation_info = self.operation_finder.find_by_path(source_url, json_pointer)
 
-        source_name = operation_info.get("source")
-
         if not operation_info:
             # Enhanced logging moved from original code to here for when operation_info is None
             logger.error(f"Failed to find operation for path: {operation_path}")
@@ -197,6 +195,7 @@ class StepExecutor:
                             )
             raise ValueError(f"Operation not found at path {operation_path}")
 
+        source_name = operation_info.get("source")
         logger.debug(f"Found operation: {operation_info.get('method')} {operation_info.get('url')}")
 
         # Prepare parameters
