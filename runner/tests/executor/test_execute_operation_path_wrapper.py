@@ -21,9 +21,7 @@ from arazzo_runner.http import HTTPExecutor
 _FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "..", "test_data")
 
 PETSTORE_SOURCE_DESCRIPTIONS = {
-    "petstore": yaml.safe_load(
-        open(os.path.join(_FIXTURES_DIR, "petstore/petstore.openapi.yaml"))
-    )
+    "petstore": yaml.safe_load(open(os.path.join(_FIXTURES_DIR, "petstore/petstore.openapi.yaml")))
 }
 
 

@@ -379,6 +379,7 @@ def test_get_security_requirements_for_openapi_operation_basic():
 # Tests for find_by_path – JSON Pointer (~1) decoding
 # ---------------------------------------------------------------------------
 
+
 class TestFindByPathJsonPointerDecoding(unittest.TestCase):
     """
     Tests for OperationFinder.find_by_path covering ~1-encoded JSON Pointer paths.
@@ -407,9 +408,7 @@ class TestFindByPathJsonPointerDecoding(unittest.TestCase):
 
     def test_simple_path_by_url(self):
         """Pointer /paths/~1pets/get found when source is looked up by base URL."""
-        result = self.finder.find_by_path(
-            "https://petstore.example.com/v1", "/paths/~1pets/get"
-        )
+        result = self.finder.find_by_path("https://petstore.example.com/v1", "/paths/~1pets/get")
         self.assertIsNotNone(result)
         self.assertEqual(result["path"], "/pets")
         self.assertEqual(result["method"], "get")
@@ -421,7 +420,9 @@ class TestFindByPathJsonPointerDecoding(unittest.TestCase):
     def test_parameterised_path_by_name(self):
         """~1pets~1{petId} must decode to /pets/{petId}, not //pets/{petId}."""
         result = self.finder.find_by_path("petstore", "/paths/~1pets~1{petId}/get")
-        self.assertIsNotNone(result, "Operation must be found – double-slash decode bug would return None")
+        self.assertIsNotNone(
+            result, "Operation must be found – double-slash decode bug would return None"
+        )
         self.assertEqual(result["path"], "/pets/{petId}")
         self.assertEqual(result["method"], "get")
         self.assertEqual(result["url"], "https://petstore.example.com/v1/pets/{petId}")
@@ -445,9 +446,7 @@ class TestFindByPathJsonPointerDecoding(unittest.TestCase):
         """
         # source_url as it arrives from step_executor after splitting on '#'
         arazzo_source_ref = "{$sourceDescriptions.petstore.url}"
-        result = self.finder.find_by_path(
-            arazzo_source_ref, "/paths/~1pets~1{petId}/get"
-        )
+        result = self.finder.find_by_path(arazzo_source_ref, "/paths/~1pets~1{petId}/get")
         self.assertIsNotNone(result, "Should find via partial name match in expression text")
         self.assertEqual(result["path"], "/pets/{petId}")
 
@@ -483,6 +482,7 @@ class TestFindByPathJsonPointerDecoding(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Tests for find_by_http_path_and_method – "METHOD /path" convenience wrapper
 # ---------------------------------------------------------------------------
+
 
 class TestFindByHttpPathAndMethodPetstore(unittest.TestCase):
     """
@@ -549,6 +549,7 @@ class TestFindByHttpPathAndMethodPetstore(unittest.TestCase):
 # Tests for find_by_path – multiple source descriptions registered simultaneously
 # ---------------------------------------------------------------------------
 
+
 class TestOperationFinderWithTwoSources(unittest.TestCase):
     """
     Unit tests for OperationFinder.find_by_path when two distinct source
@@ -607,9 +608,7 @@ class TestOperationFinderWithTwoSources(unittest.TestCase):
 
     def test_full_arazzo_expression_petstore_simple(self):
         """{$sourceDescriptions.petstore.url}#/paths/~1pets/get resolves correctly."""
-        result = self.finder.find_by_path(
-            "{$sourceDescriptions.petstore.url}", "/paths/~1pets/get"
-        )
+        result = self.finder.find_by_path("{$sourceDescriptions.petstore.url}", "/paths/~1pets/get")
         self.assertIsNotNone(result)
         self.assertEqual(result["operation"]["operationId"], "listPets")
         self.assertIn("petstore.example.com", result["url"])
@@ -631,9 +630,7 @@ class TestOperationFinderWithTwoSources(unittest.TestCase):
 
     def test_full_arazzo_expression_users_simple(self):
         """{$sourceDescriptions.users.url}#/paths/~1users/get resolves correctly."""
-        result = self.finder.find_by_path(
-            "{$sourceDescriptions.users.url}", "/paths/~1users/get"
-        )
+        result = self.finder.find_by_path("{$sourceDescriptions.users.url}", "/paths/~1users/get")
         self.assertIsNotNone(result)
         self.assertEqual(result["operation"]["operationId"], "listUsers")
         self.assertIn("users.example.com", result["url"])
@@ -663,6 +660,7 @@ class TestOperationFinderWithTwoSources(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Tests for find_by_id
 # ---------------------------------------------------------------------------
+
 
 class TestFindById(unittest.TestCase):
     """

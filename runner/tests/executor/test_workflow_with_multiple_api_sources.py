@@ -138,10 +138,10 @@ class TestArazzoWorkflowWithTwoSources(unittest.TestCase):
         runner.execute_workflow("crossSourceWorkflow")
 
         urls = [r["url"] for r in http_client.requests]
-        self.assertTrue(any("petstore.example.com" in u for u in urls),
-                        f"No petstore URL among: {urls}")
-        self.assertTrue(any("users.example.com" in u for u in urls),
-                        f"No users URL among: {urls}")
+        self.assertTrue(
+            any("petstore.example.com" in u for u in urls), f"No petstore URL among: {urls}"
+        )
+        self.assertTrue(any("users.example.com" in u for u in urls), f"No users URL among: {urls}")
 
     def test_cross_source_output_chaining(self):
         """
@@ -170,8 +170,8 @@ class TestArazzoWorkflowWithTwoSources(unittest.TestCase):
 
         self.assertIsNotNone(result.step_outputs)
         self.assertIn("listPetsStep", result.step_outputs)
-        self.assertIn("getPetStep",   result.step_outputs)
-        self.assertIn("getUserStep",  result.step_outputs)
+        self.assertIn("getPetStep", result.step_outputs)
+        self.assertIn("getUserStep", result.step_outputs)
 
 
 # ---------------------------------------------------------------------------
@@ -208,6 +208,7 @@ class TestArazzoWorkflowWithOperationId(unittest.TestCase):
             json_data=[{"id": 42, "name": "Fido"}, {"id": 7, "name": "Whiskers"}],
         )
         from arazzo_runner import ArazzoRunner
+
         runner = ArazzoRunner(
             arazzo_doc=_OPERATION_ID_ARAZZO_DOC,
             source_descriptions=PETSTORE_SOURCE_DESCRIPTIONS,
@@ -218,6 +219,7 @@ class TestArazzoWorkflowWithOperationId(unittest.TestCase):
     def test_workflow_completes(self):
         """A two-step operationId workflow reaches WORKFLOW_COMPLETE status."""
         from arazzo_runner import WorkflowExecutionStatus
+
         runner, _ = self._make_runner()
         result = runner.execute_workflow("operationIdWorkflow")
         self.assertEqual(result.status, WorkflowExecutionStatus.WORKFLOW_COMPLETE)
