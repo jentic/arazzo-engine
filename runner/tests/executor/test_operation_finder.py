@@ -1,28 +1,32 @@
+import os
 import unittest
+
+import yaml
 
 from arazzo_runner.auth.auth_processor import AuthProcessor
 from arazzo_runner.auth.models import SecurityOption, SecurityRequirement
 from arazzo_runner.executor.operation_finder import OperationFinder
 
-# Mock OpenAPI source descriptions
+_FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "..", "test_data")
+
+
+def _yaml(rel: str) -> dict:
+    with open(os.path.join(_FIXTURES_DIR, rel)) as f:
+        return yaml.safe_load(f)
+
+
 MOCK_SOURCE_DESC = {
-    "api_one": {
-        "servers": [{"url": "http://localhost"}],
-        "paths": {
-            "/users": {
-                "get": {"operationId": "listUsers", "summary": "List all users"},
-                "post": {"operationId": "createUser", "summary": "Create a new user"},
-            },
-            "/users/{userId}": {
-                "get": {"operationId": "getUserById", "summary": "Get user by ID"},
-                "delete": {"operationId": "deleteUser", "summary": "Delete user by ID"},
-            },
-        },
-    },
-    "api_two": {
-        "servers": [{"url": "http://localhost:8080"}],
-        "paths": {"/items": {"get": {"operationId": "listItems", "summary": "List all items"}}},
-    },
+    "api_one": _yaml("mock_apis/api_one.openapi.yaml"),
+    "api_two": _yaml("mock_apis/api_two.openapi.yaml"),
+}
+
+_PETSTORE_SPEC = _yaml("petstore/petstore.openapi.yaml")
+PETSTORE_SOURCE_DESCRIPTIONS = {"petstore": _PETSTORE_SPEC}
+
+_USERS_SPEC = _yaml("mock_apis/users.openapi.yaml")
+MULTI_SOURCE_DESCRIPTIONS = {
+    "petstore": _PETSTORE_SPEC,
+    "users": _USERS_SPEC,
 }
 
 
@@ -369,6 +373,291 @@ def test_get_security_requirements_for_openapi_operation_basic():
     assert result == [
         SecurityOption(requirements=[SecurityRequirement(scheme_name="apiKey", scopes=[])])
     ]
+
+
+# ---------------------------------------------------------------------------
+# Tests for find_by_path – JSON Pointer (~1) decoding
+# ---------------------------------------------------------------------------
+
+class TestFindByPathJsonPointerDecoding(unittest.TestCase):
+    """
+    Tests for OperationFinder.find_by_path covering ~1-encoded JSON Pointer paths.
+
+    The key regression: decoding ~1pets~1{petId} must yield /pets/{petId}, not
+    //pets/{petId} (double-slash).  All three internal strategies
+    (_extract_path_method_with_regex, _resolve_with_jsonpointer,
+    _handle_special_cases) had this bug.
+    """
+
+    def setUp(self):
+        self.finder = OperationFinder(PETSTORE_SOURCE_DESCRIPTIONS)
+
+    # ------------------------------------------------------------------
+    # Simple (non-parameterised) path
+    # ------------------------------------------------------------------
+
+    def test_simple_path_by_name(self):
+        """Pointer /paths/~1pets/get found when source is looked up by name."""
+        result = self.finder.find_by_path("petstore", "/paths/~1pets/get")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/pets")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["url"], "https://petstore.example.com/v1/pets")
+        self.assertEqual(result["operation"]["operationId"], "listPets")
+
+    def test_simple_path_by_url(self):
+        """Pointer /paths/~1pets/get found when source is looked up by base URL."""
+        result = self.finder.find_by_path(
+            "https://petstore.example.com/v1", "/paths/~1pets/get"
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/pets")
+        self.assertEqual(result["method"], "get")
+
+    # ------------------------------------------------------------------
+    # Parameterised path – the primary regression case
+    # ------------------------------------------------------------------
+
+    def test_parameterised_path_by_name(self):
+        """~1pets~1{petId} must decode to /pets/{petId}, not //pets/{petId}."""
+        result = self.finder.find_by_path("petstore", "/paths/~1pets~1{petId}/get")
+        self.assertIsNotNone(result, "Operation must be found – double-slash decode bug would return None")
+        self.assertEqual(result["path"], "/pets/{petId}")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["url"], "https://petstore.example.com/v1/pets/{petId}")
+        self.assertEqual(result["operation"]["operationId"], "showPetById")
+
+    def test_parameterised_path_by_url(self):
+        """Same regression test via URL-based source lookup (full Arazzo operationPath pattern)."""
+        result = self.finder.find_by_path(
+            "https://petstore.example.com/v1", "/paths/~1pets~1{petId}/get"
+        )
+        self.assertIsNotNone(result, "Operation must be found via URL source lookup")
+        self.assertEqual(result["path"], "/pets/{petId}")
+        self.assertEqual(result["method"], "get")
+
+    def test_full_arazzo_operation_path_expression(self):
+        """
+        Exercises the full Arazzo operationPath pattern where the source expression
+        has not yet been evaluated and still contains the raw expression text.
+        step_executor splits on '#' and passes the left side to find_by_path; the
+        _find_source_description partial-match logic must still locate the spec.
+        """
+        # source_url as it arrives from step_executor after splitting on '#'
+        arazzo_source_ref = "{$sourceDescriptions.petstore.url}"
+        result = self.finder.find_by_path(
+            arazzo_source_ref, "/paths/~1pets~1{petId}/get"
+        )
+        self.assertIsNotNone(result, "Should find via partial name match in expression text")
+        self.assertEqual(result["path"], "/pets/{petId}")
+
+    # ------------------------------------------------------------------
+    # Multi-segment path
+    # ------------------------------------------------------------------
+
+    def test_multi_segment_parameterised_path(self):
+        """Three-segment path /pets/{petId}/tags encodes as ~1pets~1{petId}~1tags."""
+        result = self.finder.find_by_path("petstore", "/paths/~1pets~1{petId}~1tags/get")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/pets/{petId}/tags")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["operation"]["operationId"], "listPetTags")
+
+    # ------------------------------------------------------------------
+    # Negative cases
+    # ------------------------------------------------------------------
+
+    def test_nonexistent_path_returns_none(self):
+        """A pointer to a path not in the spec returns None."""
+        result = self.finder.find_by_path("petstore", "/paths/~1nonexistent/get")
+        self.assertIsNone(result)
+
+    def test_unknown_source_returns_none(self):
+        """An unrecognisable source URL returns None."""
+        result = self.finder.find_by_path(
+            "https://completely-unknown.example.com", "/paths/~1pets/get"
+        )
+        self.assertIsNone(result)
+
+
+# ---------------------------------------------------------------------------
+# Tests for find_by_http_path_and_method – "METHOD /path" convenience wrapper
+# ---------------------------------------------------------------------------
+
+class TestFindByHttpPathAndMethodPetstore(unittest.TestCase):
+    """
+    Regression tests for find_by_http_path_and_method against the petstore spec.
+
+    This method is the backing lookup used by StepExecutor.execute_operation when
+    called with an operation_path like "GET /pets/{petId}".  It does NOT involve
+    ~1 JSON Pointer encoding – our decode fix must not break this code path.
+    """
+
+    def setUp(self):
+        self.finder = OperationFinder(PETSTORE_SOURCE_DESCRIPTIONS)
+
+    def test_simple_get(self):
+        """GET /pets resolves to listPets."""
+        result = self.finder.find_by_http_path_and_method("/pets", "GET")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/pets")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["operation"]["operationId"], "listPets")
+        self.assertEqual(result["url"], "https://petstore.example.com/v1/pets")
+
+    def test_parameterised_get(self):
+        """GET /pets/{petId} resolves to showPetById via the template path."""
+        result = self.finder.find_by_http_path_and_method("/pets/{petId}", "GET")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/pets/{petId}")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["operation"]["operationId"], "showPetById")
+        self.assertEqual(result["url"], "https://petstore.example.com/v1/pets/{petId}")
+
+    def test_concrete_parameterised_get(self):
+        """GET /pets/42 matches the /pets/{petId} template (concrete value)."""
+        result = self.finder.find_by_http_path_and_method("/pets/42", "GET")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/pets/{petId}")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["operation"]["operationId"], "showPetById")
+
+    def test_multi_segment_parameterised_get(self):
+        """GET /pets/{petId}/tags matches the three-segment template."""
+        result = self.finder.find_by_http_path_and_method("/pets/{petId}/tags", "GET")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/pets/{petId}/tags")
+        self.assertEqual(result["operation"]["operationId"], "listPetTags")
+
+    def test_case_insensitive_method(self):
+        """Method lookup is case-insensitive."""
+        result = self.finder.find_by_http_path_and_method("/pets", "get")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["method"], "get")
+
+    def test_unknown_path_returns_none(self):
+        result = self.finder.find_by_http_path_and_method("/nonexistent", "GET")
+        self.assertIsNone(result)
+
+    def test_wrong_method_returns_none(self):
+        """GET /pets exists but DELETE /pets does not."""
+        result = self.finder.find_by_http_path_and_method("/pets", "DELETE")
+        self.assertIsNone(result)
+
+
+# ---------------------------------------------------------------------------
+# Tests for find_by_path – multiple source descriptions registered simultaneously
+# ---------------------------------------------------------------------------
+
+class TestOperationFinderWithTwoSources(unittest.TestCase):
+    """
+    Unit tests for OperationFinder.find_by_path when two distinct source
+    descriptions are registered.  Verifies correct source routing and
+    ~1-decoding for both the petstore and users specs.
+    """
+
+    def setUp(self):
+        self.finder = OperationFinder(MULTI_SOURCE_DESCRIPTIONS)
+
+    # --- routing by source name ---
+
+    def test_simple_path_routes_to_petstore(self):
+        """A plain path pointer resolves against the petstore spec."""
+        result = self.finder.find_by_path("petstore", "/paths/~1pets/get")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["operation"]["operationId"], "listPets")
+        self.assertIn("petstore.example.com", result["url"])
+
+    def test_simple_path_routes_to_users(self):
+        """A plain path pointer resolves against the users spec."""
+        result = self.finder.find_by_path("users", "/paths/~1users/get")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["operation"]["operationId"], "listUsers")
+        self.assertIn("users.example.com", result["url"])
+
+    def test_petstore_path_not_found_in_users(self):
+        """/pets is a petstore path — it must not resolve when users is targeted."""
+        result = self.finder.find_by_path("users", "/paths/~1pets/get")
+        self.assertIsNone(result)
+
+    def test_users_path_not_found_in_petstore(self):
+        """/users is a users path — it must not resolve when petstore is targeted."""
+        result = self.finder.find_by_path("petstore", "/paths/~1users/get")
+        self.assertIsNone(result)
+
+    # --- ~1 decoding for parameterised paths in each source ---
+
+    def test_tilde_encoded_parameterised_path_petstore(self):
+        """~1pets~1{petId} decodes to /pets/{petId} in the petstore spec."""
+        result = self.finder.find_by_path("petstore", "/paths/~1pets~1{petId}/get")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/pets/{petId}")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["operation"]["operationId"], "showPetById")
+
+    def test_tilde_encoded_parameterised_path_users(self):
+        """~1users~1{userId} decodes to /users/{userId} in the users spec."""
+        result = self.finder.find_by_path("users", "/paths/~1users~1{userId}/get")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/users/{userId}")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["operation"]["operationId"], "getUserById")
+
+    # --- full Arazzo runtime-expression format ---
+
+    def test_full_arazzo_expression_petstore_simple(self):
+        """{$sourceDescriptions.petstore.url}#/paths/~1pets/get resolves correctly."""
+        result = self.finder.find_by_path(
+            "{$sourceDescriptions.petstore.url}", "/paths/~1pets/get"
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["operation"]["operationId"], "listPets")
+        self.assertIn("petstore.example.com", result["url"])
+
+    def test_full_arazzo_expression_petstore_parameterised(self):
+        """
+        The exact pattern from demo.py step 2:
+        {$sourceDescriptions.petstore.url}#/paths/~1pets~1{petId}/get
+        must decode ~1pets~1{petId} to /pets/{petId} in the petstore spec.
+        """
+        result = self.finder.find_by_path(
+            "{$sourceDescriptions.petstore.url}", "/paths/~1pets~1{petId}/get"
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/pets/{petId}")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["operation"]["operationId"], "showPetById")
+        self.assertIn("petstore.example.com", result["url"])
+
+    def test_full_arazzo_expression_users_simple(self):
+        """{$sourceDescriptions.users.url}#/paths/~1users/get resolves correctly."""
+        result = self.finder.find_by_path(
+            "{$sourceDescriptions.users.url}", "/paths/~1users/get"
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["operation"]["operationId"], "listUsers")
+        self.assertIn("users.example.com", result["url"])
+
+    def test_full_arazzo_expression_users_parameterised(self):
+        """{$sourceDescriptions.users.url}#/paths/~1users~1{userId}/get decodes correctly."""
+        result = self.finder.find_by_path(
+            "{$sourceDescriptions.users.url}", "/paths/~1users~1{userId}/get"
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["path"], "/users/{userId}")
+        self.assertEqual(result["method"], "get")
+        self.assertEqual(result["operation"]["operationId"], "getUserById")
+        self.assertIn("users.example.com", result["url"])
+
+    def test_full_arazzo_expression_cross_source_isolation(self):
+        """
+        Mismatched expression + path must return None.
+        The petstore expression must not accidentally resolve a users path.
+        """
+        result = self.finder.find_by_path(
+            "{$sourceDescriptions.petstore.url}", "/paths/~1users~1{userId}/get"
+        )
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":
