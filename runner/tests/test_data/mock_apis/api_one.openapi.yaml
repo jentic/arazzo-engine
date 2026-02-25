@@ -1,0 +1,21 @@
+openapi: 3.0.0
+info:
+  title: Mock API One
+  version: 1.0.0
+servers:
+  - url: http://localhost
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List all users
+    post:
+      operationId: createUser
+      summary: Create a new user
+  /users/{userId}:
+    get:
+      operationId: getUserById
+      summary: Get user by ID
+    delete:
+      operationId: deleteUser
+      summary: Delete user by ID

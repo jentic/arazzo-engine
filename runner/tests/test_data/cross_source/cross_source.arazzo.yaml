@@ -1,0 +1,46 @@
+arazzo: 1.0.0
+info:
+  title: Cross-Source Workflow
+  version: 1.0.0
+sourceDescriptions:
+  - name: petstore
+    url: https://petstore.example.com/v1
+    type: openapi
+  - name: users
+    url: https://users.example.com/v1
+    type: openapi
+workflows:
+  - workflowId: crossSourceWorkflow
+    steps:
+      # Step 1 — petstore: list pets, capture first pet ID
+      - stepId: listPetsStep
+        operationPath: "{$sourceDescriptions.petstore.url}#/paths/~1pets/get"
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          firstPetId: $response.body#/0/id
+      # Step 2 — petstore: fetch a specific pet by ~1-encoded path
+      - stepId: getPetStep
+        operationPath: "{$sourceDescriptions.petstore.url}#/paths/~1pets~1{petId}/get"
+        parameters:
+          - name: petId
+            in: path
+            value: $steps.listPetsStep.outputs.firstPetId
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          petName: $response.body#/name
+      # Step 3 — users: look up a user; userId chained from the petstore step
+      - stepId: getUserStep
+        operationPath: "{$sourceDescriptions.users.url}#/paths/~1users~1{userId}/get"
+        parameters:
+          - name: userId
+            in: path
+            value: $steps.listPetsStep.outputs.firstPetId
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          username: $response.body#/username
+    outputs:
+      petName: $steps.getPetStep.outputs.petName
+      username: $steps.getUserStep.outputs.username

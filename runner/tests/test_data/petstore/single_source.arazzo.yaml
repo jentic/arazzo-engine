@@ -1,0 +1,32 @@
+arazzo: 1.0.0
+info:
+  title: Pet Store Workflow
+  version: 1.0.0
+sourceDescriptions:
+  - name: petstore
+    url: https://petstore.example.com/v1
+    type: openapi
+workflows:
+  - workflowId: listThenFetchPet
+    steps:
+      - stepId: listPetsStep
+        operationPath: "{$sourceDescriptions.petstore.url}#/paths/~1pets/get"
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          firstPetId: $response.body#/0/id
+          firstPetName: $response.body#/0/name
+      - stepId: getPetStep
+        operationPath: "{$sourceDescriptions.petstore.url}#/paths/~1pets~1{petId}/get"
+        parameters:
+          - name: petId
+            in: path
+            value: $steps.listPetsStep.outputs.firstPetId
+        successCriteria:
+          - condition: $statusCode == 200
+        outputs:
+          petName: $response.body#/name
+          petTag: $response.body#/tag
+    outputs:
+      petName: $steps.getPetStep.outputs.petName
+      petTag: $steps.getPetStep.outputs.petTag
