@@ -310,7 +310,11 @@ class OperationFinder:
                 logger.debug(f"Regex matched. Encoded path: {encoded_path}, method: {method}")
 
                 # Decode the path (replace ~1 with / and ~0 with ~)
-                decoded_path = encoded_path.replace("~1", "/").replace("~0", "~")
+                # Decode the path (replace ~1 with / and ~0 with ~).
+                # Strip the leading path-separator "/" before decoding because the
+                # first token itself starts with ~1 which already decodes to "/".
+                # Without this the result would be "//pets/{petId}" (double slash).
+                decoded_path = encoded_path[1:].replace("~1", "/").replace("~0", "~")
                 logger.debug(f"Decoded path: {decoded_path}")
 
                 # Try to find the operation in the source description
@@ -387,8 +391,11 @@ class OperationFinder:
                 method = parts[-1]
 
                 # Combine all middle parts as the path with proper decoding
+                # Combine all middle parts as the path with proper decoding.
+                # Each token starting with ~1 already decodes to a string beginning
+                # with "/", so we must NOT add an extra "/" prefix.
                 path_parts = [p.replace("~1", "/").replace("~0", "~") for p in parts[2:-1]]
-                path = "/" + "/".join(path_parts)
+                path = "/".join(path_parts)
 
                 # Verify we have a valid HTTP method
                 if method not in ["get", "post", "put", "delete", "patch"]:
@@ -470,8 +477,10 @@ class OperationFinder:
                     return None
 
                 # Decode the path parts
+                # Decode the path parts.  Each decoded token already starts with "/"
+                # (the leading ~1 decodes to "/"), so joining without a prefix is correct.
                 pointer_path_parts = [p.replace("~1", "/").replace("~0", "~") for p in parts[2:-1]]
-                pointer_path = "/" + "/".join(pointer_path_parts)
+                pointer_path = "/".join(pointer_path_parts)
                 logger.debug(f"Decoded path with parameters: {pointer_path}")
 
                 # The path might have parameters in the form {param}
