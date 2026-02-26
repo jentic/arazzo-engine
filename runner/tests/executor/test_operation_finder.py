@@ -410,6 +410,7 @@ class TestFindByPathJsonPointerDecoding(unittest.TestCase):
         """Pointer /paths/~1pets/get found when source is looked up by base URL."""
         result = self.finder.find_by_path("https://petstore.example.com/v1", "/paths/~1pets/get")
         self.assertIsNotNone(result)
+        self.assertEqual(result["source"], "petstore")
         self.assertEqual(result["path"], "/pets")
         self.assertEqual(result["method"], "get")
 
@@ -732,6 +733,88 @@ class TestFindById(unittest.TestCase):
         """An empty string operationId returns None."""
         result = self.finder.find_by_id("")
         self.assertIsNone(result)
+
+
+class TestFindByPathSourceNameForSecurityResolution(unittest.TestCase):
+    """
+    Regression tests ensuring that find_by_path sets operation_info["source"]
+    to the actual source_descriptions dict key, NOT the raw URL/expression.
+
+    This is critical because extract_security_requirements() uses
+    ``source_name in self.source_descriptions`` to look up path-level and
+    global security requirements. When source was incorrectly set to a URL,
+    that lookup silently failed and requests went out unauthenticated.
+    """
+
+    def setUp(self):
+        self.source_descriptions = {
+            "discord": {
+                "servers": [{"url": "https://discord.com/api/v10"}],
+                "security": [{"BotToken": []}],
+                "paths": {
+                    "/channels/{channel_id}/messages": {
+                        "post": {
+                            "operationId": "sendMessage",
+                            "responses": {"200": {"description": "ok"}},
+                        }
+                    }
+                },
+                "components": {
+                    "securitySchemes": {"BotToken": {"type": "http", "scheme": "bearer"}}
+                },
+            }
+        }
+        self.finder = OperationFinder(self.source_descriptions)
+
+    def test_url_lookup_returns_dict_key_as_source(self):
+        """When source_url is the server URL, source must be the dict key."""
+        result = self.finder.find_by_path(
+            "https://discord.com/api/v10",
+            "/paths/~1channels~1{channel_id}~1messages/post",
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(
+            result["source"],
+            "discord",
+            "source must be the dict key, not the URL",
+        )
+
+    def test_security_requirements_found_after_url_lookup(self):
+        """
+        End-to-end: find_by_path with a URL, then extract_security_requirements
+        must find the global security requirements (not return empty).
+        """
+        op_info = self.finder.find_by_path(
+            "https://discord.com/api/v10",
+            "/paths/~1channels~1{channel_id}~1messages/post",
+        )
+        self.assertIsNotNone(op_info)
+        security_options = self.finder.extract_security_requirements(op_info)
+        self.assertEqual(len(security_options), 1)
+        self.assertEqual(security_options[0].requirements[0].scheme_name, "BotToken")
+
+    def test_expression_lookup_returns_dict_key_as_source(self):
+        """When source_url is an Arazzo expression, source must be the dict key."""
+        result = self.finder.find_by_path(
+            "{$sourceDescriptions.discord.url}",
+            "/paths/~1channels~1{channel_id}~1messages/post",
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["source"], "discord")
+
+    def test_security_requirements_found_after_expression_lookup(self):
+        """
+        End-to-end: find_by_path with an Arazzo expression, then
+        extract_security_requirements must find global security.
+        """
+        op_info = self.finder.find_by_path(
+            "{$sourceDescriptions.discord.url}",
+            "/paths/~1channels~1{channel_id}~1messages/post",
+        )
+        self.assertIsNotNone(op_info)
+        security_options = self.finder.extract_security_requirements(op_info)
+        self.assertEqual(len(security_options), 1)
+        self.assertEqual(security_options[0].requirements[0].scheme_name, "BotToken")
 
 
 if __name__ == "__main__":

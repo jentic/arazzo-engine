@@ -200,20 +200,20 @@ class OperationFinder:
             f"Finding operation by path: source_url={source_url}, json_pointer={json_pointer}"
         )
 
-        # Find the source description
-        source_desc = self._find_source_description(source_url)
-        if not source_desc:
+        # Find the source description and its canonical key
+        result = self._find_source_description(source_url)
+        if not result:
             logger.error(f"Could not find source description for {source_url}")
             return None
 
-        source_name = source_url  # We'll use the provided URL as the name for simplicity
+        source_name, source_desc = result
 
         # Parse the JSON pointer to extract the operation path and method
         operation_info = self._parse_operation_pointer(json_pointer, source_name, source_desc)
 
         return operation_info
 
-    def _find_source_description(self, source_url: str) -> dict | None:
+    def _find_source_description(self, source_url: str) -> tuple[str, dict] | None:
         """
         Find a source description by URL or name
 
@@ -221,18 +221,19 @@ class OperationFinder:
             source_url: Source URL or name
 
         Returns:
-            Source description or None if not found
+            Tuple of (source_name, source_description) or None if not found.
+            source_name is always the actual key in self.source_descriptions.
         """
         # First, try to match by exact name
         if source_url in self.source_descriptions:
             logger.debug(f"Found source description by exact name: {source_url}")
-            return self.source_descriptions[source_url]
+            return source_url, self.source_descriptions[source_url]
 
         # If not an exact match, try to find by URL or name similarity
         for name, desc in self.source_descriptions.items():
             if name in source_url or source_url.endswith(name):
                 logger.debug(f"Found source description by partial match: {name}")
-                return desc
+                return name, desc
 
         return None
 
