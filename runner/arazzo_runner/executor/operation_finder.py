@@ -200,13 +200,13 @@ class OperationFinder:
             f"Finding operation by path: source_url={source_url}, json_pointer={json_pointer}"
         )
 
-        # Find the source description and its canonical key
-        result = self._find_source_description(source_url)
-        if not result:
+        # Find the source description
+        source_desc = self._find_source_description(source_url)
+        if not source_desc:
             logger.error(f"Could not find source description for {source_url}")
             return None
 
-        source_name, source_desc = result
+        source_name = source_url  # We'll use the provided URL as the name for simplicity
 
         # Parse the JSON pointer to extract the operation path and method
         operation_info = self._parse_operation_pointer(json_pointer, source_name, source_desc)
