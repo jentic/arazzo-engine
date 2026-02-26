@@ -760,9 +760,7 @@ class TestFindByPathSourceNameForSecurityResolution(unittest.TestCase):
                     }
                 },
                 "components": {
-                    "securitySchemes": {
-                        "BotToken": {"type": "http", "scheme": "bearer"}
-                    }
+                    "securitySchemes": {"BotToken": {"type": "http", "scheme": "bearer"}}
                 },
             }
         }
