@@ -325,7 +325,8 @@ class ServerProcessor:
         has_vars_in_host = self.url_contains_template_vars_in_host(operation_url_template)
 
         # Case 1: operation_url_template is a full URL and has NO server variables in its host. Use as is.
-        if not has_vars_in_host:
+        parsed_op = urlparse(operation_url_template)
+        if parsed_op.scheme and parsed_op.netloc and not has_vars_in_host:
             return operation_url_template
 
         # Case 2: We need to use server configurations from the spec.
@@ -356,7 +357,6 @@ class ServerProcessor:
             raise ValueError(
                 f"Cannot resolve URL '{operation_url_template}': No server configurations found in spec for '{source_name}'."
             )
-
         selected_config = server_configs[0]  # Default to the first server config
 
         try:
