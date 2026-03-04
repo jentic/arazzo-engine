@@ -1,0 +1,102 @@
+{
+  "arazzo": "1.0.1",
+  "info": {
+    "title": "Test eTenders Document Download",
+    "version": "1.0.0",
+    "summary": "Simple test workflow to download a document from eTenders API",
+    "description": "Downloads a tender document to verify the download functionality works correctly"
+  },
+  "sourceDescriptions": [
+    {
+      "name": "ETenders API",
+      "url": "./openapi/etenders.json",
+      "type": "openapi"
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "testDownload",
+      "summary": "Test document download from eTenders",
+      "description": "Downloads a tender document and returns file metadata",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "description": "Unique 7-digit identifier for the document",
+            "example": "7642547",
+            "pattern": "^[0-9]{7}$"
+          },
+          "resourceId": {
+            "type": "string",
+            "description": "Unique 7-digit identifier for the tender",
+            "example": "7641353",
+            "pattern": "^[0-9]{7}$"
+          },
+          "isContract": {
+            "type": "string",
+            "description": "Optional flag, typically set to null for tender documents",
+            "example": "null"
+          }
+        },
+        "required": ["documentId", "resourceId"]
+      },
+      "steps": [
+        {
+          "stepId": "downloadTenderDocument",
+          "description": "Download the actual binary file content for a specific tender document",
+          "operationId": "downloadTenderDocument",
+          "sourceDescription": "ETenders API",
+          "parameters": [
+            {
+              "name": "documentId",
+              "in": "query",
+              "value": "$inputs.documentId"
+            },
+            {
+              "name": "resourceId",
+              "in": "query",
+              "value": "$inputs.resourceId"
+            },
+            {
+              "name": "isContract",
+              "in": "query",
+              "value": "$inputs.isContract"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "fileContent": "$response.body",
+            "contentType": "$response.header.Content-Type",
+            "contentDisposition": "$response.header.Content-Disposition",
+            "contentLength": "$response.header.Content-Length",
+            "filename": "$response.header.Content-Disposition.match(/filename=\"([^\"]+)\"/)[1]"
+          },
+          "onFailure": [
+            {
+              "name": "documentNotFound",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode == 404"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "outputs": {
+        "documentId": "$inputs.documentId",
+        "resourceId": "$inputs.resourceId",
+        "contentType": "$steps.downloadTenderDocument.outputs.contentType",
+        "contentLength": "$steps.downloadTenderDocument.outputs.contentLength",
+        "filename": "$steps.downloadTenderDocument.outputs.filename",
+        "contentDisposition": "$steps.downloadTenderDocument.outputs.contentDisposition"
+      }
+    }
+  ]
+}
