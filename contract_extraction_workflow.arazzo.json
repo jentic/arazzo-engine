@@ -1,0 +1,369 @@
+{
+  "arazzo": "1.0.1",
+  "info": {
+    "title": "Contract Document Download and Extract Workflow",
+    "version": "1.0.0",
+    "summary": "Download contract document and extract data using OCR or conversion",
+    "description": "Downloads a tender document and extracts text/data using OCR for PDFs or conversion models for DOCX/Excel files"
+  },
+  "sourceDescriptions": [
+    {
+      "name": "ETenders API",
+      "url": "./openapi/etenders.json",
+      "type": "openapi"
+    },
+    {
+      "name": "Mistral AI",
+      "url": "./openapi/mistralai.json",
+      "type": "openapi"
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "downloadAndExtractDocument",
+      "summary": "Download and extract contract document data",
+      "description": "Downloads a tender document and extracts text/data using OCR for PDFs or conversion for DOCX/Excel",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "documentId": {
+            "type": "string",
+            "description": "Required: Unique 7-digit identifier for the document. If not provided, the workflow will automatically extract the first document ID from the listTenderDocuments HTML response using the pattern downloadDocForAnonymous('DOCUMENT_ID').",
+            "example": "7255364",
+            "pattern": "^[0-9]{7}$"
+          },
+          "resourceId": {
+            "type": "string",
+            "description": "Unique 7-digit identifier for the tender",
+            "example": "7641353",
+            "pattern": "^[0-9]{7}$"
+          },
+          "isContract": {
+            "type": "string",
+            "description": "Optional flag, typically set to null for tender documents",
+            "example": "null"
+          },
+          "extractionOptions": {
+            "type": "object",
+            "description": "Options for extraction (OCR settings, conversion format, etc.)",
+            "properties": {
+              "ocrLanguage": {
+                "type": "string",
+                "description": "Language for OCR (e.g., 'eng', 'fra')",
+                "default": "eng"
+              },
+              "outputFormat": {
+                "type": "string",
+                "description": "Output format for extracted text",
+                "default": "text",
+                "enum": [
+                  "text",
+                  "json",
+                  "structured"
+                ]
+              }
+            }
+          }
+        },
+        "required": [
+          "resourceId"
+        ]
+      },
+      "steps": [
+        {
+          "stepId": "listTenderDocuments",
+          "description": "List all documents available for the tender to get document IDs",
+          "operationId": "listTenderDocuments",
+          "parameters": [
+            {
+              "name": "resourceId",
+              "in": "query",
+              "value": "$inputs.resourceId"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "htmlContent": "$response.body",
+            "firstDocumentId": "$response.body.match(/downloadDocForAnonymous\\('(\\d+)'\\)/)[1]"
+          },
+          "onSuccess": [
+            {
+              "name": "routeToDownload",
+              "type": "goto",
+              "stepId": "downloadTenderDocument"
+            }
+          ],
+          "onFailure": [
+            {
+              "name": "noDocuments",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode == 404"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stepId": "downloadTenderDocument",
+          "description": "Download the actual binary file content for a specific tender document",
+          "operationId": "downloadTenderDocument",
+          "parameters": [
+            {
+              "name": "documentId",
+              "in": "query",
+              "value": "$steps.listTenderDocuments.outputs.firstDocumentId || $inputs.documentId"
+            },
+            {
+              "name": "resourceId",
+              "in": "query",
+              "value": "$inputs.resourceId"
+            },
+            {
+              "name": "isContract",
+              "in": "query",
+              "value": "$inputs.isContract"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "fileContent": "$response.body",
+            "contentType": "$response.header.Content-Type",
+            "contentDisposition": "$response.header.Content-Disposition",
+            "contentLength": "$response.header.Content-Length",
+            "filename": "$response.header.Content-Disposition.match(/filename=\"([^\"]+)\"/)[1]"
+          },
+          "onSuccess": [
+            {
+              "name": "routeToUploadForOCR",
+              "type": "goto",
+              "stepId": "uploadFileForOCR",
+              "criteria": [
+                {
+                  "condition": "$response.header.Content-Type == 'application/pdf'"
+                }
+              ]
+            }
+          ],
+          "onFailure": [
+            {
+              "name": "documentNotFound",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode == 404"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stepId": "uploadFileForOCR",
+          "description": "Upload PDF file to Mistral AI for OCR processing",
+          "operationId": "files_api_routes_upload_file",
+          "sourceDescription": "Mistral AI",
+          "requestBody": {
+            "contentType": "multipart/form-data",
+            "payload": {
+              "file": {
+                "content": "$steps.downloadTenderDocument.outputs.fileContent",
+                "file_name": "test.pdf"
+              },
+              "purpose": "ocr"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            },
+            {
+              "condition": "$response.body.id != null"
+            }
+          ],
+          "outputs": {
+            "fileId": "$response.body.id",
+            "filename": "$response.body.filename",
+            "mimetype": "$response.body.mimetype"
+          },
+          "onSuccess": [
+            {
+              "name": "routeToGetSignedUrl",
+              "type": "goto",
+              "stepId": "getSignedUrl"
+            }
+          ],
+          "onFailure": [
+            {
+              "name": "uploadFailed",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode >= 400"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stepId": "getSignedUrl",
+          "description": "Get signed URL for the uploaded file from Mistral AI",
+          "operationId": "files_api_routes_get_signed_url",
+          "sourceDescription": "Mistral AI",
+          "parameters": [
+            {
+              "name": "file_id",
+              "in": "path",
+              "value": "$steps.uploadFileForOCR.outputs.fileId"
+            },
+            {
+              "name": "expiry",
+              "in": "query",
+              "value": "24"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            },
+            {
+              "condition": "$response.body.url != null"
+            }
+          ],
+          "outputs": {
+            "signedUrl": "$response.body.url"
+          },
+          "onSuccess": [
+            {
+              "name": "routeToOCR",
+              "type": "goto",
+              "stepId": "extractWithOCR"
+            }
+          ],
+          "onFailure": [
+            {
+              "name": "getSignedUrlFailed",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode >= 400"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stepId": "extractWithOCR",
+          "description": "Extract text from PDF document using Mistral AI OCR latest model with signed URL",
+          "operationId": "ocr_v1_ocr_post",
+          "sourceDescription": "Mistral AI",
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "model": "mistral-ocr-latest",
+              "id": "$steps.uploadFileForOCR.outputs.fileId",
+              "document": {
+                "type": "document_url",
+                "document_url": "$steps.getSignedUrl.outputs.signedUrl"
+              }
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            },
+            {
+              "condition": "$response.body.pages != null && $response.body.pages.length > 0"
+            }
+          ],
+          "outputs": {
+            "extractedText": "$response.body.pages.map(p => p.markdown).join('\\n\\n')",
+            "extractionMethod": "'Mistral OCR Latest'",
+            "model": "$response.body.model",
+            "pageCount": "$response.body.pages.length",
+            "usage": "$response.body.usage_info",
+            "metadata": "$response.body"
+          },
+          "onFailure": [
+            {
+              "name": "ocrFailed",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode >= 400"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stepId": "extractWithConversion",
+          "description": "Extract data from DOCX or Excel document using conversion model",
+          "operationId": "extractDataWithConversion",
+          "parameters": [
+            {
+              "name": "outputFormat",
+              "in": "query",
+              "value": "$inputs.extractionOptions.outputFormat"
+            },
+            {
+              "name": "includeMetadata",
+              "in": "query",
+              "value": "true"
+            }
+          ],
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "file": "$steps.downloadTenderDocument.outputs.fileContent",
+              "contentType": "$steps.downloadTenderDocument.outputs.contentType"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            },
+            {
+              "condition": "$response.body.extractedData != null || $response.body.text != null || $response.body.content != null"
+            }
+          ],
+          "outputs": {
+            "extractedText": "$response.body.extractedData || $response.body.text || $response.body.content",
+            "extractionMethod": "'Conversion'",
+            "documentStructure": "$response.body.structure",
+            "tables": "$response.body.tables",
+            "metadata": "$response.body.metadata"
+          },
+          "onFailure": [
+            {
+              "name": "conversionFailed",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode >= 400"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "outputs": {
+        "documentId": "$steps.listTenderDocuments.outputs.firstDocumentId || $inputs.documentId",
+        "resourceId": "$inputs.resourceId",
+        "originalFilename": "$steps.downloadTenderDocument.outputs.filename",
+        "contentType": "$steps.downloadTenderDocument.outputs.contentType",
+        "extractedText": "$steps.extractWithOCR.outputs.extractedText || $steps.extractWithConversion.outputs.extractedText",
+        "extractionMethod": "$steps.extractWithOCR.outputs.extractionMethod || $steps.extractWithConversion.outputs.extractionMethod",
+        "metadata": "$steps.extractWithOCR.outputs.metadata || $steps.extractWithConversion.outputs.metadata"
+      }
+    }
+  ]
+}

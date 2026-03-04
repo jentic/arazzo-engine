@@ -1,0 +1,538 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+      "title": "eTenders.gov.ie API",
+      "version": "1.0.0",
+      "description": "Irish Government eTenders public procurement platform API for searching and accessing tender opportunities. This API provides access to over 2,400 active Irish public sector procurement opportunities including services, works, and supplies contracts. All responses are in HTML format and require parsing to extract structured data. API endpoints tested and verified as of February 2026.",
+      "contact": {
+        "name": "eTenders Support",
+        "url": "https://www.etenders.gov.ie"
+      }
+    },
+    "servers": [
+      {
+        "url": "https://www.etenders.gov.ie/epps",
+        "description": "eTenders Production Server"
+      }
+    ],
+    "paths": {
+      "/prepareCurrentOpportunities.do": {
+        "get": {
+          "summary": "List Current Active Tender Opportunities",
+          "description": "Retrieves a paginated list of currently active tender opportunities. 'Current' opportunities are tenders with status 'Open' that are actively accepting submissions and have not yet reached their deadline. Returns an HTML page containing a table where each row represents one tender with: resource ID, title, contracting authority name, publication date, submission deadline, procurement type, and status. Extract the resourceId from the title link href attribute (format: /epps/cft/prepareViewCfTWS.do?resourceId=XXXXXXX) - this identifier is required for subsequent API calls to view details or download documents.",
+          "operationId": "listCurrentOpportunities",
+          "tags": ["Tenders"],
+          "parameters": [
+            {
+              "name": "currentType",
+              "in": "query",
+              "description": "Type of tender listing to retrieve. Use 'cft' (Call for Tender) for competitive procurement opportunities where suppliers can submit bids, or 'notice' for informational notices including contract awards and prior information notices.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "enum": ["cft", "notice"],
+                "default": "cft"
+              },
+              "example": "cft"
+            },
+            {
+              "name": "resultsPerPage",
+              "in": "query",
+              "description": "Number of tender results to return per page. Options are 10, 20, 50, or 100. Using 100 (maximum) minimizes the number of HTTP requests needed to retrieve all tenders.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "enum": [10, 20, 50, 100],
+                "default": 100
+              },
+              "example": 100
+            },
+            {
+              "name": "page",
+              "in": "query",
+              "description": "Page number for pagination, starting at 1. To retrieve all tenders, increment this value until the response contains fewer results than resultsPerPage.",
+              "required": false,
+              "schema": {
+                "type": "integer",
+                "minimum": 1,
+                "default": 1
+              },
+              "example": 1
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "HTML page containing a table of tender listings. The table has 13 columns: #, Title (with resourceId link), Resource ID, CA (contracting authority), Info, Date published, Tenders Submission Deadline, Procedure, Status, Notice PDF, Award date, Estimated value, Cycle. Dates are in format 'Day MMM DD HH:MM:SS GMT YYYY' (e.g., 'Fri Feb 06 09:04:41 GMT 2026'), not YYYY-MM-DD.",
+              "content": {
+                "text/html": {
+                  "schema": {
+                    "type": "string",
+                    "description": "HTML page with tender table. Extract resourceId from title link href='/epps/cft/prepareViewCfTWS.do?resourceId=XXXXXXX'"
+                  },
+                  "example": "<html><body><table id='T01' class='table table-striped tablesaw'><thead><tr><th>#</th><th>Title</th><th>Resource ID</th><th>CA</th><th>Info</th><th>Date published</th><th>Tenders Submission Deadline</th><th>Procedure</th><th>Status</th><th>Notice PDF</th><th>Award date</th><th>Estimated value</th><th>Cycle</th></tr></thead><tbody><tr><td>1</td><td><a href='/epps/cft/prepareViewCfTWS.do?resourceId=7462531'>Limerick City and County Council – Sport and Leisure consultant</a></td><td>7462531</td><td>Limerick City and County Council_103432</td><td><img src='/epps/images/icon_information.gif' alt='Description' title='Feasibility study...' /></td><td>Fri Feb 06 09:04:41 GMT 2026</td><td>Fri Feb 27 14:00:00 GMT 2026</td><td>Open</td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table></body></html>"
+                }
+              }
+            }
+          }
+        }
+      },
+      "/searchCftWorkspace.do": {
+        "post": {
+          "summary": "Search Tenders with Advanced Filters",
+          "description": "Search and filter tender opportunities using multiple criteria including keywords, procurement type, category, date ranges, and estimated contract value ranges. Returns an HTML page with a table of matching tenders in the same format as /prepareCurrentOpportunities.do. All filter parameters are optional; omitted parameters apply no filtering. Note: This endpoint may require a session cookie or redirect to a different search interface. For programmatic access, /prepareCurrentOpportunities.do with client-side filtering is more reliable.",
+          "operationId": "searchTenders",
+          "tags": ["Tenders"],
+          "requestBody": {
+            "description": "Form-urlencoded search criteria. All fields are optional. Multiple filters are combined with AND logic.",
+            "required": true,
+            "content": {
+              "application/x-www-form-urlencoded": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchCriteria"
+                },
+                "examples": {
+                  "softwareServices": {
+                    "summary": "Find IT/Software Services contracts",
+                    "value": {
+                      "title": "software",
+                      "procurementType": "Services",
+                      "cpcCategory": "IT services",
+                      "publicationDateFrom": "2026-01-01",
+                      "publicationDateTo": "2026-12-31",
+                      "estimatedValueMin": 10000,
+                      "estimatedValueMax": 500000,
+                      "resultsPerPage": 100
+                    }
+                  },
+                  "constructionWorks": {
+                    "summary": "Find Construction Works contracts over €1M",
+                    "value": {
+                      "procurementType": "Works",
+                      "cpcCategory": "Construction",
+                      "estimatedValueMin": 1000000,
+                      "resultsPerPage": 100
+                    }
+                  },
+                  "upcomingDeadlines": {
+                    "summary": "Find tenders with deadlines in next 30 days",
+                    "value": {
+                      "tenderSubmissionDeadlineFrom": "2026-02-13",
+                      "tenderSubmissionDeadlineTo": "2026-03-15",
+                      "workspaceStatus": "Tender Submission",
+                      "resultsPerPage": 100
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "HTML page with search results table. Structure identical to /prepareCurrentOpportunities.do response. Extract resourceId from title link hrefs.",
+              "content": {
+                "text/html": {
+                  "schema": {
+                    "type": "string",
+                    "description": "HTML page with matching tenders table"
+                  },
+                  "example": "<html><body><table id='T01' class='table table-striped tablesaw'><thead><tr><th>#</th><th>Title</th><th>Resource ID</th><th>CA</th><th>Info</th><th>Date published</th><th>Tenders Submission Deadline</th><th>Procedure</th><th>Status</th><th>Notice PDF</th><th>Award date</th><th>Estimated value</th><th>Cycle</th></tr></thead><tbody><tr><td>1</td><td><a href='/epps/cft/prepareViewCfTWS.do?resourceId=7462541'>Software Development Services</a></td><td>7462541</td><td>Revenue Commissioners</td><td></td><td>Mon Jan 25 10:30:00 GMT 2026</td><td>Wed Mar 10 17:00:00 GMT 2026</td><td>Open</td><td></td><td></td><td></td><td>€150,000 - €300,000</td><td>1</td></tr></tbody></table></body></html>"
+                }
+              }
+            },
+            "400": {
+              "description": "Invalid search parameters (e.g., invalid date format, value ranges)"
+            }
+          }
+        }
+      },
+      "/cft/prepareViewCfTWS.do": {
+        "get": {
+          "summary": "View Complete Tender Details and Specifications",
+          "description": "Retrieve the complete detail page for a specific tender opportunity. Returns an HTML page containing comprehensive information including: full description, detailed requirements, evaluation criteria, contract duration, estimated value, CPV codes, contracting authority contact information, submission instructions, and links to downloadable documents. The resourceId must be obtained from list or search operations.",
+          "operationId": "viewTenderDetails",
+          "tags": ["Tenders"],
+          "parameters": [
+            {
+              "name": "resourceId",
+              "in": "query",
+              "description": "Unique 7-digit identifier for the tender. Extract this from /prepareCurrentOpportunities.do or /searchCftWorkspace.do responses from the title link href.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "pattern": "^[0-9]{7}$",
+                "example": "7462531"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Complete tender details page in HTML format. Contains sections for: header (title, reference, status), overview (authority, value, dates), description (scope of work), procurement details (CPV codes, duration), evaluation criteria, submission instructions, and contact information.",
+              "content": {
+                "text/html": {
+                  "schema": {
+                    "type": "string",
+                    "description": "HTML page with tender details in multiple sections"
+                  },
+                  "example": "<html><body><div class='tender-header'><h1>Software Development Services</h1><p>Reference: RFT-2026-7462531</p><span class='status'>Open</span></div><div class='tender-overview'><h2>Overview</h2><p>Contracting Authority: Revenue Commissioners</p><p>Estimated Value: €150,000 - €300,000</p><p>Publication Date: 2026-01-25</p><p>Submission Deadline: 2026-03-10 17:00 GMT</p><p>Contract Duration: 24 months</p></div><div class='tender-description'><h2>Description</h2><p>The Revenue Commissioners require software development services for a new taxpayer portal system...</p></div><div class='evaluation-criteria'><h2>Award Criteria</h2><ul><li>Technical Merit: 60%</li><li>Price: 30%</li><li>Implementation Timeline: 10%</li></ul></div></body></html>"
+                }
+              }
+            },
+            "404": {
+              "description": "Tender not found"
+            }
+          }
+        }
+      },
+      "/cft/listContractDocuments.do": {
+        "get": {
+          "summary": "List All Documents Available for a Tender",
+          "description": "Retrieve a list of all downloadable documents for a tender. Returns an HTML page with a table or list of documents including: document ID, filename, description, file size, file type, and upload date. Document IDs extracted from this response are used with /cft/downloadContractDocument.do to download files.",
+          "operationId": "listTenderDocuments",
+          "tags": ["Documents"],
+          "parameters": [
+            {
+              "name": "resourceId",
+              "in": "query",
+              "description": "Unique 7-digit identifier for the tender",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "pattern": "^[0-9]{7}$",
+                "example": "7462531"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "HTML page listing all documents for the tender. Documents are linked via JavaScript function downloadDocForAnonymous('docId'). Extract documentId values from these function calls using pattern: downloadDocForAnonymous\\('(\\d+)'\\). Document filenames appear as link text in <a href='#' onclick='downloadDocForAnonymous...'> elements.",
+              "content": {
+                "text/html": {
+                  "schema": {
+                    "type": "string",
+                    "description": "HTML page with document listing table. Extract document IDs from onclick='downloadDocForAnonymous(docId)' attributes"
+                  },
+                  "example": "<html><body><table><tbody><tr><td><a href='#' onclick=\"downloadDocForAnonymous('7464147')\">Tender docs.zip</a></td></tr><tr><td><a href='#' onclick=\"downloadDocForAnonymous('7464251')\">c4t_7462531_1.xml</a></td></tr></tbody></table><script>function downloadDocForAnonymous(docId) { window.open('/epps/cft/prepareAnonymousDownload.do?resourceId=7462531&documentId='+docId); }</script></body></html>"
+                }
+              }
+            },
+            "404": {
+              "description": "Tender not found or no documents available"
+            }
+          }
+        }
+      },
+      "/cft/downloadContractDocument.do": {
+        "get": {
+          "summary": "Download Specific Tender Document File",
+          "description": "Download the actual binary file content for a specific tender document. Returns the raw file with appropriate Content-Type header. Both documentId and resourceId are required - obtain documentId from /cft/listContractDocuments.do response. Note: The web interface uses /cft/prepareAnonymousDownload.do which shows a confirmation page, but this direct download endpoint works for API access.",
+          "operationId": "downloadTenderDocument",
+          "tags": ["Documents"],
+          "parameters": [
+            {
+              "name": "documentId",
+              "in": "query",
+              "description": "Unique 7-digit identifier for the document. Extract from the download link in /cft/listContractDocuments.do response.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "pattern": "^[0-9]{7}$",
+                "example": "7255364"
+              }
+            },
+            {
+              "name": "resourceId",
+              "in": "query",
+              "description": "Unique 7-digit identifier for the tender. Must match the resourceId used in previous operations.",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "pattern": "^[0-9]{7}$",
+                "example": "7462531"
+              }
+            },
+            {
+              "name": "isContract",
+              "in": "query",
+              "description": "Optional flag, typically set to 'null' for tender documents",
+              "required": false,
+              "schema": {
+                "type": "string",
+                "nullable": true,
+                "example": "null"
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Binary file content with appropriate Content-Type and Content-Disposition headers",
+              "headers": {
+                "Content-Type": {
+                  "description": "MIME type of the document",
+                  "schema": {
+                    "type": "string",
+                    "example": "application/pdf"
+                  }
+                },
+                "Content-Disposition": {
+                  "description": "Suggested filename",
+                  "schema": {
+                    "type": "string",
+                    "example": "attachment; filename=\"Technical_Specification.pdf\""
+                  }
+                },
+                "Content-Length": {
+                  "description": "File size in bytes",
+                  "schema": {
+                    "type": "integer",
+                    "example": 2621440
+                  }
+                }
+              },
+              "content": {
+                "application/pdf": {
+                  "schema": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                  "schema": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                  "schema": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "application/msword": {
+                  "schema": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "application/vnd.ms-excel": {
+                  "schema": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Document not found or documentId does not match resourceId"
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "SearchCriteria": {
+          "type": "object",
+          "description": "Search filter criteria for finding tenders. All fields are optional. Multiple criteria are combined with AND logic.",
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Keyword search in tender titles. Performs case-insensitive substring matching.",
+              "example": "software"
+            },
+            "procurementType": {
+              "type": "string",
+              "description": "Type of procurement. 'Services' = professional/consulting services. 'Works' = construction projects. 'Supplies' = goods/equipment. 'Works Related Services' = architectural/engineering services.",
+              "enum": [
+                "Services",
+                "Works",
+                "Supplies",
+                "Works Related Services"
+              ],
+              "example": "Services"
+            },
+            "procedure": {
+              "type": "string",
+              "description": "Procurement procedure type. 'Open' = any qualified supplier can bid. 'Restricted' = pre-qualification required. 'Dynamic Purchasing System' = ongoing framework. 'Competitive Dialogue' = complex requirements with negotiation. 'Innovation Partnership' = R&D and production. 'Negotiated' = direct negotiation.",
+              "enum": [
+                "Open",
+                "Restricted",
+                "Dynamic Purchasing System",
+                "Competitive Dialogue",
+                "Innovation Partnership",
+                "Negotiated"
+              ],
+              "example": "Open"
+            },
+            "cpcCategory": {
+              "type": "string",
+              "description": "Common Procurement Classification category. Examples: 'IT services' = software development, IT consulting. 'Construction' = building, infrastructure. 'Financial services' = accounting, auditing. 'Health' = medical services, healthcare IT.",
+              "enum": [
+                "IT services",
+                "Financial services",
+                "Transport",
+                "Legal",
+                "Health",
+                "Construction",
+                "Education",
+                "Environmental"
+              ],
+              "example": "IT services"
+            },
+            "workspaceStatus": {
+              "type": "string",
+              "description": "Current tender status. 'Tender Submission' = currently accepting bids. 'Under Evaluation' = submissions closed, being evaluated. 'Awarded' = contract awarded. 'Archived' = completed or cancelled.",
+              "enum": [
+                "Tender Submission",
+                "Under Evaluation",
+                "Awarded",
+                "Archived"
+              ],
+              "example": "Tender Submission"
+            },
+            "publicationDateFrom": {
+              "type": "string",
+              "format": "date",
+              "description": "Filter tenders published on or after this date. Format: YYYY-MM-DD.",
+              "example": "2026-01-01"
+            },
+            "publicationDateTo": {
+              "type": "string",
+              "format": "date",
+              "description": "Filter tenders published on or before this date. Format: YYYY-MM-DD.",
+              "example": "2026-12-31"
+            },
+            "tenderSubmissionDeadlineFrom": {
+              "type": "string",
+              "format": "date",
+              "description": "Filter tenders with submission deadlines on or after this date. Format: YYYY-MM-DD.",
+              "example": "2026-02-27"
+            },
+            "tenderSubmissionDeadlineTo": {
+              "type": "string",
+              "format": "date",
+              "description": "Filter tenders with submission deadlines on or before this date. Format: YYYY-MM-DD.",
+              "example": "2026-04-30"
+            },
+            "estimatedValueMin": {
+              "type": "integer",
+              "description": "Minimum estimated contract value in EUR",
+              "minimum": 0,
+              "example": 10000
+            },
+            "estimatedValueMax": {
+              "type": "integer",
+              "description": "Maximum estimated contract value in EUR",
+              "minimum": 0,
+              "example": 500000
+            },
+            "resultsPerPage": {
+              "type": "integer",
+              "description": "Number of results to return per page",
+              "enum": [10, 20, 50, 100],
+              "default": 100,
+              "example": 100
+            }
+          }
+        },
+        "TenderListing": {
+          "type": "object",
+          "description": "Structured representation of a tender from HTML table (requires parsing). Note: dates are in format 'Day MMM DD HH:MM:SS GMT YYYY'",
+          "properties": {
+            "resourceId": {
+              "type": "string",
+              "description": "Unique 7-digit identifier for the tender",
+              "example": "7462531"
+            },
+            "title": {
+              "type": "string",
+              "description": "Tender title/description",
+              "example": "Limerick City and County Council – Sport and Leisure consultant"
+            },
+            "contractingAuthority": {
+              "type": "string",
+              "description": "Contracting authority name (from CA column)",
+              "example": "Limerick City and County Council_103432"
+            },
+            "datePublished": {
+              "type": "string",
+              "description": "Publication date in format 'Day MMM DD HH:MM:SS GMT YYYY'",
+              "example": "Fri Feb 06 09:04:41 GMT 2026"
+            },
+            "submissionDeadline": {
+              "type": "string",
+              "description": "Tenders submission deadline in format 'Day MMM DD HH:MM:SS GMT YYYY'",
+              "example": "Fri Feb 27 14:00:00 GMT 2026"
+            },
+            "procedure": {
+              "type": "string",
+              "description": "Procurement procedure (often shows 'Open' for open procedures)",
+              "example": "Open"
+            },
+            "status": {
+              "type": "string",
+              "description": "Current tender status",
+              "example": "Open"
+            },
+            "estimatedValue": {
+              "type": "string",
+              "description": "Estimated contract value (may be empty)",
+              "example": "€100,000 - €500,000"
+            },
+            "cycle": {
+              "type": "string",
+              "description": "Tender cycle information",
+              "example": "1"
+            }
+          },
+          "required": ["resourceId", "title"]
+        },
+        "DocumentListing": {
+          "type": "object",
+          "description": "Structured representation of a tender document (requires parsing HTML)",
+          "properties": {
+            "documentId": {
+              "type": "string",
+              "description": "Unique 7-digit identifier for the document",
+              "example": "7255364"
+            },
+            "filename": {
+              "type": "string",
+              "description": "Document filename",
+              "example": "Technical_Specification.pdf"
+            },
+            "description": {
+              "type": "string",
+              "description": "Document description",
+              "example": "Technical specifications and requirements"
+            },
+            "size": {
+              "type": "string",
+              "description": "File size",
+              "example": "2.5 MB"
+            },
+            "uploadDate": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Date document was uploaded",
+              "example": "2026-01-15T10:30:00Z"
+            }
+          },
+          "required": ["documentId", "filename"]
+        }
+      }
+    },
+    "tags": [
+      {
+        "name": "Tenders",
+        "description": "Operations for searching and viewing tender opportunities"
+      },
+      {
+        "name": "Documents",
+        "description": "Operations for accessing tender-related documents"
+      }
+    ],
+    "externalDocs": {
+      "description": "eTenders.gov.ie Official Website",
+      "url": "https://www.etenders.gov.ie"
+    }
+  }

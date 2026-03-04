@@ -1,0 +1,1629 @@
+openapi: 3.1.0
+info:
+  title: Unix Tools API
+  version: 1.0.0-alpine-3.19
+  description: 'Production-grade stateless HTTP API wrapping common Unix utilities in isolated containers.
+
+
+    Each API call spawns an ephemeral Alpine Linux 3.19 environment, executes a single
+
+    Unix tool, and returns the result. No persistent state, no network access, no Turing-completeness.
+
+
+    **Design Principles:**
+
+    - Declarative transformations only (no loops, conditionals, or scripts)
+
+    - Stateless: Each request is completely independent
+
+    - Deterministic: Same input always produces same output
+
+    - Secure: Read-only filesystem, no network, resource-limited
+
+    - Versioned: API tied to Alpine Linux version for reproducibility
+
+
+    **Security Model:**
+
+    - Ephemeral Docker containers with Alpine 3.19 base
+
+    - Read-only filesystem (except /tmp)
+
+    - No network access
+
+    - Resource limits: 100m CPU, 64Mi RAM, 5s timeout
+
+    - Direct binary execution (no shell expansion)
+
+    - Input validation and sanitization
+
+
+    **Version Mapping:**
+
+    - API version 1.0.0 → Alpine Linux 3.19
+
+    - Tool versions pinned to Alpine 3.19 package versions
+
+    - See `/v1/alpine-3.19/manifest` for exact tool versions
+
+    '
+  contact:
+    name: Jentic Technology Limited
+    email: hello@jentic.com
+    url: https://jentic.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+- url: https://api.jentic.com/unix-tools/v1/alpine-3.19
+  description: Production server (Alpine 3.19)
+- url: http://localhost:8000/v1/alpine-3.19
+  description: Local development server
+tags:
+- name: encoding
+  description: 'Base16/32/64 encoding and decoding operations for binary-to-text conversion.
+
+
+    **Common use cases:**
+
+    - Encoding binary data for JSON/XML transport
+
+    - Creating URL-safe strings
+
+    - Email attachment encoding (MIME)
+
+    - Data serialization for APIs
+
+
+    **Supported encodings:**
+
+    - Base64 (RFC 4648) - Most common, URL-safe variant available
+
+    - Base32 (RFC 4648) - Case-insensitive, no special characters
+
+    - Base16/Hex - Simple hexadecimal encoding'
+  externalDocs:
+    description: RFC 4648 - The Base16, Base32, and Base64 Data Encodings
+    url: https://datatracker.ietf.org/doc/html/rfc4648
+- name: hashing
+  description: 'Cryptographic hash functions for data integrity and checksums.
+
+
+    **Common use cases:**
+
+    - File integrity verification
+
+    - Password hashing (use bcrypt/scrypt for production)
+
+    - Data deduplication
+
+    - Checksum generation
+
+
+    **Available algorithms:**
+
+    - MD5 (128-bit) - Fast but not cryptographically secure, use for checksums only
+
+    - SHA-256 (256-bit) - Industry standard, good security/performance balance
+
+    - SHA-512 (512-bit) - Maximum security, slower than SHA-256
+
+
+    **Security note:** MD5 is vulnerable to collision attacks. Use SHA-256 or SHA-512 for security-sensitive applications.'
+  externalDocs:
+    description: NIST Secure Hashing
+    url: https://csrc.nist.gov/projects/hash-functions
+- name: text
+  description: 'Text transformation and manipulation utilities from the Unix toolchain.
+
+
+    **Common use cases:**
+
+    - Log parsing and analysis
+
+    - Data extraction and transformation
+
+    - Text cleaning and normalization
+
+    - Report generation
+
+
+    **Available tools:**
+
+    - grep - Pattern matching and filtering
+
+    - sed - Stream editing and substitution
+
+    - awk - Pattern scanning and text processing
+
+    - cut - Column extraction
+
+    - tr - Character translation/deletion
+
+    - sort - Line sorting
+
+    - uniq - Duplicate removal
+
+    - xxd - Hexdump generation
+
+
+    **Best practices:**
+
+    - Pipe operations together for complex transformations
+
+    - Use grep for filtering before sed/awk for performance
+
+    - Always sort before uniq for complete deduplication'
+  externalDocs:
+    description: GNU Coreutils Manual
+    url: https://www.gnu.org/software/coreutils/manual/
+- name: json
+  description: 'JSON and YAML processing with jq and yq query languages.
+
+
+    **Common use cases:**
+
+    - API response parsing
+
+    - Configuration file manipulation
+
+    - Data transformation and filtering
+
+    - Schema validation
+
+
+    **jq features:**
+
+    - JSONPath-like queries with extensions
+
+    - Powerful filtering and transformation
+
+    - Array/object manipulation
+
+    - Arithmetic and string operations
+
+
+    **Best practices:**
+
+    - Use `.[]` to iterate arrays
+
+    - Use `select()` for filtering
+
+    - Use `map()` for transformations
+
+    - Test queries incrementally'
+  externalDocs:
+    description: jq Manual
+    url: https://jqlang.github.io/jq/manual/
+- name: time
+  description: 'Date and time parsing, formatting, and manipulation.
+
+
+    **Common use cases:**
+
+    - Timestamp generation
+
+    - Date format conversion
+
+    - Log timestamp parsing
+
+    - Timezone conversion
+
+
+    **Supported formats:**
+
+    - ISO 8601 (recommended)
+
+    - RFC 3339
+
+    - Unix timestamps
+
+    - strftime custom formats
+
+
+    **Note:** All operations use Alpine Linux date utility. For timezone support, specify TZ environment variable (future
+    enhancement).'
+  externalDocs:
+    description: strftime format reference
+    url: https://man7.org/linux/man-pages/man3/strftime.3.html
+- name: metadata
+  description: 'API metadata endpoints for version information and reproducibility.
+
+
+    **Manifest information includes:**
+
+    - API version with Alpine version pinning
+
+    - Exact tool versions and package checksums
+
+    - Base image digest for reproducibility
+
+    - Build timestamp
+
+
+    **Use cases:**
+
+    - Verify exact tool versions before deployment
+
+    - Reproduce historical results with specific versions
+
+    - Audit tool dependencies
+
+    - Track API changes over time
+
+
+    **Version scheme:** `<api>-alpine-<alpine_version>` (e.g., `1.0.0-alpine-3.19`)'
+paths:
+  /manifest:
+    get:
+      summary: Get API manifest
+      description: 'Returns manifest with Alpine version, tool versions, package checksums,
+
+        and API metadata for reproducibility verification.
+
+        '
+      operationId: manifestGet
+      tags:
+      - metadata
+      responses:
+        '200':
+          description: API manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManifestResponse'
+              example:
+                apiVersion: 1.0.0-alpine-3.19
+                alpineVersion: 3.19.1
+                buildDate: '2026-02-23T23:30:00Z'
+                tools:
+                  base64:
+                    version: 8.32-r2
+                    path: /usr/bin/base64
+                    package: coreutils
+                    checksum: sha256:abc123...
+                  jq:
+                    version: 1.7-r0
+                    path: /usr/bin/jq
+                    package: jq
+                    checksum: sha256:def456...
+                baseImage:
+                  name: alpine:3.19
+                  digest: sha256:13b7e62e8df80264dbb747995705a986aa530415763b42cf0eade52c6b8ddb99
+  /tools/base64/encode:
+    post:
+      summary: Base64 encode
+      description: Encode input to base64 format
+      operationId: base64Encode
+      tags:
+      - encoding
+      requestBody:
+        required: true
+        description: |
+          Base64 encoding parameters. Provide the input string to encode and optional line wrapping configuration.
+          Base64 is commonly used for encoding binary data in JSON/XML, email attachments (MIME), and data URLs.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Base64EncodeRequest'
+      responses:
+        '200':
+          description: |
+            Successfully encoded the input string to base64 format. Returns the encoded string in stdout field
+            along with execution metadata (stderr, exit code, execution time). Empty stderr indicates clean execution.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+              example:
+                stdout: SGVsbG8sIFdvcmxkIQ==
+                stderr: ''
+                exitCode: 0
+                executionTime: 0.008
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: base64 -w {wrap}
+      x-timeout: 5
+  /tools/base64/decode:
+    post:
+      summary: Base64 decode
+      description: Decode base64 input to original string
+      operationId: base64Decode
+      tags:
+      - encoding
+      requestBody:
+        required: true
+        description: |
+          Base64 decoding parameters. Provide a valid base64-encoded string to decode back to its original form.
+          Optionally ignore non-alphabet characters during decoding. Invalid base64 input will return a 400 error.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Base64DecodeRequest'
+      responses:
+        '200':
+          description: |
+            Successfully decoded the base64 input to its original string. Returns the decoded string in stdout field.
+            For binary data, results may contain non-printable characters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+              example:
+                stdout: Hello, World!
+                stderr: ''
+                exitCode: 0
+                executionTime: 0.009
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: base64 -d
+      x-timeout: 5
+  /tools/base32/encode:
+    post:
+      summary: Base32 encode
+      description: Encode input to base32 format
+      operationId: base32Encode
+      tags:
+      - encoding
+      requestBody:
+        required: true
+        description: |
+          Base32 encoding parameters. Base32 uses only uppercase letters and digits 2-7, making it case-insensitive
+          and safe for systems that treat filenames case-insensitively. Commonly used for encoding secrets and tokens.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Base32EncodeRequest'
+      responses:
+        '200':
+          description: |
+            Successfully encoded the input string to base32 format. Returns uppercase-only encoded string (A-Z, 2-7)
+            with optional padding characters (=). Output is roughly 60% larger than base64.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: base32 -w {wrap}
+      x-timeout: 5
+  /tools/base32/decode:
+    post:
+      summary: Base32 decode
+      description: Decode base32 input to original string
+      operationId: base32Decode
+      tags:
+      - encoding
+      requestBody:
+        required: true
+        description: |
+          Base32 decoding parameters. Provide a valid base32-encoded string (uppercase letters A-Z and digits 2-7,
+          with optional = padding). Invalid base32 input will return a 400 error.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Base32DecodeRequest'
+      responses:
+        '200':
+          description: |
+            Successfully decoded the base32 input to its original string. Base32 decoding is case-insensitive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: base32 -d
+      x-timeout: 5
+  /tools/md5sum/hash:
+    post:
+      summary: Calculate MD5 hash
+      description: Generate MD5 checksum of input
+      operationId: md5sumHash
+      tags:
+      - hashing
+      requestBody:
+        required: true
+        description: |
+          MD5 hash calculation parameters. MD5 produces a 128-bit (32 hex character) hash. While fast, MD5 is
+          cryptographically broken and should only be used for non-security purposes like checksums and deduplication.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HashRequest'
+      responses:
+        '200':
+          description: |
+            Successfully calculated MD5 hash. Returns 32-character hexadecimal hash in stdout (e.g., "65a8e27d8879283831b664bd8b7f0ad4  -").
+            The trailing "  -" indicates stdin input.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+              example:
+                stdout: 65a8e27d8879283831b664bd8b7f0ad4  -
+                stderr: ''
+                exitCode: 0
+                executionTime: 0.007
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: md5sum
+      x-timeout: 5
+  /tools/sha256sum/hash:
+    post:
+      summary: Calculate SHA-256 hash
+      description: Generate SHA-256 checksum of input
+      operationId: sha256sumHash
+      tags:
+      - hashing
+      requestBody:
+        required: true
+        description: |
+          SHA-256 hash calculation parameters. SHA-256 produces a 256-bit (64 hex character) cryptographic hash.
+          This is the industry-standard hash function, offering a good balance of security and performance.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HashRequest'
+      responses:
+        '200':
+          description: |
+            Successfully calculated SHA-256 hash. Returns 64-character hexadecimal hash in stdout.
+            SHA-256 is suitable for security-sensitive applications including digital signatures and certificate validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+              example:
+                stdout: dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f  -
+                stderr: ''
+                exitCode: 0
+                executionTime: 0.008
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: sha256sum
+      x-timeout: 5
+  /tools/sha512sum/hash:
+    post:
+      summary: Calculate SHA-512 hash
+      description: Generate SHA-512 checksum of input
+      operationId: sha512sumHash
+      tags:
+      - hashing
+      requestBody:
+        required: true
+        description: |
+          SHA-512 hash calculation parameters. SHA-512 produces a 512-bit (128 hex character) cryptographic hash.
+          Provides maximum security at the cost of slightly slower performance compared to SHA-256.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HashRequest'
+      responses:
+        '200':
+          description: |
+            Successfully calculated SHA-512 hash. Returns 128-character hexadecimal hash in stdout.
+            SHA-512 offers the highest security level for applications requiring maximum collision resistance.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: sha512sum
+      x-timeout: 5
+  /tools/grep/search:
+    post:
+      summary: Search text with grep
+      description: Search for pattern in input text
+      operationId: grepSearch
+      tags:
+      - text
+      requestBody:
+        required: true
+        description: |
+          Grep pattern matching parameters. Search for lines matching a regular expression pattern. Supports
+          basic and extended regex, case-insensitive search, line numbers, match inversion, and count-only mode.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrepRequest'
+      responses:
+        '200':
+          description: |
+            Successfully executed grep search. Returns matching lines in stdout. If lineNumber is true, output
+            is prefixed with line numbers (e.g., "2:line2"). If count is true, returns only the count of matches.
+            Empty stdout means no matches found (exit code 1).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: grep
+      x-timeout: 5
+  /tools/sed/replace:
+    post:
+      summary: Search and replace with sed
+      description: Perform text substitution using sed
+      operationId: sedReplace
+      tags:
+      - text
+      requestBody:
+        required: true
+        description: |
+          Sed substitution parameters. Perform pattern-based text replacement using regular expressions.
+          Supports backreferences (\1, \2, etc.), global replacement, and case-insensitive matching.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SedRequest'
+      responses:
+        '200':
+          description: |
+            Successfully performed sed substitution. Returns transformed text in stdout with pattern occurrences
+            replaced. If global is false, only first match per line is replaced. Backreferences like \1 capture
+            matched groups from the pattern.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+              example:
+                stdout: Hello, Universe!
+                stderr: ''
+                exitCode: 0
+                executionTime: 0.011
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: sed
+      x-timeout: 5
+  /tools/awk/process:
+    post:
+      summary: Process text with awk
+      description: Execute awk pattern/action on input
+      operationId: awkProcess
+      tags:
+      - text
+      requestBody:
+        required: true
+        description: |
+          Awk text processing parameters. Execute awk pattern-action programs for field extraction, calculations,
+          and text transformations. Use $1, $2, etc. to reference fields split by the field separator.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AwkRequest'
+      responses:
+        '200':
+          description: |
+            Successfully executed awk program. Returns processed output in stdout. Awk automatically splits each
+            input line into fields using the specified separator. $0 refers to entire line, $1 to first field, etc.
+            Common patterns include '{print $2}' for field extraction and '{sum+=$1} END {print sum}' for calculations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: awk
+      x-timeout: 5
+  /tools/cut/extract:
+    post:
+      summary: Extract fields/columns with cut
+      description: Extract selected fields or character positions
+      operationId: cutExtract
+      tags:
+      - text
+      requestBody:
+        required: true
+        description: |
+          Cut field/column extraction parameters. Extract specific fields delimited by a character, or extract
+          character positions from each line. Use fields for CSV-like data, characters for fixed-width formats.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CutRequest'
+      responses:
+        '200':
+          description: |
+            Successfully extracted fields or character positions. Returns selected portions of each input line.
+            Field numbers are 1-indexed. Use ranges like "1-3" or comma-separated lists like "1,3,5".
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: cut
+      x-timeout: 5
+  /tools/tr/translate:
+    post:
+      summary: Translate characters with tr
+      description: Translate, squeeze, or delete characters
+      operationId: trTranslate
+      tags:
+      - text
+      requestBody:
+        required: true
+        description: |
+          Character translation/deletion parameters. Translate characters from set1 to corresponding characters
+          in set2, delete characters in set1, or squeeze repeated characters. Supports ranges like a-z, A-Z, 0-9.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrRequest'
+      responses:
+        '200':
+          description: |
+            Successfully performed character translation. Common uses include case conversion (a-z to A-Z),
+            character deletion (delete=true), and whitespace normalization (squeeze=true). Character ranges
+            expand automatically (e.g., a-z expands to abcdefghijklmnopqrstuvwxyz).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: tr
+      x-timeout: 5
+  /tools/sort/order:
+    post:
+      summary: Sort lines
+      description: Sort input lines
+      operationId: sortOrder
+      tags:
+      - text
+      requestBody:
+        required: true
+        description: |
+          Line sorting parameters. Sort input lines lexicographically or numerically. Supports reverse order,
+          case-insensitive sorting, and duplicate removal. Always sort before using uniq for complete deduplication.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SortRequest'
+      responses:
+        '200':
+          description: |
+            Successfully sorted input lines. Default is ascending lexicographic order. Use numeric=true for
+            numerical sorting (1, 2, 10 instead of 1, 10, 2). Use reverse=true for descending order.
+            unique=true removes duplicates after sorting.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: sort
+      x-timeout: 5
+  /tools/uniq/deduplicate:
+    post:
+      summary: Remove duplicate lines
+      description: Filter adjacent duplicate lines
+      operationId: uniqDeduplicate
+      tags:
+      - text
+      requestBody:
+        required: true
+        description: |
+          Duplicate line filtering parameters. Remove or report adjacent duplicate lines. Input should be sorted
+          first for complete deduplication (uniq only detects adjacent duplicates). Supports counting occurrences
+          and filtering for only repeated or only unique lines.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UniqRequest'
+      responses:
+        '200':
+          description: |
+            Successfully filtered duplicate lines. By default, removes adjacent duplicate lines. Use count=true
+            to prefix lines with occurrence counts. Use repeated=true to show only duplicates, or unique=true
+            to show only non-duplicated lines. Important: Always sort input first!
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: uniq
+      x-timeout: 5
+  /tools/xxd/hexdump:
+    post:
+      summary: Create hex dump
+      description: Generate hex dump of input
+      operationId: xxdHexdump
+      tags:
+      - text
+      requestBody:
+        required: true
+        description: |
+          Hexdump generation parameters. Convert text/binary data to hexadecimal representation. Useful for
+          inspecting binary data, debugging encodings, and analyzing non-printable characters.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/XxdRequest'
+      responses:
+        '200':
+          description: |
+            Successfully generated hexadecimal dump. Default format includes byte offset, hex bytes, and ASCII
+            representation. Use plain=true for continuous hex without formatting. Output format: "00000000: 4865 6c6c 6f  Hello".
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: xxd
+      x-timeout: 5
+  /tools/jq/query:
+    post:
+      summary: Query JSON with jq
+      description: Execute jq query on JSON input
+      operationId: jqQuery
+      tags:
+      - json
+      requestBody:
+        required: true
+        description: |
+          jq JSON query parameters. Execute jq filter expressions for JSON transformation, extraction, and
+          manipulation. Supports complex queries including path navigation (.field), array iteration (.[]),
+          filtering (select()), mapping (map()), and aggregation operations.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JqRequest'
+      responses:
+        '200':
+          description: |
+            Successfully executed jq query. Returns filtered/transformed JSON in stdout. Use raw=true for plain
+            text output (useful for extracting strings). Common filters: ".field" (extract property), ".[]" (iterate array),
+            ".[] | select(.age > 25)" (filter), "map(.name)" (transform). See jq manual for full syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+              example:
+                stdout: '"Alice"'
+                stderr: ''
+                exitCode: 0
+                executionTime: 0.015
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: jq
+      x-timeout: 5
+  /tools/yq/query:
+    post:
+      summary: Query YAML with yq
+      description: Execute yq query on YAML input
+      operationId: yqQuery
+      tags:
+      - json
+      requestBody:
+        required: true
+        description: |
+          yq YAML query parameters. Execute yq expressions on YAML input. Uses jq-compatible syntax for querying
+          and transforming YAML data. Can output results as YAML or JSON.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/YqRequest'
+      responses:
+        '200':
+          description: |
+            Successfully executed yq query on YAML input. Returns transformed data in stdout in the specified
+            output format (yaml or json). yq syntax is similar to jq for consistent experience across formats.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: yq
+      x-timeout: 5
+  /tools/date/now:
+    get:
+      summary: Get current date/time
+      description: Returns current date/time in specified format
+      operationId: dateNow
+      tags:
+      - time
+      parameters:
+      - name: format
+        in: query
+        description: |
+          Strftime format string for output. Defaults to ISO 8601 format with timezone.
+          Common formats: %Y-%m-%d (date), %H:%M:%S (time), %s (Unix timestamp), %Y-%m-%dT%H:%M:%S%z (ISO 8601).
+          See strftime(3) man page for full syntax reference.
+        schema:
+          type: string
+          default: '%Y-%m-%dT%H:%M:%S%z'
+        example: '%Y-%m-%d'
+      - name: utc
+        in: query
+        description: |
+          Use UTC timezone instead of local time. When true, returns time in Coordinated Universal Time (UTC/GMT).
+          When false, uses the container's local timezone (typically UTC in production).
+        schema:
+          type: boolean
+          default: true
+      responses:
+        '200':
+          description: |
+            Successfully retrieved current date/time. Returns formatted timestamp in stdout according to the
+            specified format string. Default format is ISO 8601 with timezone offset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: date
+      x-timeout: 5
+  /tools/date/parse:
+    post:
+      summary: Parse and format date
+      description: Parse date string and convert to different format
+      operationId: dateParse
+      tags:
+      - time
+      requestBody:
+        required: true
+        description: |
+          Date parsing and formatting parameters. Parse date strings in common formats (ISO 8601, RFC 3339, etc.)
+          and convert to a specified output format using strftime syntax. Useful for log parsing and date normalization.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DateParseRequest'
+      responses:
+        '200':
+          description: |
+            Successfully parsed and formatted date. Returns formatted date string in stdout. Use outputFormat to
+            control formatting (e.g., "%Y-%m-%d" for YYYY-MM-DD, "%s" for Unix timestamp). See strftime(3) man page
+            for complete format specifier reference.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      x-command: date
+      x-timeout: 5
+components:
+  schemas:
+    ToolResult:
+      summary: Standard tool execution result
+      description: |
+        Standardized response format for all Unix tool executions. Contains the tool's stdout and stderr,
+        exit code, and execution time. All successful operations return this schema with exitCode=0.
+        Non-zero exit codes indicate tool-level errors (e.g., grep with no matches returns exitCode=1).
+      type: object
+      required:
+      - stdout
+      - stderr
+      - exitCode
+      - executionTime
+      properties:
+        stdout:
+          summary: Tool standard output
+          type: string
+          description: Standard output from tool
+          example: SGVsbG8sIFdvcmxkIQ==
+        stderr:
+          summary: Tool standard error
+          type: string
+          description: Standard error output
+          example: ''
+        exitCode:
+          summary: Process exit code
+          type: integer
+          description: Tool exit code (0 = success)
+          example: 0
+          format: int32
+          enum:
+          - 0
+          - 1
+          - 2
+          - 126
+          - 127
+        executionTime:
+          summary: Execution duration in seconds
+          type: number
+          format: double
+          description: Execution time in seconds
+          example: 0.008
+          minimum: 0.0
+          maximum: 5.0
+    ManifestResponse:
+      summary: API manifest with version information
+      description: |
+        Complete API version manifest providing reproducibility and audit information. Includes API version,
+        Alpine Linux version, exact tool versions with checksums, and base image digest. Use this endpoint to
+        verify exact tool versions before deployment or to reproduce historical results with specific versions.
+      type: object
+      required:
+      - apiVersion
+      - alpineVersion
+      - buildDate
+      - tools
+      - baseImage
+      properties:
+        apiVersion:
+          summary: API and Alpine version identifier
+          type: string
+          description: API version
+          example: 1.0.0-alpine-3.19
+        alpineVersion:
+          summary: Base Alpine Linux version
+          type: string
+          description: Alpine Linux version
+          example: 3.19.1
+        buildDate:
+          summary: Container image build timestamp
+          type: string
+          format: date-time
+          description: Image build timestamp
+          example: '2026-02-23T23:30:00Z'
+        tools:
+          summary: Tool version manifest
+          type: object
+          description: |
+            Map of tool names to their version details, paths, source packages, and checksums.
+            Provides complete version pinning for reproducibility and audit trails.
+          additionalProperties:
+            type: object
+            properties:
+              version:
+                type: string
+                description: Package version string from Alpine Linux package manager (apk)
+              path:
+                type: string
+                description: Absolute filesystem path to the tool binary
+              package:
+                type: string
+                description: Source Alpine Linux package name
+              checksum:
+                type: string
+                description: SHA-256 checksum of the tool binary for integrity verification
+        baseImage:
+          summary: Base container image details
+          type: object
+          description: |
+            Container base image information including name and digest for reproducible builds.
+            The digest ensures exact image version matching.
+          properties:
+            name:
+              type: string
+              description: Base image name and tag (e.g., alpine:3.19)
+            digest:
+              type: string
+              description: SHA-256 digest of the base image for immutable reference
+    ProblemDetails:
+      summary: RFC 7807 Problem Details error response
+      description: |
+        Standard error response format following RFC 7807 Problem Details specification.
+        Provides machine-readable error information with type URIs, status codes, and human-readable explanations.
+        Used consistently across all error responses for uniform error handling.
+      type: object
+      required:
+      - type
+      - title
+      - status
+      - detail
+      properties:
+        type:
+          type: string
+          format: uri
+          description: A URI reference that identifies the problem type
+          example: "https://api.jentic.com/problems/validation-error"
+        title:
+          type: string
+          description: A short, human-readable summary of the problem type
+          example: "Validation Error"
+        status:
+          type: integer
+          format: int32
+          description: The HTTP status code
+          example: 400
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence
+          example: "The input parameter 'wrap' must be non-negative"
+        instance:
+          type: string
+          format: uri
+          description: A URI reference that identifies the specific occurrence
+          example: "https://api.jentic.com/requests/abc123"
+    Base64EncodeRequest:
+      summary: Base64 encoding request parameters
+      description: |
+        Input parameters for base64 encoding. Specify the string to encode and optional line wrapping.
+        Base64 is the most common binary-to-text encoding, widely used in web APIs, email (MIME), and data URLs.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: String to encode in base64
+          type: string
+          description: String to encode
+          example: Hello, World!
+          minLength: 1
+        wrap:
+          summary: Line wrap column limit
+          type: integer
+          description: Wrap encoded lines after COLS characters (0 = no wrap). MIME standard uses 76.
+          default: 76
+          minimum: 0
+          maximum: 1000
+          example: 76
+          format: int32
+    Base64DecodeRequest:
+      summary: Base64 decoding request parameters
+      description: |
+        Input parameters for base64 decoding. Provide a valid base64-encoded string to decode.
+        Supports ignoring non-alphabet characters during decoding for lenient parsing.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: Base64-encoded string to decode
+          type: string
+          description: Base64 string to decode
+          example: SGVsbG8sIFdvcmxkIQ==
+          pattern: ^[A-Za-z0-9+/]*={0,2}$
+          minLength: 1
+        ignoreGarbage:
+          summary: Skip non-alphabet characters during decode
+          type: boolean
+          description: Ignore non-alphabet characters when decoding
+          default: false
+          example: false
+    Base32EncodeRequest:
+      summary: Base32 encoding request parameters
+      description: |
+        Input parameters for base32 encoding. Base32 produces case-insensitive output using only A-Z and 2-7,
+        making it suitable for case-insensitive filesystems and human-readable tokens.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: String to encode in base32
+          type: string
+          description: String to encode
+          example: Hello, World!
+          minLength: 1
+          maxLength: 1048576
+        wrap:
+          summary: Line wrap column limit
+          type: integer
+          description: Wrap encoded lines after COLS characters
+          default: 76
+          minimum: 0
+          maximum: 1000
+          example: 76
+          format: int32
+    Base32DecodeRequest:
+      summary: Base32 decoding request parameters
+      description: |
+        Input parameters for base32 decoding. Accepts uppercase base32 strings (A-Z, 2-7) with optional padding.
+        Decoding is case-insensitive.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: Base32-encoded string to decode
+          type: string
+          description: Base32 string to decode
+          example: JBSWY3DPEBLW64TMMQ======
+          pattern: ^[A-Z2-7]*={0,6}$
+          minLength: 1
+        ignoreGarbage:
+          summary: Skip non-alphabet characters during decode
+          type: boolean
+          description: Ignore non-alphabet characters
+          default: false
+          example: false
+    HashRequest:
+      summary: Hash calculation request parameters
+      description: |
+        Input parameters for cryptographic hash functions (MD5, SHA-256, SHA-512). Provide the string to hash.
+        Use SHA-256 or SHA-512 for security-sensitive applications; MD5 is only suitable for checksums.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: String to hash
+          type: string
+          description: String to hash
+          example: Hello, World!
+          minLength: 1
+          maxLength: 10485760
+    GrepRequest:
+      summary: Grep search request parameters
+      description: |
+        Input parameters for grep pattern matching. Search text for lines matching a regular expression pattern.
+        Supports both basic and extended regex, with options for case sensitivity, line numbers, inversion, and counting.
+      type: object
+      required:
+      - input
+      - pattern
+      properties:
+        input:
+          summary: Text to search within
+          type: string
+          description: Text to search
+          example: line1\nline2\nline3
+          minLength: 1
+        pattern:
+          summary: Regular expression pattern to match
+          type: string
+          description: Pattern to search for (basic regex by default, extended with -E)
+          example: line2
+          minLength: 1
+        ignoreCase:
+          summary: Case-insensitive matching flag
+          type: boolean
+          description: Case-insensitive search
+          default: false
+          example: false
+        invert:
+          summary: Select non-matching lines
+          type: boolean
+          description: Invert match (select non-matching lines)
+          default: false
+          example: false
+        lineNumber:
+          summary: Prefix output with line numbers
+          type: boolean
+          description: Prefix each line with line number
+          default: false
+          example: false
+        count:
+          summary: Output only match count
+          type: boolean
+          description: Only print count of matching lines
+          default: false
+          example: false
+        extended:
+          summary: Use extended regex syntax
+          type: boolean
+          description: Use extended regular expressions (ERE)
+          default: false
+          example: false
+    SedRequest:
+      summary: Sed substitution request parameters
+      description: |
+        Input parameters for sed stream editing. Perform pattern-based text substitution with regular expression support.
+        Supports backreferences for capturing groups, global replacement, and case-insensitive matching.
+      type: object
+      required:
+      - input
+      - pattern
+      - replacement
+      properties:
+        input:
+          summary: Text to transform
+          type: string
+          description: Text to transform
+          example: Hello, World!
+          minLength: 1
+        pattern:
+          summary: Regular expression to match
+          type: string
+          description: Regular expression pattern to match
+          example: World
+          minLength: 1
+        replacement:
+          summary: Replacement text with backreference support
+          type: string
+          description: Replacement text (supports backreferences like \1, \2)
+          example: Universe
+        global:
+          summary: Replace all occurrences per line
+          type: boolean
+          description: Replace all occurrences (not just first)
+          default: true
+          example: true
+        ignoreCase:
+          summary: Case-insensitive matching flag
+          type: boolean
+          description: Case-insensitive matching
+          default: false
+          example: false
+    AwkRequest:
+      summary: Awk processing request parameters
+      description: |
+        Input parameters for awk text processing. Execute awk programs for field extraction, calculations, and
+        text transformations. Programs consist of pattern-action pairs operating on fields split by a separator.
+      type: object
+      required:
+      - input
+      - program
+      properties:
+        input:
+          summary: Text to process with awk
+          type: string
+          description: Text to process
+          example: field1 field2 field3
+          minLength: 1
+        program:
+          summary: Awk program pattern-action pairs
+          type: string
+          description: Awk program (pattern {action} pairs)
+          example: '{print $2}'
+          minLength: 1
+        fieldSeparator:
+          summary: Input field delimiter character
+          type: string
+          description: Input field separator (-F option)
+          default: ' '
+          example: ','
+          minLength: 1
+          maxLength: 10
+    CutRequest:
+      summary: Cut field extraction request parameters
+      description: |
+        Input parameters for cut field/column extraction. Extract specific fields delimited by a character,
+        or extract character positions from fixed-width text. Use fields for CSV-like data, characters for fixed formats.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: Text to extract fields from
+          type: string
+          description: Text to process
+          example: field1,field2,field3
+          minLength: 1
+        fields:
+          summary: Field numbers or ranges to extract
+          type: string
+          description: Fields to extract (e.g., "1,3" or "1-3")
+          example: 1,3
+          pattern: ^[0-9,-]+$
+        delimiter:
+          summary: Field delimiter character
+          type: string
+          description: Field delimiter
+          default: \t
+          example: ','
+          minLength: 1
+          maxLength: 10
+        characters:
+          summary: Character positions to extract
+          type: string
+          description: Character positions to extract (e.g., "1-5")
+          example: 1-5
+          pattern: ^[0-9,-]+$
+    TrRequest:
+      summary: Character translation request parameters
+      description: |
+        Input parameters for character translation/deletion. Translate characters from one set to another,
+        delete specified characters, or squeeze repeated characters. Supports character ranges (a-z, A-Z, 0-9).
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: Text to transform
+          type: string
+          description: Text to transform
+          example: Hello, World!
+          minLength: 1
+        set1:
+          summary: Characters to translate or delete from
+          type: string
+          description: Characters to translate from (supports ranges like a-z)
+          example: a-z
+          minLength: 1
+        set2:
+          summary: Characters to translate to
+          type: string
+          description: Characters to translate to
+          example: A-Z
+        delete:
+          summary: Delete characters in set1
+          type: boolean
+          description: Delete characters in set1
+          default: false
+          example: false
+        squeeze:
+          summary: Squeeze repeated characters
+          type: boolean
+          description: Squeeze repeated characters in set1
+          default: false
+          example: false
+    SortRequest:
+      summary: Sort operation request parameters
+      description: |
+        Input parameters for line sorting. Sort lines lexicographically or numerically with options for
+        reverse order, case sensitivity, and duplicate removal. Always sort before using uniq.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: Text lines to sort
+          type: string
+          description: Text to sort (line-based)
+          example: zebra\napple\nbanana
+          minLength: 1
+        reverse:
+          summary: Sort in descending order
+          type: boolean
+          description: Reverse sort order (descending)
+          default: false
+          example: false
+        numeric:
+          summary: Numeric sort instead of lexicographic
+          type: boolean
+          description: Numeric sort (not lexicographic)
+          default: false
+          example: false
+        unique:
+          summary: Remove duplicates after sorting
+          type: boolean
+          description: Remove duplicate lines (after sorting)
+          default: false
+          example: false
+        ignoreCase:
+          summary: Case-insensitive sort
+          type: boolean
+          description: Case-insensitive sort
+          default: false
+          example: false
+    UniqRequest:
+      summary: Uniq deduplication request parameters
+      description: |
+        Input parameters for duplicate line removal. Filter adjacent duplicate lines with options for counting,
+        showing only repeated lines, or showing only unique lines. Input must be sorted for complete deduplication.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: Text lines to deduplicate
+          type: string
+          description: Text to deduplicate (should be sorted first for best results)
+          example: apple\napple\nbanana\nbanana
+          minLength: 1
+        count:
+          summary: Prefix lines with occurrence count
+          type: boolean
+          description: Prefix lines with occurrence count
+          default: false
+          example: false
+        repeated:
+          summary: Show only duplicate lines
+          type: boolean
+          description: Only print duplicate lines
+          default: false
+          example: false
+        unique:
+          summary: Show only unique lines
+          type: boolean
+          description: Only print unique lines (no duplicates)
+          default: false
+          example: false
+        ignoreCase:
+          summary: Case-insensitive comparison
+          type: boolean
+          description: Case-insensitive comparison
+          default: false
+          example: false
+    XxdRequest:
+      summary: Hexdump generation request parameters
+      description: |
+        Input parameters for hexadecimal dump generation. Convert text or binary data to hex representation.
+        Useful for inspecting binary data, debugging character encodings, and analyzing non-printable characters.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: Text to convert to hexdump
+          type: string
+          description: Text to hex dump
+          example: Hello
+          minLength: 1
+          maxLength: 1048576
+        plain:
+          summary: Plain hex without formatting
+          type: boolean
+          description: Plain hex dump (no line numbers or ASCII column)
+          default: false
+          example: false
+        cols:
+          summary: Bytes per output line
+          type: integer
+          description: Number of octets per line
+          default: 16
+          minimum: 1
+          maximum: 256
+          example: 16
+          format: int32
+    JqRequest:
+      summary: JSON query request parameters
+      description: |
+        Input parameters for jq JSON queries. Execute jq filter expressions for JSON transformation, extraction,
+        filtering, and manipulation. Supports path navigation, array operations, conditionals, and aggregations.
+      type: object
+      required:
+      - input
+      - filter
+      properties:
+        input:
+          summary: JSON data to query
+          description: JSON input (object or array)
+          oneOf:
+          - type: object
+            description: JSON object input for querying
+          - type: array
+            description: JSON array input for querying
+            items:
+              description: Array elements (any valid JSON type)
+          example:
+            name: Alice
+            age: 30
+        filter:
+          summary: jq filter expression
+          type: string
+          description: jq filter expression (e.g., ".name", ".[] | select(.age > 25)")
+          example: .name
+          minLength: 1
+        raw:
+          summary: Output raw text not JSON
+          type: boolean
+          description: Output raw text (not JSON)
+          default: false
+          example: false
+        compact:
+          summary: Compact output without pretty-print
+          type: boolean
+          description: Compact output (no pretty-print)
+          default: false
+          example: false
+    YqRequest:
+      summary: YAML query request parameters
+      description: |
+        Input parameters for yq YAML queries. Execute yq expressions on YAML data with jq-compatible syntax.
+        Supports transformations, filtering, and conversion between YAML and JSON formats.
+      type: object
+      required:
+      - input
+      - expression
+      properties:
+        input:
+          summary: YAML data to query
+          type: string
+          description: YAML input
+          example: 'name: Alice\nage: 30'
+          minLength: 1
+        expression:
+          summary: yq filter expression
+          type: string
+          description: yq expression (similar to jq)
+          example: .name
+          minLength: 1
+        outputFormat:
+          summary: Output format yaml or json
+          type: string
+          description: Output format
+          enum:
+          - yaml
+          - json
+          default: yaml
+          example: yaml
+    DateParseRequest:
+      summary: Date parsing and formatting request parameters
+      description: |
+        Input parameters for date parsing and conversion. Parse date strings in common formats (ISO 8601, RFC 3339)
+        and convert to specified output format using strftime syntax. Useful for log parsing and date normalization.
+      type: object
+      required:
+      - input
+      properties:
+        input:
+          summary: Date string to parse
+          type: string
+          description: Date string to parse (ISO 8601 or common formats)
+          example: '2026-02-23'
+          minLength: 1
+        outputFormat:
+          summary: strftime output format string
+          type: string
+          description: Output format (strftime syntax)
+          default: '%Y-%m-%dT%H:%M:%S%z'
+          example: '%A, %B %d, %Y'
+          minLength: 1
+  responses:
+    BadRequest:
+      description: |
+        Invalid request parameters. Input validation failed - check the detail field in the response for
+        specific validation errors (e.g., missing required fields, invalid parameter values, out-of-range values,
+        malformed regex patterns). Status code 400.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://api.jentic.com/problems/validation-error"
+            title: "Validation Error"
+            status: 400
+            detail: "Input validation failed: parameter 'wrap' must be non-negative"
+            instance: "https://api.jentic.com/v1/alpine-3.19/tools/base64/encode"
+    InternalError:
+      description: |
+        Internal server error. Tool execution failed due to timeout, resource exhaustion, or internal error.
+        Check the detail field for specifics. This typically indicates command timeout (>5s), out of memory,
+        or container execution failure. Status code 500.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: "https://api.jentic.com/problems/execution-error"
+            title: "Execution Error"
+            status: 500
+            detail: "Tool execution failed: command timeout after 5 seconds"
+            instance: "https://api.jentic.com/v1/alpine-3.19/tools/grep/search"
+security: []
+x-implementation:
+  runtime: docker
+  baseImage: alpine:3.19@sha256:13b7e62e8df80264dbb747995705a986aa530415763b42cf0eade52c6b8ddb99
+  language: python
+  framework: fastapi
+  securityProfile: restricted
+  resourceLimits:
+    cpu: 100m
+    memory: 64Mi
+    timeout: 5s
+  networking: none
+  filesystem: read-only
+  volumeMounts:
+  - mountPath: /tmp
+    readOnly: false

@@ -1,0 +1,161 @@
+{
+  "arazzo": "1.0.1",
+  "info": {
+    "title": "Test List and Download Tender Documents",
+    "version": "1.0.0",
+    "summary": "Test workflow to verify list and download steps work correctly",
+    "description": "Lists tender documents and downloads the first one to verify document ID extraction works"
+  },
+  "sourceDescriptions": [
+    {
+      "name": "ETenders API",
+      "url": "./openapi/etenders.json",
+      "type": "openapi"
+    },
+    {
+      "name": "Mistral AI",
+      "url": "./openapi/mistralai.json",
+      "type": "openapi"
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "testListAndDownload",
+      "summary": "Test list and download tender documents",
+      "description": "Lists tender documents, extracts first document ID, and downloads it",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "description": "Unique 7-digit identifier for the tender",
+            "example": "7641353",
+            "pattern": "^[0-9]{7}$"
+          },
+          "isContract": {
+            "type": "string",
+            "description": "Optional flag, typically set to null for tender documents",
+            "example": "null"
+          }
+        },
+        "required": [
+          "resourceId"
+        ]
+      },
+      "steps": [
+        {
+          "stepId": "listTenderDocuments",
+          "description": "List all documents available for the tender to get document IDs",
+          "operationId": "listTenderDocuments",
+          "sourceDescription": "ETenders API",
+          "parameters": [
+            {
+              "name": "resourceId",
+              "in": "query",
+              "value": "$inputs.resourceId"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "htmlContent": "$response.body"
+          }
+        },
+        {
+          "stepId": "extractDocumentId",
+          "description": "Extract the first document ID from HTML using Mistral AI LLM",
+          "operationId": "chat_completion_v1_chat_completions_post",
+          "sourceDescription": "Mistral AI",
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "model": "mistral-large-latest",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "You are a helpful assistant that extracts document IDs from HTML content. Return only the 7-digit document ID number, nothing else."
+                },
+                {
+                  "role": "user",
+                  "content": "Extract the first document ID from this HTML content. Look for the first occurrence of downloadDocForAnonymous('DOCUMENT_ID') where DOCUMENT_ID is a 7-digit number. Return ONLY the 7-digit number, no quotes, no spaces, no other text. Example: if you see downloadDocForAnonymous('7642547'), return 7642547.\n\nHTML content:\n$steps.listTenderDocuments.outputs.htmlContent"
+                }
+              ],
+              "temperature": 0.1,
+              "max_tokens": 20
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            },
+            {
+              "condition": "$response.body.choices != null"
+            },
+            {
+              "condition": "$response.body.choices.0.message.content != null"
+            }
+          ],
+          "outputs": {
+            "firstDocumentId": "$response.body.choices.0.message.content"
+          },
+          "onFailure": [
+            {
+              "name": "extractionFailed",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode >= 400"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stepId": "downloadTenderDocument",
+          "description": "Download the actual binary file content for a specific tender document",
+          "operationId": "downloadTenderDocument",
+          "sourceDescription": "ETenders API",
+          "parameters": [
+            {
+              "name": "documentId",
+              "in": "query",
+              "value": "$steps.extractDocumentId.outputs.firstDocumentId"
+            },
+            {
+              "name": "resourceId",
+              "in": "query",
+              "value": "$inputs.resourceId"
+            },
+            {
+              "name": "isContract",
+              "in": "query",
+              "value": "$inputs.isContract"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "fileContent": "$response.body",
+            "contentType": "$response.header.Content-Type",
+            "contentDisposition": "$response.header.Content-Disposition",
+            "contentLength": "$response.header.Content-Length",
+            "filename": "$response.header.Content-Disposition.match(/filename=\"([^\"]+)\"/)[1]"
+          }
+        }
+      ],
+      "outputs": {
+        "resourceId": "$inputs.resourceId",
+        "documentId": "$steps.extractDocumentId.outputs.firstDocumentId",
+        "filename": "$steps.downloadTenderDocument.outputs.filename",
+        "contentType": "$steps.downloadTenderDocument.outputs.contentType",
+        "contentLength": "$steps.downloadTenderDocument.outputs.contentLength"
+      }
+    }
+  ]
+}
