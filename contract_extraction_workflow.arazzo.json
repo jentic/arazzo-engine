@@ -71,45 +71,6 @@
       },
       "steps": [
         {
-          "stepId": "listTenderDocuments",
-          "description": "List all documents available for the tender to get document IDs",
-          "operationId": "listTenderDocuments",
-          "parameters": [
-            {
-              "name": "resourceId",
-              "in": "query",
-              "value": "$inputs.resourceId"
-            }
-          ],
-          "successCriteria": [
-            {
-              "condition": "$statusCode == 200"
-            }
-          ],
-          "outputs": {
-            "htmlContent": "$response.body",
-            "firstDocumentId": "$response.body.match(/downloadDocForAnonymous\\('(\\d+)'\\)/)[1]"
-          },
-          "onSuccess": [
-            {
-              "name": "routeToDownload",
-              "type": "goto",
-              "stepId": "downloadTenderDocument"
-            }
-          ],
-          "onFailure": [
-            {
-              "name": "noDocuments",
-              "type": "end",
-              "criteria": [
-                {
-                  "condition": "$statusCode == 404"
-                }
-              ]
-            }
-          ]
-        },
-        {
           "stepId": "downloadTenderDocument",
           "description": "Download the actual binary file content for a specific tender document",
           "operationId": "downloadTenderDocument",
@@ -117,7 +78,7 @@
             {
               "name": "documentId",
               "in": "query",
-              "value": "$steps.listTenderDocuments.outputs.firstDocumentId || $inputs.documentId"
+              "value": "$inputs.documentId"
             },
             {
               "name": "resourceId",
@@ -139,8 +100,7 @@
             "fileContent": "$response.body",
             "contentType": "$response.header.Content-Type",
             "contentDisposition": "$response.header.Content-Disposition",
-            "contentLength": "$response.header.Content-Length",
-            "filename": "$response.header.Content-Disposition.match(/filename=\"([^\"]+)\"/)[1]"
+            "contentLength": "$response.header.Content-Length"
           },
           "onSuccess": [
             {
@@ -356,9 +316,9 @@
         }
       ],
       "outputs": {
-        "documentId": "$steps.listTenderDocuments.outputs.firstDocumentId || $inputs.documentId",
+        "documentId": "$inputs.documentId",
         "resourceId": "$inputs.resourceId",
-        "originalFilename": "$steps.downloadTenderDocument.outputs.filename",
+        "originalFilename": "$steps.downloadTenderDocument.outputs.contentDisposition",
         "contentType": "$steps.downloadTenderDocument.outputs.contentType",
         "extractedText": "$steps.extractWithOCR.outputs.extractedText || $steps.extractWithConversion.outputs.extractedText",
         "extractionMethod": "$steps.extractWithOCR.outputs.extractionMethod || $steps.extractWithConversion.outputs.extractionMethod",

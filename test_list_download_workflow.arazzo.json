@@ -1,26 +1,26 @@
 {
   "arazzo": "1.0.1",
   "info": {
-    "title": "Test List and Download Tender Documents",
+    "title": "Draft List and Download Tender Documents",
     "version": "1.0.0",
-    "summary": "Test workflow to verify list and download steps work correctly",
-    "description": "Lists tender documents and downloads the first one to verify document ID extraction works"
+    "summary": "Draft workflow to verify list and download steps work correctly",
+    "description": "Lists tender documents, uses Mistral AI to extract the first document ID, and downloads the first one to verify document ID extraction works. Currently only retrieves one document ID from the HTML content from ETenders and downloads this. Using a specific test tender ID to verify the workflow works."
   },
   "sourceDescriptions": [
     {
       "name": "ETenders API",
-      "url": "./openapi/etenders.json",
+      "url": "./openapi/etenders-openapi.json",
       "type": "openapi"
     },
     {
       "name": "Mistral AI",
-      "url": "./openapi/mistralai.json",
+      "url": "./openapi/mistral-openapi.json",
       "type": "openapi"
     }
   ],
   "workflows": [
     {
-      "workflowId": "testListAndDownload",
+      "workflowId": "testListAndDownloadTenderDocument",
       "summary": "Test list and download tender documents",
       "description": "Lists tender documents, extracts first document ID, and downloads it",
       "inputs": {
@@ -76,15 +76,15 @@
               "messages": [
                 {
                   "role": "system",
-                  "content": "You are a helpful assistant that extracts document IDs from HTML content. Return only the 7-digit document ID number, nothing else."
+                  "content": "You will receive HTML from the listTenderDocuments step. Find the first occurrence of the exact substring downloadDocForAnonymous(' and output only the 7 digits that immediately follow (inside the quotes). Your entire response must be exactly those 7 digits—no quotes, spaces, or other text. Do not guess: only output digits that appear in the HTML you receive."
                 },
                 {
                   "role": "user",
-                  "content": "Extract the first document ID from this HTML content. Look for the first occurrence of downloadDocForAnonymous('DOCUMENT_ID') where DOCUMENT_ID is a 7-digit number. Return ONLY the 7-digit number, no quotes, no spaces, no other text. Example: if you see downloadDocForAnonymous('7642547'), return 7642547.\n\nHTML content:\n$steps.listTenderDocuments.outputs.htmlContent"
+                  "content": "$steps.listTenderDocuments.outputs.htmlContent"
                 }
               ],
-              "temperature": 0.1,
-              "max_tokens": 20
+              "temperature": 0,
+              "max_tokens": 15
             }
           },
           "successCriteria": [
@@ -144,15 +144,14 @@
             "fileContent": "$response.body",
             "contentType": "$response.header.Content-Type",
             "contentDisposition": "$response.header.Content-Disposition",
-            "contentLength": "$response.header.Content-Length",
-            "filename": "$response.header.Content-Disposition.match(/filename=\"([^\"]+)\"/)[1]"
+            "contentLength": "$response.header.Content-Length"
           }
         }
       ],
       "outputs": {
         "resourceId": "$inputs.resourceId",
         "documentId": "$steps.extractDocumentId.outputs.firstDocumentId",
-        "filename": "$steps.downloadTenderDocument.outputs.filename",
+        "contentDisposition": "$steps.downloadTenderDocument.outputs.contentDisposition",
         "contentType": "$steps.downloadTenderDocument.outputs.contentType",
         "contentLength": "$steps.downloadTenderDocument.outputs.contentLength"
       }
