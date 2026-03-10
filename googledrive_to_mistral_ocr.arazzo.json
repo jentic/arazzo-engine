@@ -1,0 +1,275 @@
+{
+  "arazzo": "1.0.1",
+  "info": {
+    "title": "Google Drive to Mistral OCR Workflow",
+    "version": "1.0.0",
+    "summary": "Get the file named 'tender-document' from Google Drive and run Mistral OCR if it is a PDF",
+    "description": "Finds the file named 'tender-document' in My Drive, downloads it, and if it is a PDF uploads to Mistral and runs OCR."
+  },
+  "sourceDescriptions": [
+    {
+      "name": "Google Drive API",
+      "url": "./openapi/googledrive-openapi.json",
+      "type": "openapi"
+    },
+    {
+      "name": "Mistral AI",
+      "url": "./openapi/mistral-openapi.json",
+      "type": "openapi"
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "getFileFromUnprocessedAndOCR",
+      "summary": "Get file named 'tender-document' from My Drive and run Mistral OCR if PDF",
+      "description": "Finds the file named 'tender-document' in My Drive, downloads it, and if it is a PDF uploads to Mistral and runs OCR.",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "fileQuery": {
+            "type": "string",
+            "description": "Google Drive q parameter to find the file. Default finds file named tender-document or tender-document.pdf in My Drive.",
+            "default": "(title='tender-document' or title='tender-document.pdf') and trashed=false"
+          }
+        }
+      },
+      "steps": [
+        {
+          "stepId": "getTenderDocument",
+          "description": "Find the file named tender-document in My Drive",
+          "operationId": "drive.files.list",
+          "parameters": [
+            {
+              "name": "corpora",
+              "in": "query",
+              "value": "default"
+            },
+            {
+              "name": "includeItemsFromAllDrives",
+              "in": "query",
+              "value": false
+            },
+            {
+              "name": "q",
+              "in": "query",
+              "value": "$inputs.fileQuery"
+            },
+            {
+              "name": "maxResults",
+              "in": "query",
+              "value": 1
+            },
+            {
+              "name": "fields",
+              "in": "query",
+              "value": "items(id,title,mimeType)"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            },
+            {
+              "condition": "$response.body.items != null"
+            }
+          ],
+          "outputs": {
+            "fileId": "$response.body.items.0.id",
+            "filename": "$response.body.items.0.title",
+            "fileMimeType": "$response.body.items.0.mimeType"
+          }
+        },
+        {
+          "stepId": "getFileContent",
+          "description": "Download the file content from Google Drive",
+          "operationId": "drive.files.get",
+          "parameters": [
+            {
+              "name": "fileId",
+              "in": "path",
+              "value": "$steps.getTenderDocument.outputs.fileId"
+            },
+            {
+              "name": "alt",
+              "in": "query",
+              "value": "media"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "outputs": {
+            "fileContent": "$response.body",
+            "contentType": "$response.header.Content-Type"
+          },
+          "onSuccess": [
+            {
+              "name": "routeToUploadIfPdf",
+              "type": "goto",
+              "stepId": "uploadFileForOCR",
+              "criteria": [
+                {
+                  "condition": "$steps.getTenderDocument.outputs.fileMimeType == 'application/pdf'"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stepId": "uploadFileForOCR",
+          "description": "Upload PDF file to Mistral AI for OCR processing",
+          "operationId": "files_api_routes_upload_file",
+          "sourceDescription": "Mistral AI",
+          "requestBody": {
+            "contentType": "multipart/form-data",
+            "payload": {
+              "file": {
+                "content": "$steps.getFileContent.outputs.fileContent",
+                "file_name": "$steps.getTenderDocument.outputs.filename"
+              },
+              "purpose": "ocr"
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            },
+            {
+              "condition": "$response.body.id != null"
+            }
+          ],
+          "outputs": {
+            "fileId": "$response.body.id",
+            "filename": "$response.body.filename",
+            "mimetype": "$response.body.mimetype"
+          },
+          "onSuccess": [
+            {
+              "name": "routeToGetSignedUrl",
+              "type": "goto",
+              "stepId": "getSignedUrl"
+            }
+          ],
+          "onFailure": [
+            {
+              "name": "uploadFailed",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode >= 400"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stepId": "getSignedUrl",
+          "description": "Get signed URL for the uploaded file from Mistral AI",
+          "operationId": "files_api_routes_get_signed_url",
+          "sourceDescription": "Mistral AI",
+          "parameters": [
+            {
+              "name": "file_id",
+              "in": "path",
+              "value": "$steps.uploadFileForOCR.outputs.fileId"
+            },
+            {
+              "name": "expiry",
+              "in": "query",
+              "value": "24"
+            }
+          ],
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            },
+            {
+              "condition": "$response.body.url != null"
+            }
+          ],
+          "outputs": {
+            "signedUrl": "$response.body.url"
+          },
+          "onSuccess": [
+            {
+              "name": "routeToOCR",
+              "type": "goto",
+              "stepId": "extractWithOCR"
+            }
+          ],
+          "onFailure": [
+            {
+              "name": "getSignedUrlFailed",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode >= 400"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "stepId": "extractWithOCR",
+          "description": "Extract text from PDF document using Mistral AI OCR latest model with signed URL",
+          "operationId": "ocr_v1_ocr_post",
+          "sourceDescription": "Mistral AI",
+          "requestBody": {
+            "contentType": "application/json",
+            "payload": {
+              "model": "mistral-ocr-latest",
+              "id": "$steps.uploadFileForOCR.outputs.fileId",
+              "document": {
+                "type": "document_url",
+                "document_url": "$steps.getSignedUrl.outputs.signedUrl"
+              }
+            }
+          },
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            },
+            {
+              "condition": "$response.body.pages != null && $response.body.pages.length > 0"
+            }
+          ],
+          "outputs": {
+            "extractedText": "$response.body.pages.map(p => p.markdown).join('\\n\\n')",
+            "extractionMethod": "'Mistral OCR Latest'",
+            "model": "$response.body.model",
+            "pageCount": "$response.body.pages.length",
+            "usage": "$response.body.usage_info",
+            "metadata": "$response.body"
+          },
+          "onFailure": [
+            {
+              "name": "ocrFailed",
+              "type": "end",
+              "criteria": [
+                {
+                  "condition": "$statusCode >= 400"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "outputs": {
+        "fileId": "$steps.getTenderDocument.outputs.fileId",
+        "filename": "$steps.getTenderDocument.outputs.filename",
+        "fileMimeType": "$steps.getTenderDocument.outputs.fileMimeType",
+        "wasPdf": "$steps.getTenderDocument.outputs.fileMimeType == 'application/pdf'",
+        "mistralFileId": "$steps.uploadFileForOCR.outputs.fileId",
+        "signedUrl": "$steps.getSignedUrl.outputs.signedUrl",
+        "extractedText": "$steps.extractWithOCR.outputs.extractedText",
+        "extractionMethod": "$steps.extractWithOCR.outputs.extractionMethod",
+        "model": "$steps.extractWithOCR.outputs.model",
+        "pageCount": "$steps.extractWithOCR.outputs.pageCount",
+        "usage": "$steps.extractWithOCR.outputs.usage",
+        "metadata": "$steps.extractWithOCR.outputs.metadata"
+      }
+    }
+  ]
+}

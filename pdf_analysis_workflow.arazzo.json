@@ -1,0 +1,253 @@
+{
+  "arazzo": "1.0.1",
+  "info": {
+    "title": "PDF Analysis from Google Drive",
+    "version": "1.0.0",
+    "description": "Workflow to search for PDFs in Google Drive, download them, analyze with vision model, and extract text for reasoning. See ARAZZO_LIMITATIONS.md for data transformation limitations."
+  },
+  "sourceDescriptions": [
+    {
+      "name": "googleapis.com/drive",
+      "url": "./openapi/googledrive.json",
+      "type": "openapi"
+    },
+    {
+      "name": "openai.com/main",
+      "url": "./openapi/openai.json",
+      "type": "openapi"
+    },
+    {
+      "name": "docling",
+      "url": "./openapi/docling.json",
+      "type": "openapi"
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "pdf-analysis-workflow",
+      "summary": "Search for PDFs in Google Drive, download them, and analyze with vision model to extract text for reasoning",
+      "description": "Workflow to search for PDFs in Google Drive, download them, analyze with vision model, and extract text for reasoning. Note: All operation IDs in this specification are for QA (Quality Assurance/testing environment).",
+      "inputs": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Google Drive search query (e.g., \"mimeType='application/pdf'\" or \"name contains 'report' and mimeType='application/pdf'\")"
+          },
+          "file_id": {
+            "type": "string",
+            "description": "Optional: Direct Google Drive file ID (skips search step)"
+          },
+          "analysis_prompt": {
+            "type": "string",
+            "description": "Prompt for PDF analysis",
+            "default": "Extract and summarize all the key information from this PDF document. Provide a comprehensive text summary that can be used for further reasoning."
+          }
+        },
+        "required": ["query"]
+      },
+      "steps": [
+        {
+          "stepId": "search-pdf",
+          "description": "Search for PDF files in Google Drive using a query. This step is optional if a file_id is provided directly.",
+          "operationId": "drive.files.list",
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "inputs": {
+            "q": "$workflow.inputs.query",
+            "pageSize": 10,
+            "fields": "files(id,name,mimeType,size)"
+          },
+          "outputs": {
+            "files": "$response.body.files",
+            "file_id": "$response.body.files[0].id",
+            "file_name": "$response.body.files[0].name",
+            "raw_result": "$response.body"
+          },
+          "condition": "$workflow.inputs.file_id == null"
+        },
+        {
+          "stepId": "download-pdf",
+          "description": "Download the PDF file content from Google Drive using the file ID with alt=media parameter to get the actual binary PDF data.",
+          "operationId": "drive.files.get",
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "inputs": {
+            "fileId": "$workflow.inputs.file_id || $steps.search-pdf.outputs.file_id",
+            "alt": "media"
+          },
+          "outputs": {
+            "file_content": "$response.body",
+            "content_type": "$response.headers.content-type",
+            "content_length": "$response.headers.content-length"
+          }
+        },
+        {
+          "stepId": "convert-pdf-to-json",
+          "description": "Convert the PDF file to JSON format using Docling for structured document analysis. This provides a structured representation of the PDF content that can be used for reasoning.",
+          "operationId": "process_file_v1_convert_file_post",
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "inputs": {
+            "files": ["$steps.download-pdf.outputs.file_content"],
+            "from_formats": ["pdf"],
+            "to_formats": ["json"],
+            "target_type": "inbody",
+            "do_ocr": true,
+            "do_table_structure": true
+          },
+          "outputs": {
+            "json_content": "$response.body.document.json_content",
+            "document_status": "$response.body.status",
+            "processing_time": "$response.body.processing_time",
+            "raw_response": "$response.body"
+          }
+        },
+        {
+          "stepId": "analyze-pdf",
+          "description": "Analyze the PDF using OpenAI's GPT-4o model with the structured JSON content from Docling for reasoning. The JSON representation provides structured document data for more accurate analysis.",
+          "operationId": "createChatCompletion",
+          "successCriteria": [
+            {
+              "condition": "$statusCode == 200"
+            }
+          ],
+          "inputs": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "system",
+                "content": "You are analyzing a PDF document that has been converted to structured JSON format. Use the provided JSON structure to extract and summarize key information."
+              },
+              {
+                "role": "user",
+                "content": "$workflow.inputs.analysis_prompt\n\nDocument JSON structure:\n$steps.convert-pdf-to-json.outputs.json_content"
+              }
+            ],
+            "max_tokens": 4000
+          },
+          "outputs": {
+            "extracted_text": "$response.body.choices[0].message.content",
+            "raw_response": "$response.body",
+            "model_used": "$response.body.model",
+            "json_structure": "$steps.convert-pdf-to-json.outputs.json_content"
+          }
+        },
+        {
+          "stepId": "format-output",
+          "description": "Format the extracted text into a structured output ready for use.",
+          "operationId": "extract_text_for_reasoning",
+          "successCriteria": [
+            {
+              "condition": "true"
+            }
+          ],
+          "inputs": {
+            "analysis_text": "$steps.analyze-pdf.outputs.extracted_text"
+          },
+          "outputs": {
+            "extracted_text": "$steps.analyze-pdf.outputs.extracted_text",
+            "text_length": "$steps.analyze-pdf.outputs.extracted_text.length()",
+            "ready_for_reasoning": true,
+            "json_content": "$steps.convert-pdf-to-json.outputs.json_content",
+            "metadata": {
+              "source_file": "$steps.search-pdf.outputs.file_name",
+              "source_file_id": "$steps.search-pdf.outputs.file_id || $workflow.inputs.file_id",
+              "analysis_method": "OpenAI GPT-4o with Docling JSON",
+              "model_used": "$steps.analyze-pdf.outputs.model_used",
+              "docling_processing_time": "$steps.convert-pdf-to-json.outputs.processing_time"
+            }
+          }
+        }
+      ],
+      "outputs": {
+        "extracted_text": "$steps.format-output.outputs.extracted_text",
+        "text_length": "$steps.format-output.outputs.text_length",
+        "ready_for_reasoning": "$steps.format-output.outputs.ready_for_reasoning",
+        "json_content": "$steps.format-output.outputs.json_content",
+        "metadata": "$steps.format-output.outputs.metadata"
+      },
+      "failureActions": [
+        {
+          "reference": "$components.failureActions.auth_failure"
+        },
+        {
+          "reference": "$components.failureActions.permission_denied"
+        },
+        {
+          "reference": "$components.failureActions.not_found"
+        },
+        {
+          "reference": "$components.failureActions.server_error"
+        }
+      ]
+    }
+  ],
+  "components": {
+    "successActions": {
+      "default_success": {
+        "name": "default_success",
+        "type": "end"
+      }
+    },
+    "failureActions": {
+      "auth_failure": {
+        "name": "auth_failure",
+        "type": "end",
+        "criteria": [
+          {
+            "condition": "$statusCode == 401"
+          }
+        ]
+      },
+      "permission_denied": {
+        "name": "permission_denied",
+        "type": "end",
+        "criteria": [
+          {
+            "condition": "$statusCode == 403"
+          }
+        ]
+      },
+      "not_found": {
+        "name": "not_found",
+        "type": "end",
+        "criteria": [
+          {
+            "condition": "$statusCode == 404"
+          }
+        ]
+      },
+      "server_error": {
+        "name": "server_error",
+        "type": "retry",
+        "retryAfter": 2,
+        "retryLimit": 3,
+        "criteria": [
+          {
+            "condition": "$statusCode >= 500"
+          }
+        ]
+      },
+      "default_retry": {
+        "name": "default_retry",
+        "type": "retry",
+        "retryAfter": 1,
+        "retryLimit": 3
+      },
+      "default_failure": {
+        "name": "default_failure",
+        "type": "end"
+      }
+    }
+  }
+}
