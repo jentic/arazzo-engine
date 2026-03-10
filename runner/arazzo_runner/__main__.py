@@ -15,6 +15,31 @@ from .utils import set_log_level
 
 logger = logging.getLogger("arazzo-runner-cli")
 
+# Maximum length for string values in printed workflow result (avoids dumping HTML/large bodies)
+_MAX_DISPLAY_STRING_LEN = 300
+
+# Keys that typically hold HTML or large binary/text content - show only length in output
+_OMIT_CONTENT_KEYS = frozenset(
+    {"htmlContent", "fileContent", "body", "content", "responseBody", "data"}
+)
+
+
+def _truncate_for_display(
+    obj: Any, max_len: int = _MAX_DISPLAY_STRING_LEN, parent_key: str = ""
+) -> Any:
+    """Recursively truncate long strings and binary in dicts/lists for terminal display."""
+    if isinstance(obj, bytes):
+        return f"<{len(obj)} bytes>"
+    if isinstance(obj, str):
+        if parent_key in _OMIT_CONTENT_KEYS or len(obj) > max_len:
+            return f"<{len(obj)} chars>"
+        return obj
+    if isinstance(obj, dict):
+        return {k: _truncate_for_display(v, max_len, k) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_truncate_for_display(v, max_len, parent_key) for v in obj]
+    return obj
+
 
 def parse_inputs(inputs_str: str) -> dict[str, Any]:
     """Parse input string into a dictionary."""
@@ -238,9 +263,15 @@ async def handle_execute_workflow(runner: ArazzoRunner | None, args: argparse.Na
         logger.error(f"Failed to execute workflow: {e}", exc_info=True)
         sys.exit(1)
 
-    # Print outputs and determine success/failure
+    # Print outputs and determine success/failure (truncate long strings e.g. HTML)
     print(f"\n=== Completed workflow: {args.workflow_id} ===")
-    print(f"Outputs: {result}")
+    display_outputs = _truncate_for_display(result.outputs) if result.outputs else result.outputs
+    display_step_outputs = (
+        _truncate_for_display(result.step_outputs) if result.step_outputs else result.step_outputs
+    )
+    print(f"Outputs: {display_outputs}")
+    if display_step_outputs:
+        print(f"Step outputs: {display_step_outputs}")
 
     # Check for failure in outputs (if possible)
     try:

@@ -193,8 +193,21 @@ class ArazzoRunner:
         else:
             logger.warning(f"Unknown event type: {event_type}")
 
+    def _sanitize_for_json(self, obj: Any) -> Any:
+        """Recursively replace non-JSON-serializable values (e.g. bytes) with placeholders."""
+        if isinstance(obj, bytes | bytearray):
+            return f"<{len(obj)} bytes>"
+        if isinstance(obj, dict):
+            return {k: self._sanitize_for_json(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self._sanitize_for_json(v) for v in obj]
+        return obj
+
     def _trigger_event(self, event_type: str, **kwargs: Any) -> None:
         """Trigger registered callbacks for an event"""
+        # Sanitize outputs for step_complete so callbacks can safely json.dumps them
+        if event_type == "step_complete" and "outputs" in kwargs and kwargs["outputs"]:
+            kwargs = {**kwargs, "outputs": self._sanitize_for_json(kwargs["outputs"])}
         for callback in self.event_callbacks.get(event_type, []):
             try:
                 callback(**kwargs)
@@ -405,7 +418,15 @@ class ArazzoRunner:
         next_step = None
         next_step_idx = 0
 
-        if state.current_step_id is None:
+        if state.pending_goto_step_id is not None:
+            # After a GOTO, run the target step (not the step after current)
+            for idx, step in enumerate(steps):
+                if step.get("stepId") == state.pending_goto_step_id:
+                    next_step = step
+                    next_step_idx = idx
+                    state.pending_goto_step_id = None
+                    break
+        elif state.current_step_id is None:
             # First step in the workflow
             if steps:
                 next_step = steps[0]
@@ -552,17 +573,29 @@ class ArazzoRunner:
                     }
                 elif "step_id" in next_action:
                     # Go to a specific step in the current workflow
-                    # Find the step index
+                    target_step_id = next_action["step_id"]
                     for idx, step in enumerate(steps):
-                        if step.get("stepId") == next_action["step_id"]:
+                        if step.get("stepId") == target_step_id:
                             next_step_idx = idx
                             break
+                    else:
+                        logger.warning(
+                            f"GOTO target step '{target_step_id}' not found, continuing to next step"
+                        )
+                        state.current_step_id = step_id
+                        return {
+                            "status": WorkflowExecutionStatus.STEP_COMPLETE,
+                            "step_id": step_id,
+                            "success": success,
+                            "outputs": step_result.get("outputs", {}),
+                        }
 
-                    # Update current step
-                    state.current_step_id = steps[next_step_idx].get("stepId")
+                    # Next run should execute the target step, not the step after it
+                    state.pending_goto_step_id = steps[next_step_idx].get("stepId")
+                    state.current_step_id = step_id  # step we just completed
                     return {
                         "status": WorkflowExecutionStatus.GOTO_STEP,
-                        "step_id": state.current_step_id,
+                        "step_id": state.pending_goto_step_id,
                     }
             elif next_action["type"] == ActionType.RETRY:
                 # Retry the current step
@@ -793,10 +826,18 @@ class ArazzoRunner:
             - 'auth': Environment variable mappings for authentication
             - 'servers': Environment variable mappings for server URLs (only included if server variables exist)
         """
+        # Normalize: accept single doc or list; auth_processor expects list of doc dicts
+        if arazzo_docs is None:
+            arazzo_specs: list[dict[str, Any]] = []
+        elif isinstance(arazzo_docs, dict) and "workflows" in arazzo_docs:
+            arazzo_specs = [arazzo_docs]
+        else:
+            arazzo_specs = list(arazzo_docs) if arazzo_docs else []
+
         auth_processor = AuthProcessor()
         auth_config = auth_processor.process_api_auth(
             openapi_specs=source_descriptions or {},
-            arazzo_specs=arazzo_docs or [],
+            arazzo_specs=arazzo_specs,
         )
         auth_env_mappings = auth_config.get("env_mappings", {})
 

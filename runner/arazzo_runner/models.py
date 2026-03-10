@@ -81,6 +81,8 @@ class ExecutionState:
 
     workflow_id: str
     current_step_id: str | None = None
+    """When set after a GOTO, the next step to run is this one (not the step after it)."""
+    pending_goto_step_id: str | None = None
     inputs: dict[str, Any] = None
     step_outputs: dict[str, dict[str, Any]] = None
     workflow_outputs: dict[str, Any] = None
