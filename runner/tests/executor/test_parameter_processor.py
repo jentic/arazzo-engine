@@ -388,7 +388,7 @@ class TestParameterProcessorOperation(unittest.TestCase):
             "payload": {
                 "file": {
                     "content": b"file content",
-                    "filename": "attachment",
+                    "file_name": "attachment",
                     "contentType": "application/octet-stream",
                 },
                 "description": "this is a file",
@@ -408,7 +408,7 @@ class TestParameterProcessorOperation(unittest.TestCase):
             "payload": {
                 "file": {
                     "content": bytearray(b"file content"),
-                    "filename": "attachment",
+                    "file_name": "attachment",
                     "contentType": "application/octet-stream",
                 },
                 "description": "a bytearray file",
@@ -453,12 +453,12 @@ class TestParameterProcessorOperation(unittest.TestCase):
         expected_payload = {
             "file_bytes": {
                 "content": b"this is bytes",
-                "filename": "attachment",
+                "file_name": "attachment",
                 "contentType": "application/octet-stream",
             },
             "file_bytearray": {
                 "content": bytearray(b"this is bytearray"),
-                "filename": "attachment",
+                "file_name": "attachment",
                 "contentType": "application/octet-stream",
             },
             "description": "mixed payload",
@@ -466,6 +466,32 @@ class TestParameterProcessorOperation(unittest.TestCase):
 
         self.assertEqual(result["body"]["contentType"], "multipart/form-data")
         self.assertEqual(result["body"]["payload"], expected_payload)
+
+    def test_process_multipart_payload_preserves_file_dict_not_json_serialized(self):
+        """Dict with content + file_name (or filename) is treated as file object and preserved, not json.dumps'd."""
+        binary_content = b"PDF binary \x00\x01\x02"
+        payload = {
+            "file": {
+                "content": binary_content,
+                "file_name": "document.pdf",
+                "contentType": "application/pdf",
+            },
+            "purpose": "ocr",
+        }
+        result = self.processor._process_multipart_payload(payload)
+        self.assertIn("file", result)
+        out = result["file"]
+        # Preserved as file dict with canonical file_name
+        self.assertIsInstance(out, dict)
+        self.assertIn("content", out)
+        self.assertIn("file_name", out)
+        # Content must still be bytes (not JSON-serialized string)
+        self.assertIsInstance(out["content"], bytes)
+        self.assertEqual(out["content"], binary_content)
+        self.assertEqual(out["file_name"], "document.pdf")
+        self.assertEqual(out["contentType"], "application/pdf")
+        # Scalar field unchanged
+        self.assertEqual(result["purpose"], "ocr")
 
 
 if __name__ == "__main__":

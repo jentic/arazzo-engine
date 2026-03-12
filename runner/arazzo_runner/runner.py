@@ -793,10 +793,17 @@ class ArazzoRunner:
             - 'auth': Environment variable mappings for authentication
             - 'servers': Environment variable mappings for server URLs (only included if server variables exist)
         """
+        # Normalize: accept single doc or list; auth_processor expects list of doc dicts
+        if arazzo_docs is None:
+            arazzo_specs: list[dict[str, Any]] = []
+        elif isinstance(arazzo_docs, dict) and "workflows" in arazzo_docs:
+            arazzo_specs = [arazzo_docs]
+        else:
+            arazzo_specs = list(arazzo_docs) if arazzo_docs else []
         auth_processor = AuthProcessor()
         auth_config = auth_processor.process_api_auth(
             openapi_specs=source_descriptions or {},
-            arazzo_specs=arazzo_docs or [],
+            arazzo_specs=arazzo_specs,
         )
         auth_env_mappings = auth_config.get("env_mappings", {})
 

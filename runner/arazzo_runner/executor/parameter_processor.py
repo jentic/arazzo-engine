@@ -95,11 +95,28 @@ class ParameterProcessor:
             # Handle blob references
             if isinstance(value, dict) and "blob_ref" in value:
                 processed_payload[key] = self._rehydrate_blob_reference(value, key)
+            # Handle already-formatted file dicts (has "content" and "file_name"/"filename")
+            # This must come before the generic dict check to avoid JSON serialization
+            elif isinstance(value, dict) and "content" in value:
+                # Check if this is already a file dict (has file_name or filename)
+                has_file_name = "file_name" in value or "filename" in value
+                if has_file_name:
+                    logger.debug(f"File dict already formatted for field '{key}', using as-is.")
+                    # Ensure file_name exists (even if None, it will be set to default in HTTP executor)
+                    if "file_name" not in value:
+                        value["file_name"] = value.get("filename")
+                    processed_payload[key] = value
+                else:
+                    # Dict with "content" but no file_name - might be a regular dict, serialize it
+                    try:
+                        processed_payload[key] = json.dumps(value, separators=(",", ":"))
+                    except (TypeError, ValueError):
+                        processed_payload[key] = str(value)
             elif isinstance(value, bytes | bytearray):
                 logger.debug(f"Wrapping binary data in field '{key}' for multipart upload.")
                 processed_payload[key] = {
                     "content": value,
-                    "filename": "attachment",  # Using a generic filename
+                    "file_name": "attachment",
                     "contentType": "application/octet-stream",
                 }
             else:
@@ -579,6 +596,21 @@ class ParameterProcessor:
                         value = ExpressionEvaluator.evaluate_expression(
                             value, state, self.source_descriptions
                         )
+                elif re.search(r"\$inputs\.\w+|\$steps\.\w+", value):
+                    # Substitute $inputs.x and $steps.stepId.outputs.x inside strings (e.g. q param)
+                    def replace_embedded(match):
+                        expr = match.group(0)
+                        eval_val = ExpressionEvaluator.evaluate_expression(
+                            expr, state, self.source_descriptions
+                        )
+                        if eval_val is None:
+                            logger.warning(
+                                f"Embedded expression {expr} evaluated to None - keeping original substring"
+                            )
+                            return expr
+                        return str(eval_val)
+
+                    value = re.sub(r"\$inputs\.[\w.]+|\$steps\.[\w.]+", replace_embedded, value)
                 elif "{" in value and "}" in value:
                     # Template with expressions
                     def replace_expr(match):
