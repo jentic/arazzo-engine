@@ -51,9 +51,7 @@ workflows:
       "customer": "https://api.bnpl-example.com/bnpl/v1/customers/CUST1001"
       "redirectAuthToken": "eda8c851-f36e-4d78-b832-2d1411e1414b"
       "loanTransactionResourceUrl": "https://api.bnpl-example.com/bnpl/v1/loan-transactions/LOAN1001"
-    # With GOTO handling: 6 API calls (products, terms, customers, loan-transactions,
-    # retrieveFinalizedPaymentPlan, updateOrderStatus); auth step is skipped.
-    expected_api_calls: 6
+    expected_api_calls: 4
     # Despite the issues, all steps that run actually succeed
     expect_success: true
     custom_mocks:

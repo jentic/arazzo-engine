@@ -187,18 +187,15 @@ class HTTPExecutor:
                 data = {}
                 for key, value in payload.items():
                     # A field is treated as a file upload if its value is an object
-                    # containing 'content' and either 'file_name' or 'filename' keys.
-                    # Support both 'file_name' (new) and 'filename' (legacy) for backward compatibility
+                    # containing 'content' and 'file_name' (canonical key; parameter_processor
+                    # normalizes filename -> file_name before payload reaches here).
                     has_file_name = (
-                        isinstance(value, dict)
-                        and "content" in value
-                        and ("file_name" in value or "filename" in value)
+                        isinstance(value, dict) and "content" in value and "file_name" in value
                     )
                     if has_file_name:
                         # requests expects a tuple: (filename, file_data, content_type)
                         file_content = value["content"]
-                        # Support both 'file_name' (preferred) and 'filename' (legacy)
-                        file_name = value.get("file_name") or value.get("filename") or "attachment"
+                        file_name = value.get("file_name") or "attachment"
                         file_type = value.get("contentType", "application/octet-stream")
 
                         # Validate that file_content is bytes/bytearray
