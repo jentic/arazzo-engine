@@ -116,7 +116,7 @@ class ParameterProcessor:
                 logger.debug(f"Wrapping binary data in field '{key}' for multipart upload.")
                 processed_payload[key] = {
                     "content": value,
-                    "filename": "attachment",  # Using a generic filename
+                    "file_name": "attachment",
                     "contentType": "application/octet-stream",
                 }
             else:

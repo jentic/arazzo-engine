@@ -388,7 +388,7 @@ class TestParameterProcessorOperation(unittest.TestCase):
             "payload": {
                 "file": {
                     "content": b"file content",
-                    "filename": "attachment",
+                    "file_name": "attachment",
                     "contentType": "application/octet-stream",
                 },
                 "description": "this is a file",
@@ -408,7 +408,7 @@ class TestParameterProcessorOperation(unittest.TestCase):
             "payload": {
                 "file": {
                     "content": bytearray(b"file content"),
-                    "filename": "attachment",
+                    "file_name": "attachment",
                     "contentType": "application/octet-stream",
                 },
                 "description": "a bytearray file",
@@ -453,12 +453,12 @@ class TestParameterProcessorOperation(unittest.TestCase):
         expected_payload = {
             "file_bytes": {
                 "content": b"this is bytes",
-                "filename": "attachment",
+                "file_name": "attachment",
                 "contentType": "application/octet-stream",
             },
             "file_bytearray": {
                 "content": bytearray(b"this is bytearray"),
-                "filename": "attachment",
+                "file_name": "attachment",
                 "contentType": "application/octet-stream",
             },
             "description": "mixed payload",
