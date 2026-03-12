@@ -603,7 +603,12 @@ class ParameterProcessor:
                         eval_val = ExpressionEvaluator.evaluate_expression(
                             expr, state, self.source_descriptions
                         )
-                        return "" if eval_val is None else str(eval_val)
+                        if eval_val is None:
+                            logger.warning(
+                                f"Embedded expression {expr} evaluated to None - keeping original substring"
+                            )
+                            return expr
+                        return str(eval_val)
 
                     value = re.sub(r"\$inputs\.[\w.]+|\$steps\.[\w.]+", replace_embedded, value)
                 elif "{" in value and "}" in value:
