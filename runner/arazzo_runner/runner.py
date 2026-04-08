@@ -405,7 +405,17 @@ class ArazzoRunner:
         next_step = None
         next_step_idx = 0
 
-        if state.current_step_id is None:
+        # Check if we have a pending goto
+        if state.goto_step_id is not None:
+            # Find and execute the goto target step
+            for idx, step in enumerate(steps):
+                if step.get("stepId") == state.goto_step_id:
+                    next_step = step
+                    next_step_idx = idx
+                    break
+            # Clear the goto flag
+            state.goto_step_id = None
+        elif state.current_step_id is None:
             # First step in the workflow
             if steps:
                 next_step = steps[0]
@@ -552,17 +562,11 @@ class ArazzoRunner:
                     }
                 elif "step_id" in next_action:
                     # Go to a specific step in the current workflow
-                    # Find the step index
-                    for idx, step in enumerate(steps):
-                        if step.get("stepId") == next_action["step_id"]:
-                            next_step_idx = idx
-                            break
-
-                    # Update current step
-                    state.current_step_id = steps[next_step_idx].get("stepId")
+                    # Set goto_step_id so execute_next_step knows to execute this step directly
+                    state.goto_step_id = next_action["step_id"]
                     return {
                         "status": WorkflowExecutionStatus.GOTO_STEP,
-                        "step_id": state.current_step_id,
+                        "step_id": next_action["step_id"],
                     }
             elif next_action["type"] == ActionType.RETRY:
                 # Retry the current step

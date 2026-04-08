@@ -81,6 +81,7 @@ class ExecutionState:
 
     workflow_id: str
     current_step_id: str | None = None
+    goto_step_id: str | None = None  # Set when a goto action targets a specific step
     inputs: dict[str, Any] = None
     step_outputs: dict[str, dict[str, Any]] = None
     workflow_outputs: dict[str, Any] = None
