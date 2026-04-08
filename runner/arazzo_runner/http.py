@@ -71,6 +71,8 @@ class HTTPExecutor:
             return False
 
         content_type_lower = content_type.lower()
+        
+        # Explicit binary types
         binary_prefixes = [
             "application/octet-stream",
             "audio/",
@@ -80,9 +82,25 @@ class HTTPExecutor:
             "application/zip",
             "application/x-tar",
             "application/gzip",
+            "application/vnd.",  # Vendor-specific types (Office docs, etc.)
+            "application/x-",    # Experimental/extension types
         ]
 
-        return any(content_type_lower.startswith(prefix) for prefix in binary_prefixes)
+        if any(content_type_lower.startswith(prefix) for prefix in binary_prefixes):
+            return True
+        
+        # Treat application/* as binary unless it's a known text format
+        if content_type_lower.startswith("application/"):
+            text_application_types = [
+                "application/json",
+                "application/xml",
+                "application/javascript",
+                "application/x-www-form-urlencoded",
+                "application/graphql",
+            ]
+            return not any(content_type_lower.startswith(t) for t in text_application_types)
+        
+        return False
 
     def _get_response_content(self, response) -> Any:
         """

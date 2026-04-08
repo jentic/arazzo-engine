@@ -102,6 +102,10 @@ class ParameterProcessor:
                     "filename": "attachment",  # Using a generic filename
                     "contentType": "application/octet-stream",
                 }
+            elif isinstance(value, dict) and "content" in value and "filename" in value:
+                # File upload structure - pass through for http.py to handle
+                logger.debug(f"Passing through file upload structure for field '{key}'.")
+                processed_payload[key] = value
             else:
                 # If the value is a dict/list (e.g., payload_json requires a JSON string),
                 # serialize it so that the form field contains a proper JSON string.
@@ -143,10 +147,16 @@ class ParameterProcessor:
 
         # Handle other payload types
         elif isinstance(payload, str):
+            # Check for direct expression payload FIRST (before template processing)
+            if payload.strip().startswith("$") and "{" not in payload:
+                # Direct expression like "$steps.foo.outputs.bar"
+                payload = ExpressionEvaluator.evaluate_expression(
+                    payload.strip(), state, self.source_descriptions
+                )
+                logger.debug(f"Processed direct expression payload: {type(payload)}")
             # String payload with possible template expressions
-            try:
-                # First handle any template expressions in the string regardless of format
-                if "{" in payload and "}" in payload:
+            elif "{" in payload and "}" in payload:
+                try:
                     # First convert any expressions like "{$inputs.value}" to their evaluated values
                     def replace_expr(match):
                         expr = match.group(1)
@@ -178,93 +188,87 @@ class ParameterProcessor:
                             # Not an expression, return as is
                             return "{" + expr + "}"
 
-                    # Handle expressions in the template
-                    try:
-                        # Special handling for payload strings that look like JSON
-                        if payload.strip().startswith("{") and payload.strip().endswith("}"):
-                            # Try direct JSON parsing first
-                            try:
-                                # Fix common JSON errors like missing commas
-                                fixed_payload = re.sub(r'"\s*\n\s*"', '",\n"', payload)
-                                json_data = json.loads(fixed_payload)
+                    # Special handling for payload strings that look like JSON
+                    if payload.strip().startswith("{") and payload.strip().endswith("}"):
+                        # Try direct JSON parsing first
+                        try:
+                            # Fix common JSON errors like missing commas
+                            fixed_payload = re.sub(r'"\s*\n\s*"', '",\n"', payload)
+                            json_data = json.loads(fixed_payload)
 
-                                # Directly process the object expressions
-                                processed_json = ExpressionEvaluator.process_object_expressions(
-                                    json_data, state, self.source_descriptions
-                                )
+                            # Directly process the object expressions
+                            processed_json = ExpressionEvaluator.process_object_expressions(
+                                json_data, state, self.source_descriptions
+                            )
 
-                                if content_type == "application/json":
-                                    payload = processed_json  # Keep as dict for JSON
-                                else:
-                                    payload = json.dumps(processed_json)  # Convert back to string
-                                logger.debug(
-                                    "Successfully processed JSON payload with nested expressions"
-                                )
+                            if content_type == "application/json":
+                                payload = processed_json  # Keep as dict for JSON
+                            else:
+                                payload = json.dumps(processed_json)  # Convert back to string
+                            logger.debug(
+                                "Successfully processed JSON payload with nested expressions"
+                            )
 
-                            except json.JSONDecodeError:
-                                # If direct parsing fails, try traditional template substitution
-                                logger.debug(
-                                    "Direct JSON parsing failed, trying template replacement"
-                                )
+                        except json.JSONDecodeError:
+                            # If direct parsing fails, try traditional template substitution
+                            logger.debug(
+                                "Direct JSON parsing failed, trying template replacement"
+                            )
 
-                                # Replace expressions in template string
-                                templated_payload = re.sub(r"\{(\$[^}]+)\}", replace_expr, payload)
-                                logger.debug(f"Template-processed payload: {templated_payload}")
-
-                                try:
-                                    # Fix common JSON issues and try parsing
-                                    fixed_payload = re.sub(
-                                        r'"\s*\n\s*"', '",\n"', templated_payload
-                                    )
-                                    json_payload = json.loads(fixed_payload)
-
-                                    # Keep as dict if needed for JSON
-                                    if content_type == "application/json":
-                                        payload = json_payload
-                                    else:
-                                        payload = json.dumps(json_payload)
-                                except json.JSONDecodeError as e:
-                                    logger.warning(
-                                        f"JSON decode error after template processing: {e}"
-                                    )
-                                    # Use the templated string as-is
-                                    payload = templated_payload
-                        else:
-                            # Not JSON-like, process as regular template string
+                            # Replace expressions in template string
                             templated_payload = re.sub(r"\{(\$[^}]+)\}", replace_expr, payload)
-                            payload = templated_payload
-                            logger.debug(f"Processed non-JSON template: {payload}")
-                    except Exception as template_error:
-                        logger.error(f"Template processing error: {template_error}")
-                        # Fall back to the original payload
-                        logger.debug("Using original payload due to processing error")
+                            logger.debug(f"Template-processed payload: {templated_payload}")
 
-                # If no template expressions, but looks like JSON, try to parse it
-                elif payload.strip().startswith("{") and payload.strip().endswith("}"):
-                    try:
-                        # Fix common JSON issues
-                        fixed_payload = re.sub(r'"\s*\n\s*"', '",\n"', payload)
+                            try:
+                                # Fix common JSON issues and try parsing
+                                fixed_payload = re.sub(
+                                    r'"\s*\n\s*"', '",\n"', templated_payload
+                                )
+                                json_payload = json.loads(fixed_payload)
 
-                        # Parse the JSON
-                        json_payload = json.loads(fixed_payload)
+                                # Keep as dict if needed for JSON
+                                if content_type == "application/json":
+                                    payload = json_payload
+                                else:
+                                    payload = json.dumps(json_payload)
+                            except json.JSONDecodeError as e:
+                                logger.warning(
+                                    f"JSON decode error after template processing: {e}"
+                                )
+                                # Use the templated string as-is
+                                payload = templated_payload
+                    else:
+                        # Not JSON-like, process as regular template string
+                        templated_payload = re.sub(r"\{(\$[^}]+)\}", replace_expr, payload)
+                        payload = templated_payload
+                        logger.debug(f"Processed non-JSON template: {payload}")
+                except Exception as template_error:
+                    logger.error(f"Template processing error: {template_error}")
+                    # Fall back to the original payload
+                    logger.debug("Using original payload due to processing error")
 
-                        # Process any expressions in the parsed JSON
-                        processed_payload = ExpressionEvaluator.process_object_expressions(
-                            json_payload, state, self.source_descriptions
-                        )
+            # If no template expressions, but looks like JSON, try to parse it
+            elif payload.strip().startswith("{") and payload.strip().endswith("}"):
+                try:
+                    # Fix common JSON issues
+                    fixed_payload = re.sub(r'"\s*\n\s*"', '",\n"', payload)
 
-                        # Keep as object for JSON content types
-                        if content_type == "application/json":
-                            payload = processed_payload
-                        else:
-                            payload = json.dumps(processed_payload)
-                    except json.JSONDecodeError as e:
-                        logger.warning(f"JSON decode error in non-templated payload: {e}")
-                        # Keep original as string
-            except Exception as e:
-                logger.error(f"Error processing payload: {e}")
-                logger.error(f"Original payload: {payload}")
-                # If all processing fails, use the original payload
+                    # Parse the JSON
+                    json_payload = json.loads(fixed_payload)
+
+                    # Process any expressions in the parsed JSON
+                    processed_payload = ExpressionEvaluator.process_object_expressions(
+                        json_payload, state, self.source_descriptions
+                    )
+
+                    # Keep as object for JSON content types
+                    if content_type == "application/json":
+                        payload = processed_payload
+                    else:
+                        payload = json.dumps(processed_payload)
+                except json.JSONDecodeError as e:
+                    logger.warning(f"JSON decode error in non-templated payload: {e}")
+                    # Keep original as string
         elif isinstance(payload, dict):
             # Process nested dictionary values, evaluating expressions
             payload = ExpressionEvaluator.process_object_expressions(
@@ -277,12 +281,6 @@ class ParameterProcessor:
                 payload, state, self.source_descriptions
             )
             logger.debug(f"Processed list payload: {payload}")
-        elif isinstance(payload, str) and payload.startswith("$"):
-            # Direct expression payload
-            payload = ExpressionEvaluator.evaluate_expression(
-                payload, state, self.source_descriptions
-            )
-            logger.debug(f"Processed expression payload: {payload}")
 
         # Handle replacements
         replacements = request_body.get("replacements", [])
