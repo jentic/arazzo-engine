@@ -72,6 +72,17 @@ class HTTPExecutor:
 
         content_type_lower = content_type.lower()
 
+        # Known text application types - check these first before binary prefixes
+        text_application_types = [
+            "application/json",
+            "application/xml",
+            "application/javascript",
+            "application/x-www-form-urlencoded",
+            "application/graphql",
+        ]
+        if any(content_type_lower.startswith(t) for t in text_application_types):
+            return False
+
         # Explicit binary types
         binary_prefixes = [
             "application/octet-stream",
@@ -89,16 +100,9 @@ class HTTPExecutor:
         if any(content_type_lower.startswith(prefix) for prefix in binary_prefixes):
             return True
 
-        # Treat application/* as binary unless it's a known text format
+        # Treat remaining application/* as binary
         if content_type_lower.startswith("application/"):
-            text_application_types = [
-                "application/json",
-                "application/xml",
-                "application/javascript",
-                "application/x-www-form-urlencoded",
-                "application/graphql",
-            ]
-            return not any(content_type_lower.startswith(t) for t in text_application_types)
+            return True
 
         return False
 
