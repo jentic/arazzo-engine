@@ -468,5 +468,173 @@ class TestParameterProcessorOperation(unittest.TestCase):
         self.assertEqual(result["body"]["payload"], expected_payload)
 
 
+class TestDirectExpressionPayload(unittest.TestCase):
+    """Tests for direct expression payload evaluation."""
+
+    def setUp(self):
+        from arazzo_runner.models import ExecutionState
+
+        self.processor = ParameterProcessor(source_descriptions={}, blob_store=None)
+        self.state = ExecutionState(workflow_id="test")
+        self.state.step_outputs = {
+            "download-step": {"fileContent": b"binary file content", "fileName": "test.pdf"},
+            "api-step": {"responseData": {"id": 123, "name": "test"}},
+        }
+        self.state.inputs = {"userId": "user-456"}
+
+    def test_direct_expression_evaluates_to_bytes(self):
+        """Test that a direct expression payload evaluates correctly to bytes."""
+        request_body = {
+            "contentType": "application/octet-stream",
+            "payload": "$steps.download-step.outputs.fileContent",
+        }
+
+        result = self.processor.prepare_request_body(request_body, self.state)
+
+        self.assertEqual(result["payload"], b"binary file content")
+        self.assertEqual(result["contentType"], "application/octet-stream")
+
+    def test_direct_expression_evaluates_to_dict(self):
+        """Test that a direct expression payload evaluates correctly to a dict."""
+        request_body = {
+            "contentType": "application/json",
+            "payload": "$steps.api-step.outputs.responseData",
+        }
+
+        result = self.processor.prepare_request_body(request_body, self.state)
+
+        self.assertEqual(result["payload"], {"id": 123, "name": "test"})
+
+    def test_direct_expression_evaluates_to_string(self):
+        """Test that a direct expression payload evaluates correctly to a string."""
+        request_body = {
+            "contentType": "text/plain",
+            "payload": "$steps.download-step.outputs.fileName",
+        }
+
+        result = self.processor.prepare_request_body(request_body, self.state)
+
+        self.assertEqual(result["payload"], "test.pdf")
+
+    def test_direct_expression_with_inputs(self):
+        """Test that a direct expression can reference inputs."""
+        request_body = {
+            "contentType": "text/plain",
+            "payload": "$inputs.userId",
+        }
+
+        result = self.processor.prepare_request_body(request_body, self.state)
+
+        self.assertEqual(result["payload"], "user-456")
+
+
+class TestMultipartFileUploadPassthrough(unittest.TestCase):
+    """Tests for multipart file upload structure passthrough."""
+
+    def setUp(self):
+        from arazzo_runner.models import ExecutionState
+
+        self.processor = ParameterProcessor(source_descriptions={}, blob_store=None)
+        self.state = ExecutionState(workflow_id="test")
+        self.state.step_outputs = {
+            "download-step": {"fileContent": b"file bytes here", "fileName": "document.pdf"}
+        }
+
+    def test_file_upload_structure_passthrough(self):
+        """Test that {content, filename} structure passes through for multipart."""
+        request_body = {
+            "contentType": "multipart/form-data",
+            "payload": {
+                "file": {"content": b"file bytes here", "filename": "document.pdf"},
+                "description": "A test file",
+            },
+        }
+
+        result = self.processor.prepare_request_body(request_body, self.state)
+
+        # The file structure should be preserved, not JSON-stringified
+        self.assertEqual(result["payload"]["file"]["content"], b"file bytes here")
+        self.assertEqual(result["payload"]["file"]["filename"], "document.pdf")
+        self.assertEqual(result["payload"]["description"], "A test file")
+
+    def test_file_upload_with_expression_content(self):
+        """Test file upload where content comes from an expression."""
+        request_body = {
+            "contentType": "multipart/form-data",
+            "payload": {
+                "file": {
+                    "content": "$steps.download-step.outputs.fileContent",
+                    "filename": "$steps.download-step.outputs.fileName",
+                },
+                "purpose": "upload",
+            },
+        }
+
+        result = self.processor.prepare_request_body(request_body, self.state)
+
+        # Expressions should be evaluated
+        self.assertEqual(result["payload"]["file"]["content"], b"file bytes here")
+        self.assertEqual(result["payload"]["file"]["filename"], "document.pdf")
+        self.assertEqual(result["payload"]["purpose"], "upload")
+
+    def test_raw_bytes_wrapped_for_multipart(self):
+        """Test that raw bytes are wrapped in file structure for multipart."""
+        request_body = {
+            "contentType": "multipart/form-data",
+            "payload": {"file": b"raw bytes", "description": "raw upload"},
+        }
+
+        result = self.processor.prepare_request_body(request_body, self.state)
+
+        # Raw bytes should be wrapped
+        self.assertEqual(result["payload"]["file"]["content"], b"raw bytes")
+        self.assertEqual(result["payload"]["file"]["filename"], "attachment")
+        self.assertEqual(result["payload"]["file"]["contentType"], "application/octet-stream")
+
+
+class TestTemplateExpressionsInPayload(unittest.TestCase):
+    """Integration tests for template expressions in payloads."""
+
+    def setUp(self):
+        from arazzo_runner.models import ExecutionState
+
+        self.processor = ParameterProcessor(source_descriptions={}, blob_store=None)
+        self.state = ExecutionState(workflow_id="test")
+        self.state.inputs = {"date": "2024-01-15"}
+        self.state.step_outputs = {"download": {"content": b"file data", "name": "report.pdf"}}
+
+    def test_template_in_json_payload_dict(self):
+        """Test template expressions work in JSON payload dicts."""
+        request_body = {
+            "contentType": "application/json",
+            "payload": {
+                "filename": "report-{$inputs.date}.pdf",
+                "data": "$steps.download.outputs.name",
+            },
+        }
+
+        result = self.processor.prepare_request_body(request_body, self.state)
+
+        self.assertEqual(result["payload"]["filename"], "report-2024-01-15.pdf")
+        self.assertEqual(result["payload"]["data"], "report.pdf")
+
+    def test_multipart_with_template_filename(self):
+        """Test multipart upload with template expression in filename."""
+        request_body = {
+            "contentType": "multipart/form-data",
+            "payload": {
+                "file": {
+                    "content": "$steps.download.outputs.content",
+                    "filename": "upload-{$inputs.date}.pdf",
+                }
+            },
+        }
+
+        result = self.processor.prepare_request_body(request_body, self.state)
+
+        self.assertEqual(result["payload"]["file"]["content"], b"file data")
+        self.assertEqual(result["payload"]["file"]["filename"], "upload-2024-01-15.pdf")
+
+
 if __name__ == "__main__":
     unittest.main()

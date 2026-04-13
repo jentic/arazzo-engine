@@ -791,5 +791,47 @@ def test_execute_request_large_binary_response(http_client: HTTPExecutor):
         # assert stored_bytes == large_binary_data # This line is removed
 
 
+@pytest.mark.parametrize(
+    "content_type,expected",
+    [
+        # Explicit binary types
+        ("application/octet-stream", True),
+        ("application/pdf", True),
+        ("application/zip", True),
+        ("image/png", True),
+        ("image/jpeg", True),
+        ("audio/mpeg", True),
+        ("video/mp4", True),
+        # Vendor-specific types (Office docs, etc.)
+        ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", True),
+        ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", True),
+        ("application/vnd.ms-excel", True),
+        ("application/vnd.google-apps.document", True),
+        # Extension types
+        ("application/x-tar", True),
+        ("application/x-gzip", True),
+        ("application/x-rar-compressed", True),
+        # Text application types (should NOT be binary)
+        ("application/json", False),
+        ("application/xml", False),
+        ("application/javascript", False),
+        ("application/x-www-form-urlencoded", False),
+        ("application/graphql", False),
+        # Other text types
+        ("text/plain", False),
+        ("text/html", False),
+        ("text/css", False),
+        # Edge cases
+        ("", False),
+    ],
+)
+def test_is_binary_content(basic_http_client: HTTPExecutor, content_type: str, expected: bool):
+    """Test that various content types are correctly identified as binary or not."""
+    result = basic_http_client._is_binary_content(content_type)
+    assert (
+        result == expected
+    ), f"Content-Type '{content_type}' should be {'binary' if expected else 'text'}"
+
+
 if __name__ == "__main__":
     pytest.main()
