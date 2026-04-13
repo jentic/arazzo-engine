@@ -209,14 +209,38 @@ class HTTPExecutor:
                 data = {}
                 for key, value in payload.items():
                     # A field is treated as a file upload if its value is an object
-                    # containing 'content' and 'filename' keys.
-                    if isinstance(value, dict) and "content" in value and "filename" in value:
+                    # containing 'content' and 'file_name' (canonical key; parameter_processor
+                    # normalizes filename -> file_name before payload reaches here).
+                    has_file_name = (
+                        isinstance(value, dict) and "content" in value and "file_name" in value
+                    )
+                    if has_file_name:
                         # requests expects a tuple: (filename, file_data, content_type)
                         file_content = value["content"]
-                        file_name = value["filename"] if value.get("filename") else "attachment"
+                        file_name = value.get("file_name") or "attachment"
                         file_type = value.get("contentType", "application/octet-stream")
+
+                        # Validate that file_content is bytes/bytearray
+                        if not isinstance(file_content, bytes | bytearray):
+                            if file_content is None:
+                                logger.error(
+                                    f"File content for field '{key}' is None. Cannot upload file."
+                                )
+                                raise ValueError(
+                                    f"File content for field '{key}' is None. Ensure the file content expression evaluates to bytes."
+                                )
+                            else:
+                                logger.error(
+                                    f"File content for field '{key}' is {type(file_content).__name__}, expected bytes. Value: {str(file_content)[:100]}"
+                                )
+                                raise ValueError(
+                                    f"File content for field '{key}' must be bytes or bytearray, got {type(file_content).__name__}"
+                                )
+
                         files[key] = (file_name, file_content, file_type)
-                        logger.debug(f"Preparing file '{file_name}' for upload.")
+                        logger.debug(
+                            f"Preparing file '{file_name}' for upload ({len(file_content)} bytes)."
+                        )
                     elif isinstance(value, bytes | bytearray):
                         # Fallback: treat raw bytes as a file with a generic name
                         files[key] = ("attachment", value, "application/octet-stream")
