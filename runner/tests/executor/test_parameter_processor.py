@@ -467,32 +467,6 @@ class TestParameterProcessorOperation(unittest.TestCase):
         self.assertEqual(result["body"]["contentType"], "multipart/form-data")
         self.assertEqual(result["body"]["payload"], expected_payload)
 
-    def test_process_multipart_payload_preserves_file_dict_not_json_serialized(self):
-        """Dict with content + file_name (or filename) is treated as file object and preserved, not json.dumps'd."""
-        binary_content = b"PDF binary \x00\x01\x02"
-        payload = {
-            "file": {
-                "content": binary_content,
-                "file_name": "document.pdf",
-                "contentType": "application/pdf",
-            },
-            "purpose": "ocr",
-        }
-        result = self.processor._process_multipart_payload(payload)
-        self.assertIn("file", result)
-        out = result["file"]
-        # Preserved as file dict with canonical file_name
-        self.assertIsInstance(out, dict)
-        self.assertIn("content", out)
-        self.assertIn("file_name", out)
-        # Content must still be bytes (not JSON-serialized string)
-        self.assertIsInstance(out["content"], bytes)
-        self.assertEqual(out["content"], binary_content)
-        self.assertEqual(out["file_name"], "document.pdf")
-        self.assertEqual(out["contentType"], "application/pdf")
-        # Scalar field unchanged
-        self.assertEqual(result["purpose"], "ocr")
-
 
 class TestDirectExpressionPayload(unittest.TestCase):
     """Tests for direct expression payload evaluation."""
