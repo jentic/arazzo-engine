@@ -67,7 +67,7 @@ class ParameterProcessor:
             blob_info = self.blob_store.info(value["blob_ref"])
             result = {
                 "content": blob_data,
-                "filename": value.get("filename", "attachment"),
+                "file_name": value.get("file_name", "attachment"),
                 "contentType": blob_info.get("content_type", "application/octet-stream"),
             }
             logger.debug(
@@ -99,10 +99,10 @@ class ParameterProcessor:
                 logger.debug(f"Wrapping binary data in field '{key}' for multipart upload.")
                 processed_payload[key] = {
                     "content": value,
-                    "filename": "attachment",  # Using a generic filename
+                    "file_name": "attachment",  # Using a generic filename
                     "contentType": "application/octet-stream",
                 }
-            elif isinstance(value, dict) and "content" in value and "filename" in value:
+            elif isinstance(value, dict) and "content" in value and "file_name" in value:
                 # File upload structure - pass through for http.py to handle
                 logger.debug(f"Passing through file upload structure for field '{key}'.")
                 processed_payload[key] = value

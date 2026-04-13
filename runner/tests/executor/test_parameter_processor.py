@@ -388,7 +388,7 @@ class TestParameterProcessorOperation(unittest.TestCase):
             "payload": {
                 "file": {
                     "content": b"file content",
-                    "filename": "attachment",
+                    "file_name": "attachment",
                     "contentType": "application/octet-stream",
                 },
                 "description": "this is a file",
@@ -408,7 +408,7 @@ class TestParameterProcessorOperation(unittest.TestCase):
             "payload": {
                 "file": {
                     "content": bytearray(b"file content"),
-                    "filename": "attachment",
+                    "file_name": "attachment",
                     "contentType": "application/octet-stream",
                 },
                 "description": "a bytearray file",
@@ -453,12 +453,12 @@ class TestParameterProcessorOperation(unittest.TestCase):
         expected_payload = {
             "file_bytes": {
                 "content": b"this is bytes",
-                "filename": "attachment",
+                "file_name": "attachment",
                 "contentType": "application/octet-stream",
             },
             "file_bytearray": {
                 "content": bytearray(b"this is bytearray"),
-                "filename": "attachment",
+                "file_name": "attachment",
                 "contentType": "application/octet-stream",
             },
             "description": "mixed payload",
@@ -541,11 +541,11 @@ class TestMultipartFileUploadPassthrough(unittest.TestCase):
         }
 
     def test_file_upload_structure_passthrough(self):
-        """Test that {content, filename} structure passes through for multipart."""
+        """Test that {content, file_name} structure passes through for multipart."""
         request_body = {
             "contentType": "multipart/form-data",
             "payload": {
-                "file": {"content": b"file bytes here", "filename": "document.pdf"},
+                "file": {"content": b"file bytes here", "file_name": "document.pdf"},
                 "description": "A test file",
             },
         }
@@ -554,7 +554,7 @@ class TestMultipartFileUploadPassthrough(unittest.TestCase):
 
         # The file structure should be preserved, not JSON-stringified
         self.assertEqual(result["payload"]["file"]["content"], b"file bytes here")
-        self.assertEqual(result["payload"]["file"]["filename"], "document.pdf")
+        self.assertEqual(result["payload"]["file"]["file_name"], "document.pdf")
         self.assertEqual(result["payload"]["description"], "A test file")
 
     def test_file_upload_with_expression_content(self):
@@ -564,7 +564,7 @@ class TestMultipartFileUploadPassthrough(unittest.TestCase):
             "payload": {
                 "file": {
                     "content": "$steps.download-step.outputs.fileContent",
-                    "filename": "$steps.download-step.outputs.fileName",
+                    "file_name": "$steps.download-step.outputs.fileName",
                 },
                 "purpose": "upload",
             },
@@ -574,7 +574,7 @@ class TestMultipartFileUploadPassthrough(unittest.TestCase):
 
         # Expressions should be evaluated
         self.assertEqual(result["payload"]["file"]["content"], b"file bytes here")
-        self.assertEqual(result["payload"]["file"]["filename"], "document.pdf")
+        self.assertEqual(result["payload"]["file"]["file_name"], "document.pdf")
         self.assertEqual(result["payload"]["purpose"], "upload")
 
     def test_raw_bytes_wrapped_for_multipart(self):
@@ -588,7 +588,7 @@ class TestMultipartFileUploadPassthrough(unittest.TestCase):
 
         # Raw bytes should be wrapped
         self.assertEqual(result["payload"]["file"]["content"], b"raw bytes")
-        self.assertEqual(result["payload"]["file"]["filename"], "attachment")
+        self.assertEqual(result["payload"]["file"]["file_name"], "attachment")
         self.assertEqual(result["payload"]["file"]["contentType"], "application/octet-stream")
 
 
@@ -618,14 +618,14 @@ class TestTemplateExpressionsInPayload(unittest.TestCase):
         self.assertEqual(result["payload"]["filename"], "report-2024-01-15.pdf")
         self.assertEqual(result["payload"]["data"], "report.pdf")
 
-    def test_multipart_with_template_filename(self):
-        """Test multipart upload with template expression in filename."""
+    def test_multipart_with_template_file_name(self):
+        """Test multipart upload with template expression in file_name."""
         request_body = {
             "contentType": "multipart/form-data",
             "payload": {
                 "file": {
                     "content": "$steps.download.outputs.content",
-                    "filename": "upload-{$inputs.date}.pdf",
+                    "file_name": "upload-{$inputs.date}.pdf",
                 }
             },
         }
@@ -633,7 +633,7 @@ class TestTemplateExpressionsInPayload(unittest.TestCase):
         result = self.processor.prepare_request_body(request_body, self.state)
 
         self.assertEqual(result["payload"]["file"]["content"], b"file data")
-        self.assertEqual(result["payload"]["file"]["filename"], "upload-2024-01-15.pdf")
+        self.assertEqual(result["payload"]["file"]["file_name"], "upload-2024-01-15.pdf")
 
 
 if __name__ == "__main__":

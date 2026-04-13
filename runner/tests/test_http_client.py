@@ -331,7 +331,7 @@ def test_execute_request_multipart(http_client: HTTPExecutor):
         "payload": {
             "file": {
                 "content": b"file content",
-                "filename": "test.txt",
+                "file_name": "test.txt",
                 "contentType": "text/plain",
             },
             "description": "A test file",

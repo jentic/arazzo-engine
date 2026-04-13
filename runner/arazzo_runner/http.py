@@ -209,11 +209,11 @@ class HTTPExecutor:
                 data = {}
                 for key, value in payload.items():
                     # A field is treated as a file upload if its value is an object
-                    # containing 'content' and 'filename' keys.
-                    if isinstance(value, dict) and "content" in value and "filename" in value:
+                    # containing 'content' and 'file_name' keys.
+                    if isinstance(value, dict) and "content" in value and "file_name" in value:
                         # requests expects a tuple: (filename, file_data, content_type)
                         file_content = value["content"]
-                        file_name = value["filename"] if value.get("filename") else "attachment"
+                        file_name = value.get("file_name") or "attachment"
                         file_type = value.get("contentType", "application/octet-stream")
                         files[key] = (file_name, file_content, file_type)
                         logger.debug(f"Preparing file '{file_name}' for upload.")
