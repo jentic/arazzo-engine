@@ -211,9 +211,7 @@ class ParameterProcessor:
 
                         except json.JSONDecodeError:
                             # If direct parsing fails, try traditional template substitution
-                            logger.debug(
-                                "Direct JSON parsing failed, trying template replacement"
-                            )
+                            logger.debug("Direct JSON parsing failed, trying template replacement")
 
                             # Replace expressions in template string
                             templated_payload = re.sub(r"\{(\$[^}]+)\}", replace_expr, payload)
@@ -221,9 +219,7 @@ class ParameterProcessor:
 
                             try:
                                 # Fix common JSON issues and try parsing
-                                fixed_payload = re.sub(
-                                    r'"\s*\n\s*"', '",\n"', templated_payload
-                                )
+                                fixed_payload = re.sub(r'"\s*\n\s*"', '",\n"', templated_payload)
                                 json_payload = json.loads(fixed_payload)
 
                                 # Keep as dict if needed for JSON
@@ -232,9 +228,7 @@ class ParameterProcessor:
                                 else:
                                     payload = json.dumps(json_payload)
                             except json.JSONDecodeError as e:
-                                logger.warning(
-                                    f"JSON decode error after template processing: {e}"
-                                )
+                                logger.warning(f"JSON decode error after template processing: {e}")
                                 # Use the templated string as-is
                                 payload = templated_payload
                     else:

@@ -550,6 +550,7 @@ class ExpressionEvaluator:
                         expr, state, source_descriptions
                     )
                     return str(evaluated) if evaluated is not None else ""
+
                 result[key] = re.sub(r"\{(\$[^}]+)\}", replace_expr, value)
             elif isinstance(value, dict):
                 # Process nested dictionary
@@ -588,6 +589,7 @@ class ExpressionEvaluator:
                         expr, state, source_descriptions
                     )
                     return str(evaluated) if evaluated is not None else ""
+
                 result.append(re.sub(r"\{(\$[^}]+)\}", replace_expr, item))
             elif isinstance(item, dict):
                 # Process nested dictionary
