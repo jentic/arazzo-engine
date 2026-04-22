@@ -542,6 +542,16 @@ class ExpressionEvaluator:
                 result[key] = ExpressionEvaluator.evaluate_expression(
                     value, state, source_descriptions
                 )
+            elif isinstance(value, str) and "{$" in value:
+                # Template expression like "prefix-{$inputs.foo}-suffix"
+                def replace_expr(match):
+                    expr = match.group(1)
+                    evaluated = ExpressionEvaluator.evaluate_expression(
+                        expr, state, source_descriptions
+                    )
+                    return str(evaluated) if evaluated is not None else ""
+
+                result[key] = re.sub(r"\{(\$[^}]+)\}", replace_expr, value)
             elif isinstance(value, dict):
                 # Process nested dictionary
                 result[key] = ExpressionEvaluator.process_object_expressions(
@@ -571,6 +581,16 @@ class ExpressionEvaluator:
                 result.append(
                     ExpressionEvaluator.evaluate_expression(item, state, source_descriptions)
                 )
+            elif isinstance(item, str) and "{$" in item:
+                # Template expression like "prefix-{$inputs.foo}-suffix"
+                def replace_expr(match):
+                    expr = match.group(1)
+                    evaluated = ExpressionEvaluator.evaluate_expression(
+                        expr, state, source_descriptions
+                    )
+                    return str(evaluated) if evaluated is not None else ""
+
+                result.append(re.sub(r"\{(\$[^}]+)\}", replace_expr, item))
             elif isinstance(item, dict):
                 # Process nested dictionary
                 result.append(

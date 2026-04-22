@@ -51,7 +51,8 @@ workflows:
       "customer": "https://api.bnpl-example.com/bnpl/v1/customers/CUST1001"
       "redirectAuthToken": "eda8c851-f36e-4d78-b832-2d1411e1414b"
       "loanTransactionResourceUrl": "https://api.bnpl-example.com/bnpl/v1/loan-transactions/LOAN1001"
-    expected_api_calls: 4
+    # The workflow makes 6 API calls (auth step is skipped via goto)
+    expected_api_calls: 6
     # Despite the issues, all steps that run actually succeed
     expect_success: true
     custom_mocks:

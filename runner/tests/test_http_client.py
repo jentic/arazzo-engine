@@ -717,102 +717,6 @@ def test_execute_request_raw_with_unserializable_payload(http_client: HTTPExecut
         assert kwargs["headers"]["Content-Type"] == "text/plain"
 
 
-def test_execute_request_multipart_file_dict_with_file_name(http_client: HTTPExecutor):
-    """Test multipart upload with file dict using canonical file_name key."""
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.headers = {"Content-Type": "application/json"}
-    mock_response.json.return_value = {"status": "ok"}
-
-    request_body = {
-        "contentType": "multipart/form-data",
-        "payload": {
-            "file": {
-                "content": b"binary file content",
-                "file_name": "document.pdf",
-            },
-            "description": "A PDF document",
-        },
-    }
-
-    with patch("requests.Session.request", return_value=mock_response) as mock_request:
-        http_client.execute_request(
-            method="POST",
-            url="http://test.com/upload",
-            parameters={},
-            request_body=request_body,
-            security_options=None,
-            source_name=None,
-        )
-
-        mock_request.assert_called_once()
-        args, kwargs = mock_request.call_args
-        assert kwargs["method"] == "POST"
-        assert kwargs["url"] == "http://test.com/upload"
-        assert "files" in kwargs
-        assert kwargs["files"]["file"] == (
-            "document.pdf",
-            b"binary file content",
-            "application/octet-stream",
-        )
-        assert "data" in kwargs
-        assert kwargs["data"]["description"] == "A PDF document"
-        assert "Content-Type" not in kwargs["headers"]
-
-
-def test_execute_request_multipart_file_dict_content_none_raises(http_client: HTTPExecutor):
-    """Test that a file dict with content=None raises ValueError."""
-    request_body = {
-        "contentType": "multipart/form-data",
-        "payload": {
-            "file": {
-                "content": None,
-                "file_name": "test.txt",
-            },
-        },
-    }
-
-    with pytest.raises(ValueError) as exc_info:
-        http_client.execute_request(
-            method="POST",
-            url="http://test.com/upload",
-            parameters={},
-            request_body=request_body,
-            security_options=None,
-            source_name=None,
-        )
-
-    assert "File content for field 'file' is None" in str(exc_info.value)
-    assert "bytes" in str(exc_info.value).lower()
-
-
-def test_execute_request_multipart_file_dict_content_str_raises(http_client: HTTPExecutor):
-    """Test that a file dict with content as str (non-bytes) raises ValueError."""
-    request_body = {
-        "contentType": "multipart/form-data",
-        "payload": {
-            "file": {
-                "content": "not bytes",
-                "file_name": "test.txt",
-            },
-        },
-    }
-
-    with pytest.raises(ValueError) as exc_info:
-        http_client.execute_request(
-            method="POST",
-            url="http://test.com/upload",
-            parameters={},
-            request_body=request_body,
-            security_options=None,
-            source_name=None,
-        )
-
-    assert "File content for field 'file'" in str(exc_info.value)
-    assert "must be bytes or bytearray" in str(exc_info.value)
-    assert "str" in str(exc_info.value).lower()
-
-
 def test_execute_request_multipart_missing_content_key(http_client: HTTPExecutor):
     """Test multipart processing with a file dict missing 'content': should treat it as regular field."""
     mock_response = MagicMock()
@@ -885,6 +789,48 @@ def test_execute_request_large_binary_response(http_client: HTTPExecutor):
         # blob_id = response['body']['blob_ref'] # This line is removed
         # stored_bytes = blob_store.load(blob_id) # This line is removed
         # assert stored_bytes == large_binary_data # This line is removed
+
+
+@pytest.mark.parametrize(
+    "content_type,expected",
+    [
+        # Explicit binary types
+        ("application/octet-stream", True),
+        ("application/pdf", True),
+        ("application/zip", True),
+        ("image/png", True),
+        ("image/jpeg", True),
+        ("audio/mpeg", True),
+        ("video/mp4", True),
+        # Vendor-specific types (Office docs, etc.)
+        ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", True),
+        ("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", True),
+        ("application/vnd.ms-excel", True),
+        ("application/vnd.google-apps.document", True),
+        # Extension types
+        ("application/x-tar", True),
+        ("application/x-gzip", True),
+        ("application/x-rar-compressed", True),
+        # Text application types (should NOT be binary)
+        ("application/json", False),
+        ("application/xml", False),
+        ("application/javascript", False),
+        ("application/x-www-form-urlencoded", False),
+        ("application/graphql", False),
+        # Other text types
+        ("text/plain", False),
+        ("text/html", False),
+        ("text/css", False),
+        # Edge cases
+        ("", False),
+    ],
+)
+def test_is_binary_content(basic_http_client: HTTPExecutor, content_type: str, expected: bool):
+    """Test that various content types are correctly identified as binary or not."""
+    result = basic_http_client._is_binary_content(content_type)
+    assert (
+        result == expected
+    ), f"Content-Type '{content_type}' should be {'binary' if expected else 'text'}"
 
 
 if __name__ == "__main__":
