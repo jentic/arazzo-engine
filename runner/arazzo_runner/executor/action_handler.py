@@ -30,7 +30,7 @@ class ActionHandler:
         """
         self.source_descriptions = source_descriptions
 
-    def determine_next_action(self, step: dict, success: bool, state: ExecutionState) -> dict:
+    def determine_next_action(self, step: dict, success: bool, state: ExecutionState, response: dict | None = None) -> dict:
         """
         Determine the next action based on step success/failure
 
@@ -38,6 +38,7 @@ class ActionHandler:
             step: Step definition
             success: Whether the step succeeded
             state: Current execution state
+            response: HTTP response from the step execution (used to evaluate $statusCode criteria)
 
         Returns:
             Dictionary with action type and parameters
@@ -59,7 +60,7 @@ class ActionHandler:
                 if "criteria" in action:
                     criteria = action.get("criteria", [])
                     logger.info(f"Action {action_name} has {len(criteria)} criteria")
-                    criteria_met = self._check_action_criteria(criteria, state)
+                    criteria_met = self._check_action_criteria(criteria, state, response)
 
                     if not criteria_met:
                         logger.info(f"Action {action_name} criteria not met, skipping")
@@ -99,7 +100,7 @@ class ActionHandler:
                 if "criteria" in action:
                     criteria = action.get("criteria", [])
                     logger.info(f"Failure action {action_name} has {len(criteria)} criteria")
-                    criteria_met = self._check_action_criteria(criteria, state)
+                    criteria_met = self._check_action_criteria(criteria, state, response)
 
                     if not criteria_met:
                         logger.info(f"Failure action {action_name} criteria not met, skipping")
@@ -151,21 +152,24 @@ class ActionHandler:
             )
             return {"type": ActionType.END}
 
-    def _check_action_criteria(self, criteria: list[dict], state: ExecutionState) -> bool:
+    def _check_action_criteria(self, criteria: list[dict], state: ExecutionState, response: dict | None = None) -> bool:
         """
         Check if action criteria are met
 
         Args:
             criteria: List of criteria to check
             state: Current execution state
+            response: HTTP response from the step execution (provides $statusCode and $response)
 
         Returns:
             True if all criteria are met, False otherwise
         """
         logger.info(f"Checking {len(criteria)} action criteria")
 
-        # Context for evaluating criteria
-        context = {}
+        # Build evaluation context — populate statusCode and response from the step response
+        # so that conditions like "$statusCode == 200" and "$response.body#/..." resolve correctly.
+        status_code = response.get("status_code") if response else None
+        context = {"statusCode": status_code, "response": response} if response is not None else {}
 
         # Check each criterion
         for i, criterion in enumerate(criteria):
