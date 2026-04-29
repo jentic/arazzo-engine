@@ -489,6 +489,10 @@ class ArazzoRunner:
             # Update step status
             state.status[step_id] = StepStatus.SUCCESS if success else StepStatus.FAILURE
 
+            # Clear retry count for this step on success so re-visits start fresh.
+            if success:
+                state.retry_counts.pop(step_id, None)
+
             # Store step outputs
             state.step_outputs[step_id] = step_result.get("outputs", {})
 

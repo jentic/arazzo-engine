@@ -88,6 +88,7 @@ class ExecutionState:
     dependency_outputs: dict[str, dict[str, Any]] = None
     status: dict[str, StepStatus] = None
     runtime_params: Optional["RuntimeParams"] = None
+    retry_counts: dict[str, int] = field(default_factory=dict)
 
     def __post_init__(self):
         """Initialize default values"""

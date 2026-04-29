@@ -126,20 +126,18 @@ class ActionHandler:
                     retry_limit = action.get("retryLimit", 1)
 
                     # Enforce retry limit using a counter stored on the execution state.
-                    if not hasattr(state, "_retry_counts"):
-                        state._retry_counts = {}
-                    current_count = state._retry_counts.get(step_id, 0)
+                    current_count = state.retry_counts.get(step_id, 0)
 
                     if current_count >= retry_limit:
                         # Limit exhausted — clear counter and fall through to next action.
-                        state._retry_counts.pop(step_id, None)
+                        state.retry_counts.pop(step_id, None)
                         logger.info(
                             f"Retry limit {retry_limit} exhausted for step {step_id}, "
                             "processing next failure action"
                         )
                         continue
 
-                    state._retry_counts[step_id] = current_count + 1
+                    state.retry_counts[step_id] = current_count + 1
                     logger.info(
                         f"Failure action {action_name} retry {current_count + 1}/{retry_limit} "
                         f"(after={retry_after})"
