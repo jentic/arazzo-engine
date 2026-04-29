@@ -489,6 +489,10 @@ class ArazzoRunner:
             # Update step status
             state.status[step_id] = StepStatus.SUCCESS if success else StepStatus.FAILURE
 
+            # Clear retry count for this step on success so re-visits start fresh.
+            if success:
+                state.retry_counts.pop(step_id, None)
+
             # Store step outputs
             state.step_outputs[step_id] = step_result.get("outputs", {})
 
@@ -569,11 +573,12 @@ class ArazzoRunner:
                         "step_id": next_action["step_id"],
                     }
             elif next_action["type"] == ActionType.RETRY:
-                # Retry the current step
-                # We don't change the step_id so it will retry on next execution
+                # Retry the current step.
+                # Set goto_step_id so the next execute_next_step call re-executes
+                # this step directly instead of advancing to current_step_id + 1.
                 state.status[step_id] = StepStatus.PENDING
+                state.goto_step_id = step_id
 
-                # If there's a delay, we should return that information
                 retry_delay = next_action.get("retry_after", 0)
                 return {
                     "status": WorkflowExecutionStatus.RETRY,
