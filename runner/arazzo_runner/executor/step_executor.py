@@ -261,14 +261,20 @@ class StepExecutor:
         """
         raise NotImplementedError("Nested workflow execution is handled by the runner")
 
-    def determine_next_action(self, step: dict, success: bool, state: ExecutionState) -> dict:
+    def determine_next_action(self, step: dict, success: bool, state: ExecutionState, response: dict | None = None) -> dict:
         """
         Determine the next action based on step success/failure
+
+        Args:
+            step: Step definition
+            success: Whether the step succeeded
+            state: Current execution state
+            response: HTTP response from the step execution (used to evaluate $statusCode and $response criteria)
 
         Returns:
             action: Dictionary with action type and parameters
         """
-        return self.action_handler.determine_next_action(step, success, state)
+        return self.action_handler.determine_next_action(step, success, state, response)
 
     def execute_operation(
         self,

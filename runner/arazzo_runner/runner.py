@@ -503,7 +503,9 @@ class ArazzoRunner:
                     state.workflow_outputs[output_name] = value
 
             # Determine next action
-            next_action = self.step_executor.determine_next_action(next_step, success, state)
+            next_action = self.step_executor.determine_next_action(
+                next_step, success, state, step_result.get("response")
+            )
 
             # Trigger step_complete event
             self._trigger_event(
