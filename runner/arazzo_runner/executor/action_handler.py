@@ -196,7 +196,7 @@ class ActionHandler:
             # Check criterion based on type
             if criterion_type == "simple":
                 result = ExpressionEvaluator.evaluate_simple_condition(
-                    condition, state, self.source_descriptions, context
+                    condition, state, self.source_descriptions, local_context
                 )
                 if not result:
                     logger.warning(f"Simple condition failed: {condition}")
